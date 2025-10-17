@@ -50,7 +50,7 @@ int Scope_Stack_Push(Scope_Stack *Scope_Stack, Symtable *Symtable);
  * @brief Increases the size of symtable_array to fit one more element.
  * @param Scope_Stack Pointer to Scope_Stack.
  */
-int Scope_Stack_Increase_Size(Scope_Stack *Scope_Stack);
+void Scope_Stack_Increase_Size(Scope_Stack *Scope_Stack);
 
 /**
  * @brief Removes Symtable pointer from stack top.
