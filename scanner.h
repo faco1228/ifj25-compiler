@@ -24,7 +24,7 @@ enum token_type {IDENT, KEY_WORD, GLOB_VAR, INT_LIT, FLOAT_LIT, ONE_L_STRING, MU
                 DOUBLE_DOT, TRIPE_DOT, DOT, Q_MARK, SEMICOLON, MINUS, COMMA};
 
 union token_info{
-    int int_value;
+    long int_value;
     double float_value;
     char *str_value;
     char* name;
@@ -74,5 +74,11 @@ void process_dots(token_ptr);
 int hex_digit_value(int);
 
 void process_dots(token_ptr);
+
+void process_number(token_ptr, int);
+
+void process_float(token_ptr, char*, unsigned);
+
+void process_exp(token_ptr, char*, unsigned);
 
 #endif

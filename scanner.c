@@ -30,7 +30,7 @@ token_ptr get_token(){
     token_ptr token;
     if ((token = malloc(sizeof(token_t)) == NULL)){
         //NOTE: don't forget to delete this later
-        warnings(99, "memory allocation failed at line: %d\n", 12);
+        warnings(99, "memory allocation failed at line: %d\n", 33);
         error_exit(99);
     }
 
@@ -75,7 +75,7 @@ token_ptr process_next_token(token_ptr token){
         //Allocating memory for the idents name
         if ((token->value.name = malloc(sizeof(char) * MAX_LEN)) == NULL){
             //NOTE: don't forget to delete this later
-            warnings(99, "memory allocation failed at line: %d\n", 12);
+            warnings(99, "memory allocation failed at line: %d\n", 78);
             error_exit(99);
         }
         //Character read is the first letter of the name
@@ -83,7 +83,31 @@ token_ptr process_next_token(token_ptr token){
         //Will take care of the rest
         process_ident(token);
     }
+    else if (isdigit(character)){
+        //Will take care of the rest
+        process_number(token, character);
+    }
+    
     else{
+        //Skips whitespaces
+        while (isspace(character)) {
+            //When the WS is '\n'
+            if (character == '\n') {
+                token->type = EOL;
+                token->value.other_value = '\n';
+                return token;
+            }
+            //Reads next character
+            character = fgetc(stdin);
+            //When the WS is EOF
+            if (character == EOF) {
+                token->type = END_OF_FILE;
+                token->value.other_value = EOF;
+                return token;
+            }
+        }
+
+        //Let's decide what to do with the read character
         switch (character){
         case '+':
             token->type = OPERATOR;
@@ -314,7 +338,7 @@ void process_str_l(token_ptr token){
     //Allocating memory for the string
     if ((token->value.str_value = malloc(sizeof(char) * MAX_LINE_LEN)) == NULL){
         //NOTE: don't forget to delete this later
-        warnings(99, "memory allocation failed at line: %d\n", 12);
+        warnings(99, "memory allocation failed at line: %d\n", 336);
         error_exit(99);
     }
 
@@ -327,7 +351,7 @@ void process_str_l(token_ptr token){
         if (index >= (MAX_LINE_LEN - 1)){
             if ((token->value.str_value = realloc(token->value.str_value, strlen(token->value.str_value + 1) * 2)) == NULL){
                 //NOTE: don't forget to delete this later
-                warnings(99, "memory allocation failed at line: %d\n", 12);
+                warnings(99, "memory allocation failed at line: %d\n", 349);
                 error_exit(99);
             }
         }
@@ -430,7 +454,7 @@ void process_str_l(token_ptr token){
         //token->value.str_value has already been set
     }else if (next == '\n'){
         //NOTE: don't forget to delete this later
-        warnings(1, "unsoported string format at %d\n line of code", 12);
+        warnings(1, "unsoported string format at %d\n line of code", 452);
         error_exit(1);
     }else if (next == EOF){
         //NOTE: don't forget to delete this later
@@ -444,33 +468,6 @@ void process_str_l(token_ptr token){
  * 
  * @param token
  *
- */
-/**
- * @brief Processes multiline string literals (""")
- * 
- * @param token - token to store the string
- * 
- * Spec: Whitespace after opening """ and before closing """ is ignored
- * No escape sequences are processed
- * Note: Opening """ has already been read before calling this function
- */
-/**
- * @brief Processes multiline string literals (""")
- * 
- * @param token - token to store the string
- * 
- * Spec: Whitespace after opening """ and before closing """ is ignored
- * No escape sequences are processed
- * Note: Opening """ has already been read before calling this function
- */
-/**
- * @brief Processes multiline string literals (""")
- * 
- * @param token - token to store the string
- * 
- * Spec: Whitespace after opening """ and before closing """ is ignored
- * No escape sequences are processed
- * Note: Opening """ has already been read before calling this function
  */
 void process_mul_l_str(token_ptr token){
     //Variable for reading characters from input stream
@@ -600,7 +597,7 @@ void process_dots(token_ptr token){
         //Allocating memory for the ".." or "..." strings
         if ((token->value.str_value = malloc(sizeof(char) * 4)) == NULL){
             //NOTE: don't forget to delete this later
-            warnings(99, "memory allocation failed at line: %d\n", 12);
+            warnings(99, "memory allocation failed at line: %d\n", 622);
             error_exit(99);
         }
         
@@ -624,4 +621,131 @@ void process_dots(token_ptr token){
         token->type = DOT;
         token->value.other_value = '.';
     }
+}
+
+void process_number(token_ptr token, int first_char){
+    //Variable for reading next character
+    int digit;
+    //Temp array for storying individual digits
+    int *temp_buffer;
+    unsigned index = 0;
+    //Helpful tracking variables
+    bool is_hexa = false;
+    bool is_float = false;
+
+    if ((temp_buffer = malloc(sizeof(char) * MAX_LEN)) == NULL){
+            //NOTE: don't forget to delete this later
+            warnings(99, "memory allocation failed at line: %d\n", 627);
+            error_exit(99);
+    }
+    //When the number is too big and doesn't fit into the temp_buffer
+    if (strlen(temp_buffer) >= MAX_LEN){
+        if((temp_buffer = realloc(temp_buffer, (strlen(temp_buffer) + 1) * 2)) == NULL){
+            //NOTE: don't forget to delete this later
+            warnings(99, "memory allocation failed at line: %d\n", 635);
+            error_exit(99);
+        }
+    }
+    
+    //Inserts first character
+    temp_buffer[index] = first_char;
+    index++;
+
+    //Reads next character
+    digit = fgetc(stdin);
+
+    if (digit == '0'){
+        //Stores the initial digit
+        temp_buffer[index] = digit;
+        index++;
+        //reads next character
+        digit = fgetc(stdin);
+        
+        switch (digit){
+        case '.':
+            process_float(token);
+            token->type = FLOAT_LIT;
+            is_float = true;
+            break;
+        case 'e':
+        case 'E':
+            process_exp(token);
+            break;
+        case 'x':
+            is_hexa = true;
+            while (isxdigit(digit = fgetc(stdin))){
+                temp_buffer[index] = digit;
+                index++;
+            }
+            //If the loop didn't add any new charcater
+            if (temp_buffer[index] == 'x'){            
+                //NOTE: Don't forget to delete this later
+                warnings(1, "Invalid hexadecimal literal\n");
+                error_exit(1);
+            }
+
+            /*
+            * After the while loop terminated and some digits were added...
+            * The previously read character has to be returned.
+            */
+            if (digit != EOF){
+                ungetc(digit, stdin);
+            }
+            break;
+        default:
+            //Nonzero integers can't begin with extra 0
+
+            //NOTE: don't forget to delete this later
+            warnings(1, "invalid number format detected at line %d\n", 675);
+            error_exit(1);
+            break;
+        }
+    }
+    else if (isdigit(digit) && (digit != '0')){
+        //Stores the initial digit
+        temp_buffer[index] = digit;
+        index++;
+    
+        //Reads while the characters are numbers digits
+        while (isdigit(digit = fgetc(stdin))){
+            temp_buffer[index] = digit;
+            index++;
+        }
+        //After the while loop terminated, there are few options
+        switch (digit){
+        case '.':
+            is_float = true;
+            process_float(token);
+            token->type = FLOAT_LIT;
+            break;
+        case 'e':
+        case 'E':
+            process_exp(token);
+            break;
+        default:
+            // the character doesn't belong to the hexa number
+            if (digit != EOF){
+                ungetc(digit, stdin);
+            }
+        }
+    }
+
+    if (token->type != FLOAT_LIT){
+        token->type = INT_LIT;
+    }
+        
+    if (is_hexa){
+        token->value.int_value = strtol(temp_buffer, NULL, 16);
+    }
+    else{
+        token->value.int_value = strtol(temp_buffer, NULL, 16);   
+    }
+}
+
+void process_float(token_ptr token){
+
+}
+
+void process_exp(token_ptr token){
+
 }
