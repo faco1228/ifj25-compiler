@@ -14,6 +14,10 @@
  */
 int Scope_Stack_Init(Scope_Stack *Scope_Stack)
 {
+    // Null pointer to Scope_Stack passed
+    if (!Scope_Stack)
+        return INTERNAL_COMPILER_ERROR;
+
     Scope_Stack->symtable_array = malloc(sizeof(Symtable *) * DEFAULT_SCOPE_STACK_SIZE);
 
     if (!Scope_Stack->symtable_array)
