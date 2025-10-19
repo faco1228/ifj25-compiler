@@ -1,12 +1,11 @@
 /**
  * @file scanner.h
  * @author xracekm00
- * @brief Header file for scanner
+ * @brief Header file for lexical analyzer - scanner
  * @version 0.1
  * @date 2025-10-12
  * 
  * @copyright Copyright (c) 2025
- * 
  */
 
 #include <stdio.h>
@@ -40,7 +39,7 @@ typedef struct token{
 //Global array of keywords
 extern const char *key_words_arr[];
 
-//Global variables to keep track of returned tokens from parcer
+//Global variables to keep track of returned tokens from parser
 extern bool has_been_pushed;
 extern token_ptr pushed_token;
 
@@ -50,9 +49,18 @@ extern token_ptr pushed_token;
 //Defining possible max length of line
 #define MAX_LINE_LEN 100
 
-//Macro to determine whether the input characters still belongs to the ident token being processed
+//Macro to determine whether the input character still belongs to the ident token being processed
 #define is_ident(c) \
-        ((isalnum(c)) || (c == '_')) \
+    ((isalnum(c)) || (c == '_'))
+
+//Macro for safe memory reallocation with error handling
+#define not_enough_space(buffer) \
+    do{ \
+        if((buffer = realloc(buffer, (strlen(buffer) + 1) * 2)) == NULL){ \
+            warnings(99, "memory allocation failed\n"); \
+            error_exit(99); \
+        } \
+    } while (0)
 
 //************************************** Function prototypes **************************************//
 void push_token(token_ptr);
@@ -72,8 +80,6 @@ void process_mul_l_str(token_ptr);
 void process_dots(token_ptr);
 
 int hex_digit_value(int);
-
-void process_dots(token_ptr);
 
 void process_number(token_ptr, int);
 
