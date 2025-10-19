@@ -1,10 +1,12 @@
 #include "symtable.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 //**HELPER FUNCTION DECLARATIONS**//
 char *str_duplicate(char *to_duplicate);
-void store_data(Node *node, void *data, Data_Type data_type);
+bool store_data(Node *node, void *data, Data_Type data_type);
+static void Remove_Node_No_Children(Node *node);
 
 /**
  * @brief Creates a new instance of a Variable_Node and initializes it's attributes.
@@ -37,18 +39,22 @@ Node *Create_Node(char *key, void *data, Data_Type data_type)
 
     node->key = copy;
 
-    store_data(node, data, data_type);
+    // determines what type of data to store and stores it inside the node
+    if (!store_data(node, data, data_type))
+        return NULL;
 
     return node;
 }
 
 /**
  * @brief Inserts a new Node.
- * 
+ *
  * @param root_ptr Pointer to the root Node of a symtable.
  * @param key Name of the symbol.
  * @param data Pointer to data of unknown data type.
  * @param data_type Helps to determine what type of data is going to be stored inside the Node.
+ *
+ * @return Pointer to the inserted Node.
  */
 Node *Insert_Node(Node *root_ptr, char *key, void *data, Data_Type data_type)
 {
@@ -58,19 +64,106 @@ Node *Insert_Node(Node *root_ptr, char *key, void *data, Data_Type data_type)
     }
     else // cannot insert the node yet
     {
-        if (strcmp(key, root_ptr->key) < 0) // go to left subtree
-        {
+        int cmp = strcmp(key, root_ptr->key);
+
+        if (cmp < 0) // go to left subtree
             root_ptr->left = Insert_Node(root_ptr->left, key, data, data_type);
-        }
-        else if (strcmp(key, root_ptr->key) > 0) // go to right subtree
-        {
+
+        else if (cmp > 0) // go to right subtree
             root_ptr->right = Insert_Node(root_ptr->right, key, data, data_type);
-        }
-        else // node with the same key found
+
+        else                                            // node with the same key found
+            if (!store_data(root_ptr, data, data_type)) // failed to store_data so NULL is returned
+                return NULL;
+    }
+}
+
+/**
+ * @brief Removes an existing Node.
+ *
+ * @param root_ptr Pointer to the root Node of a symtable.
+ * @param key Pointer to a key that is used to locate the Node that wil be removed.
+ * 
+ * @return Pointer to the 
+ */
+Node *Remove_Node(Node *root_ptr, char *key)
+{
+    if (!root_ptr) // Attempt to remove non-existing Node is counted as success
+    {
+        return NULL;
+    }
+
+    // here we can try to look for the node to remove
+    int cmp = strcmp(key, root_ptr->key);
+
+    if (cmp < 0) // go to the left subtree
+    {
+        root_ptr->left = Remove_Node(root_ptr->left, key);
+        return root_ptr;
+    }
+    else if (cmp > 0) // go to the right subtree
+    {
+        root_ptr->right = Remove_Node(root_ptr->right, key);
+        return root_ptr;
+    }
+    else // node found
+    {
+        if (!root_ptr->right && !root_ptr->left) // Node has no children
         {
-            // data inside the node will just be overwritten
-            store_data(root_ptr, data, data_type);
+            Remove_Node_No_Children(root_ptr);
+            return NULL;
         }
+        else if (root_ptr->right && root_ptr->left) // Node has both children
+        {
+            // we need to know the removal_success value becaue copying data might fail here
+            bool removal_success = Remove_Node_Both_Children(root_ptr);
+
+            if (!removal_success)
+                return NULL;
+
+            return root_ptr;
+        }
+        else if (root_ptr->left && !root_ptr->right) // only left child present
+        {
+            Node *onlyChild = root_ptr->left;
+            free_node(root_ptr); // tvoja funkcia, ktorá uvoľní pamäť Node (vrátane key a data)
+            return onlyChild;
+        }
+        else if (!root_ptr->left && root_ptr->right) // only right child present
+        {
+            Node *onlyChild = root_ptr->right;
+            free_node(root_ptr);
+            return onlyChild;
+        }
+    }
+}
+
+/**
+ * @brief Searches for a Node based on a provided key.
+ *
+ * @param root_ptr Pointer to the root Node of a symtable.
+ * @param key Pointer to a key that is used to locate the Node.
+ *
+ * @return Pointer to a Node or NULL if no Node with corresponding key was found.
+ */
+Node *Search(Node *root_ptr, char *key)
+{
+    if (!root_ptr) // Node not found
+    {
+        return NULL;
+    }
+    else
+    {
+        int cmp = strcmp(key, root_ptr->key);
+
+        if (cmp < 0) // go to the left subtree
+            return Search(root_ptr->left, key);
+
+        else if (cmp > 0) // go to the right subtree
+            return Search(root_ptr->right, key);
+
+        else // node found
+            return root_ptr;
     }
 }
 
@@ -86,13 +179,11 @@ static char *str_duplicate(char *to_duplicate)
     // memory is allocated to store a copy of the passed string
     char *copy = malloc(strlen(to_duplicate) + 1);
 
-    strcpy(copy, to_duplicate);
-
     // if allocation fails function returns NULL to signal Node creation failure
     if (!copy)
         return NULL;
 
-    return copy;
+    return strcpy(copy, to_duplicate);
 }
 
 /**
@@ -101,8 +192,10 @@ static char *str_duplicate(char *to_duplicate)
  * @param node Pointer to a Node that will store the data.
  * @param data Pointer to data of unknown data type.
  * @param data_type Helps to determine what type of data is going to be stored inside the Node.
+ *
+ * @return False if storing the data fails.
  */
-static void store_data(Node *node, void *data, Data_Type data_type)
+static bool store_data(Node *node, void *data, Data_Type data_type)
 {
     switch (data_type)
     {
@@ -120,7 +213,7 @@ static void store_data(Node *node, void *data, Data_Type data_type)
 
         // if str_duplicate fails function returns a NULL pointer to signal Node creation failure
         if (!copy)
-            return NULL;
+            return false;
 
         node->data.string_value = copy; // data inside the node points to the adress of the copy
 
@@ -131,4 +224,76 @@ static void store_data(Node *node, void *data, Data_Type data_type)
     default:
         break;
     }
+
+    return true;
+}
+
+/**
+ * @brief Finds the most right Node of the left subtree.
+ *
+ * @param root_ptr Root node of the subtree in which we want to find the min Node.
+ * @note Root of the left subtree needs to be passed!
+ *
+ * @return Min Node pointer.
+ */
+static Node *Find_Min_Node(Node *node)
+{
+    if (!node->right) // no more right children
+        return NULL;
+
+    else
+        return Find_Min_Node(node->right);
+}
+
+/**
+ * @brief Helper function for the Remove_Node function that handles deleting a Node with no children.
+ *
+ * @param node Pointer to a node that will be removed.
+ */
+static void Remove_Node_No_Children(Node *node)
+{
+    free(node);
+    node = NULL;
+}
+
+/**
+ * @brief Helper function for the Remove_Node function that handles deleting a Node with both children present.
+ *
+ * @param
+ */
+static bool Remove_Node_Both_Children(Node *to_remove)
+{
+    Node *min_node = Find_Min_Node(to_remove);
+
+    // copy of the key is made
+    char *key_copy = str_duplicate(min_node->key);
+
+    // if str_duplicate fails function returns a NULL pointer to signal Node creation failure
+    if (!key_copy)
+        return false;
+
+    // copies data from a terminal Node to the to_remove Node which effectively removed the Node we wanted to remove
+    to_remove->key = key_copy;
+    to_remove->data_type = min_node->data_type;
+
+    bool store_data_successful = store_data(to_remove, &min_node->data, min_node->data_type);
+    if (!store_data_successful)
+        return false;
+
+    // now that the data copied we can remove the terminal node
+    Node_Dispose(min_node);
+
+    return true;
+}
+
+/**
+ * 
+ */
+static void Node_Dispose(Node *node)
+{
+    free(node->key);
+    node->key = NULL;
+
+    free(node);
+    node = NULL;
 }

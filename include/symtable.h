@@ -25,8 +25,9 @@ typedef struct BinarySearchTree
 
 typedef struct Node
 {
-    char *key;      // name of the identificator
-    union // used when the Node is storing a variable identifier
+    char *key; // name of the identificator
+    Data_Type data_type; // helps identifying what kind of data is stored inside the node
+    union // used to store different types of data inside the node 
     {
         int int_value;
         float float_value;
@@ -55,7 +56,7 @@ Node *Create_Node(char *key, void *data, Data_Type data_type);
  * @param symtable Pointer to a Symtable.
  * @param new_node Pointer to the Node that will be added.
  */
-Node *Insert_Node(struct Node *root_ptr, char *key, void *data, Data_Type data_type);
+Node *Insert_Node(Node *root_ptr, char *key, void *data, Data_Type data_type);
 
 /**
  * @brief Removes an existing Node.
@@ -63,7 +64,7 @@ Node *Insert_Node(struct Node *root_ptr, char *key, void *data, Data_Type data_t
  * @param symtable Pointer to a Symtable.
  * @param key Pointer to a key that is used to locate the Node that wil be removed.
  */
-void Remove_Node(Symtable *symtable, char *key);
+void Remove_Node(Node *root_ptr, char *key);
 
 /**
  * @brief Searches for a Node based on a provided key.
@@ -73,7 +74,7 @@ void Remove_Node(Symtable *symtable, char *key);
  *
  * @return Pointer to a Node or NULL if no Node with corresponding key was found.
  */
-struct Node *Search(Symtable *symtable, char *key);
+Node *Search(Node *root_ptr, char *key);
 
 /**
  * @brief Finds the height of the left subtree of the passed Node.
