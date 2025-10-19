@@ -7,6 +7,9 @@
 char *str_duplicate(char *to_duplicate);
 bool store_data(Node *node, void *data, Data_Type data_type);
 static void Remove_Node_No_Children(Node *node);
+static bool Remove_Node_Both_Children(Node *to_remove);
+static void Node_Dispose(Node *node);
+static Node *Find_Min_Node(Node *node);
 
 /**
  * @brief Creates a new instance of a Variable_Node and initializes it's attributes.
@@ -82,9 +85,10 @@ Node *Insert_Node(Node *root_ptr, char *key, void *data, Data_Type data_type)
  * @brief Removes an existing Node.
  *
  * @param root_ptr Pointer to the root Node of a symtable.
- * @param key Pointer to a key that is used to locate the Node that wil be removed.
+ * @param key Key that is used to locate the Node that will be removed.
  * 
- * @return Pointer to the 
+ * @return Pointer to the (possibly new) root of the subtree after removal,
+ *         or NULL if the subtree becomes empty or removal fails.
  */
 Node *Remove_Node(Node *root_ptr, char *key)
 {
@@ -259,7 +263,9 @@ static void Remove_Node_No_Children(Node *node)
 /**
  * @brief Helper function for the Remove_Node function that handles deleting a Node with both children present.
  *
- * @param
+ * @param to_remove Pointer to the Node we want to remove.
+ * 
+ * @return False if removal of the node fails, true otherwise.
  */
 static bool Remove_Node_Both_Children(Node *to_remove)
 {
@@ -287,7 +293,9 @@ static bool Remove_Node_Both_Children(Node *to_remove)
 }
 
 /**
+ * @brief Deallocates data inside the node and the node itself.
  * 
+ * @param node Pointer to Node we want to clean up after.
  */
 static void Node_Dispose(Node *node)
 {

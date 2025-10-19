@@ -64,7 +64,7 @@ Node *Insert_Node(Node *root_ptr, char *key, void *data, Data_Type data_type);
  * @param symtable Pointer to a Symtable.
  * @param key Pointer to a key that is used to locate the Node that wil be removed.
  */
-void Remove_Node(Node *root_ptr, char *key);
+Node *Remove_Node(Node *root_ptr, char *key);
 
 /**
  * @brief Searches for a Node based on a provided key.
