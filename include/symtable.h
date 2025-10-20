@@ -17,7 +17,7 @@ typedef enum Data_Types
     FUNCTION
 } Data_Type;
 
-typedef struct BinarySearchTree
+typedef struct AVLBinaryTree
 {
     Node *root_ptr;
 
@@ -76,22 +76,5 @@ Node *Remove_Node(Node *root_ptr, char *key);
  */
 Node *Search(Node *root_ptr, char *key);
 
-/**
- * @brief Finds the height of the left subtree of the passed Node.
- *
- * @param node_ptr Node of which subtree height we want to find.
- * @param value_ptr Height of the subtree will be stored at the adress of this pointer.
- *
- */
-void Left_Subtree_Height(Node *node_ptr, int *value_ptr);
-
-/**
- * @brief Finds the height of the right subtree of the passed Node.
- *
- * @param node_ptr Node of which subtree height we want to find.
- * @param value_ptr Height of the subtree will be stored at the adress of this pointer.
- *
- */
-void Right_Subtree_Height(Node *node_ptr, int *value_ptr);
 
 #endif

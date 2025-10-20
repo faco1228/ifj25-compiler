@@ -4,12 +4,16 @@
 #include <stdbool.h>
 
 //**HELPER FUNCTION DECLARATIONS**//
-char *str_duplicate(char *to_duplicate);
-bool store_data(Node *node, void *data, Data_Type data_type);
+static char *str_duplicate(char *to_duplicate);
+static bool store_data(Node *node, void *data, Data_Type data_type);
 static void Remove_Node_No_Children(Node *node);
 static bool Remove_Node_Both_Children(Node *to_remove);
 static void Node_Dispose(Node *node);
 static Node *Find_Min_Node(Node *node);
+static Node *Left_Rotation(Node *root_ptr);
+static Node *Right_Rotation(Node *root_ptr);
+static void Tree_Height(Node *root_ptr, int *height);
+static void Set_Balance_Factor(Node *node);
 
 /**
  * @brief Creates a new instance of a Variable_Node and initializes it's attributes.
@@ -79,6 +83,8 @@ Node *Insert_Node(Node *root_ptr, char *key, void *data, Data_Type data_type)
             if (!store_data(root_ptr, data, data_type)) // failed to store_data so NULL is returned
                 return NULL;
     }
+
+    return root_ptr;
 }
 
 /**
@@ -86,13 +92,13 @@ Node *Insert_Node(Node *root_ptr, char *key, void *data, Data_Type data_type)
  *
  * @param root_ptr Pointer to the root Node of a symtable.
  * @param key Key that is used to locate the Node that will be removed.
- * 
+ *
  * @return Pointer to the (possibly new) root of the subtree after removal,
  *         or NULL if the subtree becomes empty or removal fails.
  */
 Node *Remove_Node(Node *root_ptr, char *key)
 {
-    if (!root_ptr) // Attempt to remove non-existing Node is counted as success
+    if (!root_ptr)
     {
         return NULL;
     }
@@ -130,7 +136,7 @@ Node *Remove_Node(Node *root_ptr, char *key)
         else if (root_ptr->left && !root_ptr->right) // only left child present
         {
             Node *onlyChild = root_ptr->left;
-            free_node(root_ptr); // tvoja funkcia, ktorá uvoľní pamäť Node (vrátane key a data)
+            free_node(root_ptr);
             return onlyChild;
         }
         else if (!root_ptr->left && root_ptr->right) // only right child present
@@ -172,6 +178,87 @@ Node *Search(Node *root_ptr, char *key)
 }
 
 //**HELPER FUNCTIONS DEFINITIONS**//
+
+/**
+ * @brief Finds the height of a tree using recursive calls.
+ *
+ * @param root_ptr Root node of the tree.
+ *
+ * @return Height of the tree.
+ */
+static void Tree_Height(Node *root_ptr, int *height)
+{
+    int height_l, height_r;
+
+    if (root_ptr)
+    {
+        Tree_Height(root_ptr->left, &height_l);
+        Tree_Height(root_ptr->right, &height_r);
+
+        if (height_l > height_r)
+            *height = height_l + 1;
+        else
+            *height = height_r + 1;
+    }
+    else
+    {
+        *height = 0;
+    }
+}
+
+/**
+ * @brief Using the Tree_height function this function finds Height of both subtrees of the passed node, and determines its balance factor.
+ * @note Balance factor determines whether tree balancing has to be performed after insterting or deleting a node.
+ * 
+ * @param node Balance factor of this node will be set.
+ */
+static void Set_Balance_Factor(Node *node)
+{
+    int left_subtree_height, right_subtree_height;
+
+    // finds height of both subtrees
+    Tree_Height(node->left, &left_subtree_height);
+    Tree_Height(node->right, &right_subtree_height);
+
+    node->balance_factor = left_subtree_height - right_subtree_height;
+}
+
+/**
+ * @brief Performes Right_Rotation around the critical node (also called pivot node).
+ *
+ * @param root_ptr Critical node.
+ *
+ * @return Pointer to the new root node of the subtree that was rotated.
+ */
+Node *Right_Rotation(Node *root_ptr)
+{
+    Node *left_child = root_ptr->left; // left child will become the new root_node of the subtree
+    Node *temp = left_child->right;    // right subtree of the left_child will be connected to current root_node->left
+
+    left_child->right = root_ptr; // left_child now becomes the new root node
+    root_ptr->left = temp;        // connects left ptr of the old root node to the right subtree of the new root node
+
+    return left_child; // new root_node is always the left child of the former root_node
+}
+
+/**
+ * @brief Performes Left_Rotation around the critical node (also called pivot node).
+ *
+ * @param root_ptr Critical node.
+ *
+ * @return Pointer to the new root node of the subtree that was rotated.
+ */
+Node *Left_Rotation(Node *root_ptr)
+{
+    Node *right_child = root_ptr->right; // right child will become the new root_node of the subtree
+    Node *temp = right_child->left;      // left subtree of the right_child will be connected to current root_ptr->right
+
+    right_child->left = root_ptr; // right_child now becomes the new root node
+    root_ptr->right = temp;       // connects right ptr of the old root node to the right subtree of the new root node
+
+    return right_child; // new root_node is always the right child of the former root_node
+}
+
 /**
  * @brief Duplicates string to a new adress
  *
@@ -264,7 +351,7 @@ static void Remove_Node_No_Children(Node *node)
  * @brief Helper function for the Remove_Node function that handles deleting a Node with both children present.
  *
  * @param to_remove Pointer to the Node we want to remove.
- * 
+ *
  * @return False if removal of the node fails, true otherwise.
  */
 static bool Remove_Node_Both_Children(Node *to_remove)
@@ -294,7 +381,7 @@ static bool Remove_Node_Both_Children(Node *to_remove)
 
 /**
  * @brief Deallocates data inside the node and the node itself.
- * 
+ *
  * @param node Pointer to Node we want to clean up after.
  */
 static void Node_Dispose(Node *node)
