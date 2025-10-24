@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include "../error.h" // library with custom error handling
 
 //**HELPER FUNCTION DECLARATIONS**//
 static char *str_duplicate(char *to_duplicate);
@@ -18,15 +19,17 @@ static void Set_Balance_Factor(Node *node);
 /**
  * @brief Creates a new instance of a Variable_Node and initializes it's attributes.
  *
- * @param key Name of the symbol that is stored inside the Node.
- * @param data Pointer to data of unknown data type.
+ * @param name Name of the symbol that is stored inside the Node.
+ * @param args_count Num of arguments of the current symbol. -1 for for global and local variables, non-negative int for others.
+ * @param id_type Type of the currently passed identifier.
+ * @param data Pointer to data of unknown type.
  * @param data_type Helps to determine what type of data is going to be stored inside the Node.
  *
  * @return New Variable_Node.
  *
  * @note Data can store nums, strings or function args depending on the type of symbol.
  */
-Node *Create_Node(char *key, void *data, Data_Type data_type)
+Node *Create_Node(char *name, int args_count, ID_Type id_type, void *data, Data_Type data_type)
 {
     Node *node = malloc(sizeof(Node));
 
@@ -37,18 +40,21 @@ Node *Create_Node(char *key, void *data, Data_Type data_type)
     node->left = NULL;
     node->right = NULL;
 
-    // copy of the key is made
-    char *copy = str_duplicate(key);
+    // copy of the primary key (name) is made
+    char *name_copy = str_duplicate(name);
 
     // if str_duplicate fails function returns a NULL pointer to signal Node creation failure
-    if (!copy)
+    if (!name_copy)
         return NULL;
 
-    node->key = copy;
+    // node key
+    node->key.name = name_copy;
+    node->key.args_count = args_count;
+    node->key.id_type = id_type;
 
     // determines what type of data to store and stores it inside the node
     if (!store_data(node, data, data_type))
-        return NULL;
+        error_exit(99);
 
     return node;
 }
@@ -57,31 +63,31 @@ Node *Create_Node(char *key, void *data, Data_Type data_type)
  * @brief Inserts a new Node.
  *
  * @param root_ptr Pointer to the root Node of a symtable.
- * @param key Name of the symbol.
- * @param data Pointer to data of unknown data type.
- * @param data_type Helps to determine what type of data is going to be stored inside the Node.
+ * @param to_insert Pointer to a node we want to add.
  *
  * @return Pointer to the inserted Node.
  */
-Node *Insert_Node(Node *root_ptr, char *key, void *data, Data_Type data_type)
+Node *Insert_Node(Node *root_ptr, Node* to_insert)
 {
     if (!root_ptr) // new node is created when NULL is detected
     {
-        return Create_Node(key, data, data_type);
+        return to_insert;
     }
     else // cannot insert the node yet
     {
-        int cmp = strcmp(key, root_ptr->key);
 
-        if (cmp < 0) // go to left subtree
-            root_ptr->left = Insert_Node(root_ptr->left, key, data, data_type);
+        int key_cmp_result = key_cmp(&to_insert->key, &root_ptr->key);
 
-        else if (cmp > 0) // go to right subtree
-            root_ptr->right = Insert_Node(root_ptr->right, key, data, data_type);
+        if (key_cmp_result < 0) // go to left subtree
+            root_ptr->left = Insert_Node(root_ptr->left, to_insert);
 
-        else                                            // node with the same key found
-            if (!store_data(root_ptr, data, data_type)) // failed to store_data so NULL is returned
-                return NULL;
+        else if (key_cmp_result > 0) // go to right subtree
+            root_ptr->left = Insert_Node(root_ptr->right, to_insert);
+
+        else // node with the same key found, we need to compare args_count
+        {
+            id_error_handler(); // todo : implement
+        }
     }
 
     return root_ptr;
@@ -96,7 +102,7 @@ Node *Insert_Node(Node *root_ptr, char *key, void *data, Data_Type data_type)
  * @return Pointer to the (possibly new) root of the subtree after removal,
  *         or NULL if the subtree becomes empty or removal fails.
  */
-Node *Remove_Node(Node *root_ptr, char *key)
+Node *Remove_Node(Node *root_ptr, Key *key)
 {
     if (!root_ptr)
     {
@@ -104,14 +110,14 @@ Node *Remove_Node(Node *root_ptr, char *key)
     }
 
     // here we can try to look for the node to remove
-    int cmp = strcmp(key, root_ptr->key);
+    int key_cmp_result = key_cmp(key, &root_ptr->key);
 
-    if (cmp < 0) // go to the left subtree
+    if (key_cmp_result < 0) // go to the left subtree
     {
         root_ptr->left = Remove_Node(root_ptr->left, key);
         return root_ptr;
     }
-    else if (cmp > 0) // go to the right subtree
+    else if (key_cmp_result > 0) // go to the right subtree
     {
         root_ptr->right = Remove_Node(root_ptr->right, key);
         return root_ptr;
@@ -120,43 +126,38 @@ Node *Remove_Node(Node *root_ptr, char *key)
     {
         if (!root_ptr->right && !root_ptr->left) // Node has no children
         {
-            Remove_Node_No_Children(root_ptr);
+            Node_Dispose(root_ptr);
             return NULL;
         }
         else if (root_ptr->right && root_ptr->left) // Node has both children
         {
-            // we need to know the removal_success value becaue copying data might fail here
-            bool removal_success = Remove_Node_Both_Children(root_ptr);
-
-            if (!removal_success)
-                return NULL;
-
+            Remove_Node_Both_Children(root_ptr);
             return root_ptr;
         }
         else if (root_ptr->left && !root_ptr->right) // only left child present
         {
             Node *onlyChild = root_ptr->left;
-            free_node(root_ptr);
+            Node_Dispose(root_ptr);
             return onlyChild;
         }
-        else if (!root_ptr->left && root_ptr->right) // only right child present
+        else // only right child present
         {
             Node *onlyChild = root_ptr->right;
-            free_node(root_ptr);
+            Node_Dispose(root_ptr);
             return onlyChild;
         }
     }
 }
 
 /**
- * @brief Searches for a Node based on a provided key.
+ * @brief Searches for a Node based on a provided key. Can be used to verify existance of a Node or to obtain a pointer to it's adress.
  *
  * @param root_ptr Pointer to the root Node of a symtable.
  * @param key Pointer to a key that is used to locate the Node.
  *
  * @return Pointer to a Node or NULL if no Node with corresponding key was found.
  */
-Node *Search(Node *root_ptr, char *key)
+Node *Search(Node *root_ptr, Key *key)
 {
     if (!root_ptr) // Node not found
     {
@@ -164,12 +165,12 @@ Node *Search(Node *root_ptr, char *key)
     }
     else
     {
-        int cmp = strcmp(key, root_ptr->key);
+        int key_cmp_result = key_cmp(key, &root_ptr->key);
 
-        if (cmp < 0) // go to the left subtree
+        if (key_cmp_result < 0) // go to the left subtree
             return Search(root_ptr->left, key);
 
-        else if (cmp > 0) // go to the right subtree
+        else if (key_cmp_result > 0) // go to the right subtree
             return Search(root_ptr->right, key);
 
         else // node found
@@ -178,6 +179,40 @@ Node *Search(Node *root_ptr, char *key)
 }
 
 //**HELPER FUNCTIONS DEFINITIONS**//
+
+/**
+ * @brief Compares to provided Key structs. Start with primary key and ends with tertiary key
+ *
+ * @param key1 Pointer to first key.
+ * @param key2 Pointer to second key.
+ *
+ * @return -1 if key1 < key2, 0 if key1 == key2, 1 if key1 > key2
+ */
+static int key_cmp(Key *key1, Key *key2)
+{
+    int name_cmp = strcmp(key1->name, key2->name);
+
+    if (name_cmp < 0) // we compare names
+        return -1;
+    else if (name_cmp > 0)
+        return 1;
+
+    int args_count_cmp = key1->args_count - key2->args_count;
+
+    if (args_count_cmp < 0) // we compare args_counts
+        return -1;
+    else if (args_count_cmp > 0)
+        return 1;
+
+    int id_type_cmp = key1->id_type - key2->id_type;
+
+    if (id_type_cmp < 0) // we compare id_types
+        return -1;
+    else if (id_type_cmp > 0)
+        return 1;
+
+    return 0; // keys are identical
+}
 
 /**
  * @brief Finds the height of a tree using recursive calls.
@@ -209,7 +244,7 @@ static void Tree_Height(Node *root_ptr, int *height)
 /**
  * @brief Using the Tree_height function this function finds Height of both subtrees of the passed node, and determines its balance factor.
  * @note Balance factor determines whether tree balancing has to be performed after insterting or deleting a node.
- * 
+ *
  * @param node Balance factor of this node will be set.
  */
 static void Set_Balance_Factor(Node *node)
@@ -307,11 +342,6 @@ static bool store_data(Node *node, void *data, Data_Type data_type)
             return false;
 
         node->data.string_value = copy; // data inside the node points to the adress of the copy
-
-    case FUNCTION:
-        node->data.args_count = *(int *)data;
-        break;
-
     default:
         break;
     }
@@ -327,56 +357,31 @@ static bool store_data(Node *node, void *data, Data_Type data_type)
  *
  * @return Min Node pointer.
  */
-static Node *Find_Min_Node(Node *node)
+static Node *Find_Max_Node(Node *node)
 {
     if (!node->right) // no more right children
-        return NULL;
-
+        return node;
     else
         return Find_Min_Node(node->right);
 }
 
 /**
- * @brief Helper function for the Remove_Node function that handles deleting a Node with no children.
- *
- * @param node Pointer to a node that will be removed.
- */
-static void Remove_Node_No_Children(Node *node)
-{
-    free(node);
-    node = NULL;
-}
-
-/**
  * @brief Helper function for the Remove_Node function that handles deleting a Node with both children present.
  *
- * @param to_remove Pointer to the Node we want to remove.
- *
- * @return False if removal of the node fails, true otherwise.
+ * @param to_remove Pointer to a Node we want to remove.
  */
-static bool Remove_Node_Both_Children(Node *to_remove)
+static void Remove_Node_Both_Children(Node *to_remove)
 {
-    Node *min_node = Find_Min_Node(to_remove);
+    Node *min_node = Find_Max_Node(to_remove->left);
 
-    // copy of the key is made
-    char *key_copy = str_duplicate(min_node->key);
-
-    // if str_duplicate fails function returns a NULL pointer to signal Node creation failure
-    if (!key_copy)
-        return false;
-
-    // copies data from a terminal Node to the to_remove Node which effectively removed the Node we wanted to remove
-    to_remove->key = key_copy;
+    // copies data from a terminal Node to the to_remove Node
+    to_remove->key = min_node->key;
     to_remove->data_type = min_node->data_type;
 
-    bool store_data_successful = store_data(to_remove, &min_node->data, min_node->data_type);
-    if (!store_data_successful)
-        return false;
+    if (!store_data(to_remove, &min_node->data, min_node->data_type))
+        error_exit(99); // internal compiler error
 
-    // now that the data copied we can remove the terminal node
     Node_Dispose(min_node);
-
-    return true;
 }
 
 /**
@@ -386,9 +391,8 @@ static bool Remove_Node_Both_Children(Node *to_remove)
  */
 static void Node_Dispose(Node *node)
 {
-    free(node->key);
-    node->key = NULL;
+    free(node->key.name);
+    node->key.name = NULL;
 
     free(node);
-    node = NULL;
 }

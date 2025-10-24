@@ -8,14 +8,31 @@
 #ifndef SYMTABLE_H
 #define SYMTABLE_H
 
-// Purpose of Data_Type code is to determine what information about the symbol should stored 
+// Purpose of Data_Type code is to determine what information about the symbol should stored
 typedef enum Data_Types
 {
     INT,
     FLOAT,
-    STRING,
-    FUNCTION
+    STRING
 } Data_Type;
+
+typedef enum ID_Types
+{
+    FUNCTION,
+    SETTER,
+    GETTER,
+    GLOBAL_VAR,
+    LOCAL_VAR
+} ID_Type;
+
+// creates a composite key to describe identifiers
+// primary key - name, secondary key - args_count
+typedef struct
+{
+    char *name;      // name of the identificator, primary key
+    int args_count;  // args_count >= 0 for functions, args_count == -1 for variables, seconadary key
+    ID_Type id_type; // used to differentiate between function, setter, getters, etc. which share the same name, tertiary key
+} Key;
 
 typedef struct AVLBinaryTree
 {
@@ -25,14 +42,13 @@ typedef struct AVLBinaryTree
 
 typedef struct Node
 {
-    char *key; // name of the identificator
+    Key key;             // contains infromation about the id that will help to differentiate between ids with the same name
     Data_Type data_type; // helps identifying what kind of data is stored inside the node
-    union // used to store different types of data inside the node 
+    union                // used to store different types of data inside the node
     {
         int int_value;
         float float_value;
         char *string_value;
-        int args_count;
     } data;
     int balance_factor; // used to determine the balance of the Node's subtree
     Node *left;         // left child pointer
@@ -42,21 +58,27 @@ typedef struct Node
 /**
  * @brief Creates a new instance of a Variable_Node and initializes it's attributes.
  *
- * @param key Name of the symbol that is stored inside the Node.
- * @param data Data pointer stored inside the Node. 
- * @param data_type Data type code to determine what type of data is stored.
+ * @param name Name of the symbol that is stored inside the Node.
+ * @param args_count Num of arguments of the current symbol. -1 for for global and local variables, non-negative int for others.
+ * @param id_type Type of the currently passed identifier.
+ * @param data Pointer to data of unknown type.
+ * @param data_type Helps to determine what type of data is going to be stored inside the Node.
  *
- * @return New Node.
+ * @return New Variable_Node.
+ *
+ * @note Data can store nums, strings or function args depending on the type of symbol.
  */
-Node *Create_Node(char *key, void *data, Data_Type data_type);
+Node *Create_Node(char *name, int args_count, ID_Type id_type, void *data, Data_Type data_type);
 
 /**
  * @brief Inserts a new Node.
  *
- * @param symtable Pointer to a Symtable.
- * @param new_node Pointer to the Node that will be added.
+ * @param root_ptr Pointer to the root Node of a symtable.
+ * @param to_insert Pointer to a node we want to add.
+ *
+ * @return Pointer to the inserted Node.
  */
-Node *Insert_Node(Node *root_ptr, char *key, void *data, Data_Type data_type);
+Node *Insert_Node(Node *root_ptr, Node* to_insert);
 
 /**
  * @brief Removes an existing Node.
@@ -75,6 +97,5 @@ Node *Remove_Node(Node *root_ptr, char *key);
  * @return Pointer to a Node or NULL if no Node with corresponding key was found.
  */
 Node *Search(Node *root_ptr, char *key);
-
 
 #endif
