@@ -34,12 +34,6 @@ typedef struct
     ID_Type id_type; // used to differentiate between function, setter, getters, etc. which share the same name, tertiary key
 } Key;
 
-typedef struct AVL_tree
-{
-    Node *root_ptr;
-
-} Symtable;
-
 typedef struct Node
 {
     Key key;             // contains infromation about the id that will help to differentiate between ids with the same name
@@ -54,6 +48,8 @@ typedef struct Node
     Node *left;         // left child pointer
     Node *right;        // right child pointer
 } Node;
+
+
 
 /**
  * @brief Creates a new instance of a Variable_Node and initializes it's attributes.
@@ -78,7 +74,7 @@ Node *Create_Node(char *name, int args_count, ID_Type id_type, void *data, Data_
  *
  * @return Pointer to the inserted Node.
  */
-Node *Insert_Node(Node *root_ptr, Node* to_insert);
+Node *Insert_Node(Node *root_ptr, Node *to_insert);
 
 /**
  * @brief Removes an existing Node.
@@ -100,5 +96,12 @@ Node *Remove_Node(Node *root_ptr, Key *key);
  * @return Pointer to a Node or NULL if no Node with corresponding key was found.
  */
 Node *Search(Node *root_ptr, Key *key);
+
+/**
+ * @brief Recursively disposes of all nodes in the tree.
+ *
+ * @param root_ptr Root of the tree/subtree to dispose.
+ */
+void Dispose_Tree(Node *root_ptr);
 
 #endif

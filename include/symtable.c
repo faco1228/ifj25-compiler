@@ -7,13 +7,14 @@
 //**HELPER FUNCTION DECLARATIONS**//
 static char *str_duplicate(char *to_duplicate);
 static bool store_data(Node *node, void *data, Data_Type data_type);
-static void Remove_Node_Both_Children(Node *to_remove);
 static void Node_Dispose(Node *node);
 static Node *Find_Max_Node(Node *node);
 static Node *Left_Rotation(Node *root_ptr);
 static Node *Right_Rotation(Node *root_ptr);
+static Node *Balance_Tree(Node *critical_node);
 static void Tree_Height(Node *root_ptr, int *height);
 static void Set_Balance_Factor(Node *node);
+static int key_cmp(Key *key1, Key *key2);
 
 /**
  * @brief Creates a new instance of a Variable_Node and initializes it's attributes.
@@ -44,7 +45,10 @@ Node *Create_Node(char *name, int args_count, ID_Type id_type, void *data, Data_
 
     // if str_duplicate fails function returns a NULL pointer to signal Node creation failure
     if (!name_copy)
+    {
+        free(node);
         return NULL;
+    }
 
     // node key struct init
     node->key.name = name_copy;
@@ -53,7 +57,7 @@ Node *Create_Node(char *name, int args_count, ID_Type id_type, void *data, Data_
 
     // determines what type of data to store and stores it inside the node
     if (!store_data(node, data, data_type))
-        error_exit(99);
+        error_exit(ERR_INTERNAL);
 
     return node;
 }
@@ -81,7 +85,7 @@ Node *Insert_Node(Node *root_ptr, Node *to_insert)
             root_ptr->left = Insert_Node(root_ptr->left, to_insert);
 
         else if (key_cmp_result > 0) // go to right subtree
-            root_ptr->left = Insert_Node(root_ptr->right, to_insert);
+            root_ptr->right = Insert_Node(root_ptr->right, to_insert);
 
         else // attempt to add already existing symbol made
             error_exit(ERR_SEM_REDEFINITION);
@@ -89,35 +93,11 @@ Node *Insert_Node(Node *root_ptr, Node *to_insert)
         // forgotten to call Search(new sy) before trying to insert new symbol
     }
 
+    // balance factor of the critical node is calculated
     Set_Balance_Factor(root_ptr);
 
-    // RL case
-    if (root_ptr->balance_factor < -1 && key_cmp(&to_insert->key, &root_ptr->right->key) < 0)
-    {
-        root_ptr->right = Right_Rotation(root_ptr->right);
-        return Left_Rotation(root_ptr);
-    }
-
-    // LR case
-    if (root_ptr->balance_factor > 1 && key_cmp(&to_insert->key, &root_ptr->left->key) > 0)
-    {
-        root_ptr->left = Left_Rotation(root_ptr->left);
-        return Right_Rotation(root_ptr);
-    }
-
-    // RR case
-    if (root_ptr->balance_factor < -1 && key_cmp(&to_insert->key, &root_ptr->right->key) > 0)
-    {
-        return Left_Rotation(root_ptr);
-    }
-
-    // LL case
-    if (root_ptr->balance_factor > 1 && key_cmp(&to_insert->key, &root_ptr->left->key) < 0)
-    {
-        return Right_Rotation(root_ptr);
-    }
-
-    return root_ptr;
+    // if needed
+    return Balance_Tree(root_ptr);
 }
 
 /**
@@ -142,68 +122,63 @@ Node *Remove_Node(Node *root_ptr, Key *key)
     if (key_cmp_result < 0) // go to the left subtree
     {
         root_ptr->left = Remove_Node(root_ptr->left, key);
-        return root_ptr;
     }
     else if (key_cmp_result > 0) // go to the right subtree
     {
         root_ptr->right = Remove_Node(root_ptr->right, key);
-        return root_ptr;
     }
     else // node found
     {
         if (!root_ptr->right && !root_ptr->left) // Node has no children
         {
             Node_Dispose(root_ptr);
-            root_ptr = NULL;
-            return root_ptr;
+            return NULL;
         }
         else if (root_ptr->right && root_ptr->left) // Node has both children
         {
-            Remove_Node_Both_Children(root_ptr);
-            return root_ptr;
+            Node *max_node = Find_Max_Node(root_ptr->left);
+
+            free(root_ptr->key.name); // old name needs to be freed in case str_duplicate fails
+
+            // copy of the key is made
+            root_ptr->key.name = str_duplicate(max_node->key.name);
+            if (!root_ptr->key.name)
+                error_exit(ERR_INTERNAL);
+
+            root_ptr->key.args_count = max_node->key.args_count;
+            root_ptr->key.id_type = max_node->key.id_type;
+
+            // data is copied from the terminal node
+            if (!store_data(root_ptr, &max_node->data, max_node->data_type))
+                error_exit(ERR_INTERNAL);
+
+            // terminal node is removed
+            root_ptr->left = Remove_Node(root_ptr->left, &max_node->key);
         }
         else if (root_ptr->left && !root_ptr->right) // only left child present
         {
             Node *onlyChild = root_ptr->left;
             Node_Dispose(root_ptr);
-            root_ptr = NULL;
-            return onlyChild;
+
+            // tree needs to be balanced after removal
+            Set_Balance_Factor(onlyChild);
+            return Balance_Tree(onlyChild);
         }
         else // only right child present
         {
             Node *onlyChild = root_ptr->right;
             Node_Dispose(root_ptr);
-            root_ptr = NULL;
-            return onlyChild;
+
+            // tree needs to be balanced after removal
+            Set_Balance_Factor(onlyChild);
+            return Balance_Tree(onlyChild);
         }
     }
 
-    if (root_ptr)
-    {
-        Set_Balance_Factor(root_ptr);
+    // tree needs to be balanced after removal
+    Set_Balance_Factor(root_ptr);
 
-        // LL
-        if (root_ptr->balance_factor > 1 && root_ptr->left->balance_factor >= 0)
-            return Right_Rotation(root_ptr);
-
-        // LR
-        if (root_ptr->balance_factor > 1 && root_ptr->left->balance_factor < 0)
-        {
-            root_ptr->left = Left_Rotation(root_ptr->left);
-            return Right_Rotation(root_ptr);
-        }
-
-        // RR
-        if (root_ptr->balance_factor < -1 && root_ptr->right->balance_factor <= 0)
-            return Left_Rotation(root_ptr);
-
-        // RL
-        if (root_ptr->balance_factor < -1 && root_ptr->right->balance_factor > 0)
-        {
-            root_ptr->right = Right_Rotation(root_ptr->right);
-            return Left_Rotation(root_ptr);
-        }
-    }
+    return Balance_Tree(root_ptr);
 }
 
 /**
@@ -233,6 +208,21 @@ Node *Search(Node *root_ptr, Key *key)
         else // node found
             return root_ptr;
     }
+}
+
+/**
+ * @brief Recursively disposes of all nodes in the tree.
+ *
+ * @param root_ptr Root of the tree/subtree to dispose.
+ */
+void Dispose_Tree(Node *root_ptr)
+{
+    if (!root_ptr)
+        return;
+
+    Dispose_Tree(root_ptr->left);
+    Dispose_Tree(root_ptr->right);
+    Node_Dispose(root_ptr);
 }
 
 //**HELPER FUNCTIONS DEFINITIONS**//
@@ -362,6 +352,48 @@ Node *Left_Rotation(Node *root_ptr)
 }
 
 /**
+ * @brief Balances the tree according to the type of imbalance.
+ *
+ * @param root_ptr Root node of an unbalanced subtree that has balance factor higher than 1 or lower than -1.
+ *
+ * @return New root_ptr of the subtree after balancing.
+ */
+static Node *Balance_Tree(Node *critical_node)
+{
+    // avoids NULL ptr dereference
+    if (!critical_node)
+        return NULL;
+
+    // RL case
+    if (critical_node->balance_factor < -1 && critical_node->right->balance_factor > 0)
+    {
+        critical_node->right = Right_Rotation(critical_node->right);
+        return Left_Rotation(critical_node);
+    }
+
+    // LR case
+    if (critical_node->balance_factor > 1 && critical_node->left->balance_factor < 0)
+    {
+        critical_node->left = Left_Rotation(critical_node->left);
+        return Right_Rotation(critical_node);
+    }
+
+    // RR case
+    if (critical_node->balance_factor < -1 && critical_node->right->balance_factor <= 0)
+    {
+        return Left_Rotation(critical_node);
+    }
+
+    // LL case
+    if (critical_node->balance_factor > 1 && critical_node->left->balance_factor >= 0)
+    {
+        return Right_Rotation(critical_node);
+    }
+
+    return critical_node; // no balancing was required
+}
+
+/**
  * @brief Duplicates string to a new adress
  *
  * @param to_duplicate String to duplicate.
@@ -390,6 +422,8 @@ static char *str_duplicate(char *to_duplicate)
  */
 static bool store_data(Node *node, void *data, Data_Type data_type)
 {
+    node->data_type = data_type;
+
     switch (data_type)
     {
     case INT:
@@ -409,6 +443,7 @@ static bool store_data(Node *node, void *data, Data_Type data_type)
             return false;
 
         node->data.string_value = copy; // data inside the node points to the adress of the copy
+        break;
     default:
         break;
     }
@@ -429,27 +464,7 @@ static Node *Find_Max_Node(Node *node)
     if (!node->right) // no more right children
         return node;
     else
-        return Find_Min_Node(node->right);
-}
-
-/**
- * @brief Helper function for the Remove_Node function that handles deleting a Node with both children present.
- *
- * @param to_remove Pointer to a Node we want to remove.
- */
-static void Remove_Node_Both_Children(Node *to_remove)
-{
-    Node *min_node = Find_Max_Node(to_remove->left);
-
-    // copies data from a terminal Node to the to_remove Node
-    to_remove->key = min_node->key;
-    to_remove->data_type = min_node->data_type;
-
-    if (!store_data(to_remove, &min_node->data, min_node->data_type))
-        error_exit(99); // internal compiler error
-
-    Node_Dispose(min_node);
-    min_node = NULL;
+        return Find_Max_Node(node->right);
 }
 
 /**
@@ -460,7 +475,11 @@ static void Remove_Node_Both_Children(Node *to_remove)
 static void Node_Dispose(Node *node)
 {
     free(node->key.name);
-    node->key.name = NULL;
+
+    if (node->data_type == STRING && node->data.string_value)
+    {
+        free(node->data.string_value);
+    }
 
     free(node);
 }
