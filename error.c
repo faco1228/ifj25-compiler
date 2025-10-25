@@ -1,7 +1,9 @@
 /**
  * @file error.c
  * @author xcillik00
- * @brief Warningy vypisuje na stdout, error_exit ukončuje program s kódom
+ * @brief Handles different errors that might come up during compilation. Warnings are printed to stdout,
+ *        error_exit() handles exiting the program with the corresponding error code.
+ * 
  */
 
 #include <stdio.h>
@@ -9,15 +11,21 @@
 #include <stdarg.h>
 #include "error.h"
 
-// Funkcia pre vypis warningov na stdout
-// Funkcia pre vypis warningov na stdout s interpretáciou kódu chyby
+
+/**
+ * @brief Prints a warning messages based on the provided warning code. 
+ * 
+ * @param warning Warning code.
+ * @param format Format of the warning message.
+ * 
+ * @note In some cases, other arguments might be provided.
+ */
 void warnings(int warning, const char *format, ...) {
     va_list args;
     va_start(args, format);
 
     printf("Warning [%d]: ", warning);
 
-    // Switch pre popis typu chyby podľa kódu
     switch (warning) {
         case 1:  printf("Lexikálna chyba - "); break;
         case 2:  printf("Syntaktická chyba - "); break;
@@ -38,20 +46,23 @@ void warnings(int warning, const char *format, ...) {
     va_end(args);
 }
 
-// Funkcia pre ukoncenie programu s chybovym kodom
+/**
+ * @brief Handles exiting the program with a corresponding error code
+ * 
+ * @param error Error code to exit with.
+ */
 void error_exit(int error) {
-    // Ukončenie programu s prislusnym kodom
     switch (error) {
-        case 1:  exit(1);   // Lexikálna chyba
-        case 2:  exit(2);   // Syntaktická chyba
-        case 3:  exit(3);   // Sémantická chyba - nedefinovaná funkcia/premenná
-        case 4:  exit(4);   // Redefinícia funkcie/premennej
-        case 5:  exit(5);   // Neočakávaný počet argumentov / typ parametra
-        case 6:  exit(6);   // Typová nekompatibilita vo výrazoch
-        case 10: exit(10);  // Ostatné sémantické chyby
-        case 25: exit(25);  // Behová sémantická chyba - typ parametra
-        case 26: exit(26);  // Behová sémantická chyba - typová nekompatibilita
-        case 99: exit(99);  // Interná chyba prekladača - napr. chybná alokácia
-        default: exit(EXIT_FAILURE); // Neznámy kód chyby
+        case ERR_LEXICAL: exit(ERR_LEXICAL);
+        case ERR_SYNTACTIC: exit(ERR_SYNTACTIC);
+        case ERR_SEM_UNDEFINED: exit(ERR_SEM_UNDEFINED);
+        case ERR_SEM_REDEFINITION: exit(ERR_SEM_REDEFINITION);
+        case ERR_SEM_ARG_COUNT: exit(ERR_SEM_ARG_COUNT);
+        case ERR_SEM_TYPE_MISMATCH: exit(ERR_SEM_TYPE_MISMATCH);
+        case ERR_SEM_OTHER: exit(ERR_SEM_OTHER);
+        case ERR_RUNTIME_PARAM_TYPE: exit(ERR_RUNTIME_PARAM_TYPE);
+        case ERR_RUNTIME_TYPE_MISMATCH: exit(ERR_RUNTIME_TYPE_MISMATCH);
+        case ERR_INTERNAL: exit(ERR_INTERNAL);
+        default: exit(UNKNOWN_ERR_CODE);
     }
 }
