@@ -7,10 +7,9 @@
 //**HELPER FUNCTION DECLARATIONS**//
 static char *str_duplicate(char *to_duplicate);
 static bool store_data(Node *node, void *data, Data_Type data_type);
-static void Remove_Node_No_Children(Node *node);
-static bool Remove_Node_Both_Children(Node *to_remove);
+static void Remove_Node_Both_Children(Node *to_remove);
 static void Node_Dispose(Node *node);
-static Node *Find_Min_Node(Node *node);
+static Node *Find_Max_Node(Node *node);
 static Node *Left_Rotation(Node *root_ptr);
 static Node *Right_Rotation(Node *root_ptr);
 static void Tree_Height(Node *root_ptr, int *height);
@@ -47,7 +46,7 @@ Node *Create_Node(char *name, int args_count, ID_Type id_type, void *data, Data_
     if (!name_copy)
         return NULL;
 
-    // node key
+    // node key struct init
     node->key.name = name_copy;
     node->key.args_count = args_count;
     node->key.id_type = id_type;
@@ -67,7 +66,7 @@ Node *Create_Node(char *name, int args_count, ID_Type id_type, void *data, Data_
  *
  * @return Pointer to the inserted Node.
  */
-Node *Insert_Node(Node *root_ptr, Node* to_insert)
+Node *Insert_Node(Node *root_ptr, Node *to_insert)
 {
     if (!root_ptr) // new node is created when NULL is detected
     {
@@ -84,10 +83,38 @@ Node *Insert_Node(Node *root_ptr, Node* to_insert)
         else if (key_cmp_result > 0) // go to right subtree
             root_ptr->left = Insert_Node(root_ptr->right, to_insert);
 
-        else // node with the same key found, we need to compare args_count
-        {
-            id_error_handler(); // todo : implement
-        }
+        else // attempt to add already existing symbol made
+            error_exit(ERR_SEM_REDEFINITION);
+        // NOTE: If you encounter this error when calling Insert, you have probably
+        // forgotten to call Search(new sy) before trying to insert new symbol
+    }
+
+    Set_Balance_Factor(root_ptr);
+
+    // RL case
+    if (root_ptr->balance_factor < -1 && key_cmp(&to_insert->key, &root_ptr->right->key) < 0)
+    {
+        root_ptr->right = Right_Rotation(root_ptr->right);
+        return Left_Rotation(root_ptr);
+    }
+
+    // LR case
+    if (root_ptr->balance_factor > 1 && key_cmp(&to_insert->key, &root_ptr->left->key) > 0)
+    {
+        root_ptr->left = Left_Rotation(root_ptr->left);
+        return Right_Rotation(root_ptr);
+    }
+
+    // RR case
+    if (root_ptr->balance_factor < -1 && key_cmp(&to_insert->key, &root_ptr->right->key) > 0)
+    {
+        return Left_Rotation(root_ptr);
+    }
+
+    // LL case
+    if (root_ptr->balance_factor > 1 && key_cmp(&to_insert->key, &root_ptr->left->key) < 0)
+    {
+        return Right_Rotation(root_ptr);
     }
 
     return root_ptr;
@@ -127,7 +154,8 @@ Node *Remove_Node(Node *root_ptr, Key *key)
         if (!root_ptr->right && !root_ptr->left) // Node has no children
         {
             Node_Dispose(root_ptr);
-            return NULL;
+            root_ptr = NULL;
+            return root_ptr;
         }
         else if (root_ptr->right && root_ptr->left) // Node has both children
         {
@@ -138,13 +166,42 @@ Node *Remove_Node(Node *root_ptr, Key *key)
         {
             Node *onlyChild = root_ptr->left;
             Node_Dispose(root_ptr);
+            root_ptr = NULL;
             return onlyChild;
         }
         else // only right child present
         {
             Node *onlyChild = root_ptr->right;
             Node_Dispose(root_ptr);
+            root_ptr = NULL;
             return onlyChild;
+        }
+    }
+
+    if (root_ptr)
+    {
+        Set_Balance_Factor(root_ptr);
+
+        // LL
+        if (root_ptr->balance_factor > 1 && root_ptr->left->balance_factor >= 0)
+            return Right_Rotation(root_ptr);
+
+        // LR
+        if (root_ptr->balance_factor > 1 && root_ptr->left->balance_factor < 0)
+        {
+            root_ptr->left = Left_Rotation(root_ptr->left);
+            return Right_Rotation(root_ptr);
+        }
+
+        // RR
+        if (root_ptr->balance_factor < -1 && root_ptr->right->balance_factor <= 0)
+            return Left_Rotation(root_ptr);
+
+        // RL
+        if (root_ptr->balance_factor < -1 && root_ptr->right->balance_factor > 0)
+        {
+            root_ptr->right = Right_Rotation(root_ptr->right);
+            return Left_Rotation(root_ptr);
         }
     }
 }
@@ -223,7 +280,7 @@ static int key_cmp(Key *key1, Key *key2)
  */
 static void Tree_Height(Node *root_ptr, int *height)
 {
-    int height_l, height_r;
+    int height_l = 0, height_r = 0;
 
     if (root_ptr)
     {
@@ -243,12 +300,14 @@ static void Tree_Height(Node *root_ptr, int *height)
 
 /**
  * @brief Using the Tree_height function this function finds Height of both subtrees of the passed node, and determines its balance factor.
- * @note Balance factor determines whether tree balancing has to be performed after insterting or deleting a node.
  *
  * @param node Balance factor of this node will be set.
  */
 static void Set_Balance_Factor(Node *node)
 {
+    if (!node)
+        return;
+
     int left_subtree_height, right_subtree_height;
 
     // finds height of both subtrees
@@ -273,6 +332,10 @@ Node *Right_Rotation(Node *root_ptr)
     left_child->right = root_ptr; // left_child now becomes the new root node
     root_ptr->left = temp;        // connects left ptr of the old root node to the right subtree of the new root node
 
+    // balance factor is calculated again after rotation, only root_ptr and left_child should be effected by the rotation
+    Set_Balance_Factor(root_ptr);
+    Set_Balance_Factor(left_child);
+
     return left_child; // new root_node is always the left child of the former root_node
 }
 
@@ -290,6 +353,10 @@ Node *Left_Rotation(Node *root_ptr)
 
     right_child->left = root_ptr; // right_child now becomes the new root node
     root_ptr->right = temp;       // connects right ptr of the old root node to the right subtree of the new root node
+
+    // balance factor is calculated again after rotation, only root_ptr and right_child should be effected by the rotation
+    Set_Balance_Factor(root_ptr);
+    Set_Balance_Factor(right_child);
 
     return right_child; // new root_node is always the right child of the former root_node
 }
@@ -382,6 +449,7 @@ static void Remove_Node_Both_Children(Node *to_remove)
         error_exit(99); // internal compiler error
 
     Node_Dispose(min_node);
+    min_node = NULL;
 }
 
 /**

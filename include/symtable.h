@@ -34,7 +34,7 @@ typedef struct
     ID_Type id_type; // used to differentiate between function, setter, getters, etc. which share the same name, tertiary key
 } Key;
 
-typedef struct AVLBinaryTree
+typedef struct AVL_tree
 {
     Node *root_ptr;
 
@@ -83,19 +83,22 @@ Node *Insert_Node(Node *root_ptr, Node* to_insert);
 /**
  * @brief Removes an existing Node.
  *
- * @param symtable Pointer to a Symtable.
- * @param key Pointer to a key that is used to locate the Node that wil be removed.
+ * @param root_ptr Pointer to the root Node of a symtable.
+ * @param key Key that is used to locate the Node that will be removed.
+ *
+ * @return Pointer to the (possibly new) root of the subtree after removal,
+ *         or NULL if the subtree becomes empty or removal fails.
  */
-Node *Remove_Node(Node *root_ptr, char *key);
+Node *Remove_Node(Node *root_ptr, Key *key);
 
 /**
- * @brief Searches for a Node based on a provided key.
+ * @brief Searches for a Node based on a provided key. Can be used to verify existance of a Node or to obtain a pointer to it's adress.
  *
- * @param symtable Pointer to a Symtable.
+ * @param root_ptr Pointer to the root Node of a symtable.
  * @param key Pointer to a key that is used to locate the Node.
  *
  * @return Pointer to a Node or NULL if no Node with corresponding key was found.
  */
-Node *Search(Node *root_ptr, char *key);
+Node *Search(Node *root_ptr, Key *key);
 
 #endif
