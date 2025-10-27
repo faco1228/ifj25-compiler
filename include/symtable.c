@@ -6,32 +6,32 @@
 
 //**HELPER FUNCTION DECLARATIONS**//
 static char *str_duplicate(char *to_duplicate);
-static bool store_data(Node *node, void *data, Data_Type data_type);
-static void Node_Dispose(Node *node);
-static Node *Find_Max_Node(Node *node);
-static Node *Left_Rotation(Node *root_ptr);
-static Node *Right_Rotation(Node *root_ptr);
-static Node *Balance_Tree(Node *critical_node);
-static void Tree_Height(Node *root_ptr, int *height);
-static void Set_Balance_Factor(Node *node);
+static bool store_data(ST_Node *node, void *data, Data_Type data_type);
+static void Node_Dispose(ST_Node *node);
+static ST_Node *Find_Max_Node(ST_Node *node);
+static ST_Node *Left_Rotation(ST_Node *root_ptr);
+static ST_Node *Right_Rotation(ST_Node *root_ptr);
+static ST_Node *Balance_Tree(ST_Node *critical_node);
+static void Tree_Height(ST_Node *root_ptr, int *height);
+static void Set_Balance_Factor(ST_Node *node);
 static int key_cmp(Key *key1, Key *key2);
 
 /**
  * @brief Creates a new instance of a Variable_Node and initializes it's attributes.
  *
- * @param name Name of the symbol that is stored inside the Node.
+ * @param name Name of the symbol that is stored inside the ST_Node.
  * @param args_count Num of arguments of the current symbol. -1 for for global and local variables, non-negative int for others.
  * @param id_type Type of the currently passed identifier.
  * @param data Pointer to data of unknown type.
- * @param data_type Helps to determine what type of data is going to be stored inside the Node.
+ * @param data_type Helps to determine what type of data is going to be stored inside the ST_Node.
  *
  * @return New Variable_Node.
  *
  * @note Data can store nums, strings or function args depending on the type of symbol.
  */
-Node *Create_Node(char *name, int args_count, ID_Type id_type, void *data, Data_Type data_type)
+ST_Node *Create_Node(char *name, int args_count, ID_Type id_type, void *data, Data_Type data_type)
 {
-    Node *node = malloc(sizeof(Node));
+    ST_Node *node = malloc(sizeof(ST_Node));
 
     if (!node)
         return NULL;
@@ -43,7 +43,7 @@ Node *Create_Node(char *name, int args_count, ID_Type id_type, void *data, Data_
     // copy of the primary key (name) is made
     char *name_copy = str_duplicate(name);
 
-    // if str_duplicate fails function returns a NULL pointer to signal Node creation failure
+    // if str_duplicate fails function returns a NULL pointer to signal ST_Node creation failure
     if (!name_copy)
     {
         free(node);
@@ -63,14 +63,14 @@ Node *Create_Node(char *name, int args_count, ID_Type id_type, void *data, Data_
 }
 
 /**
- * @brief Inserts a new Node.
+ * @brief Inserts a new ST_Node.
  *
- * @param root_ptr Pointer to the root Node of a symtable.
+ * @param root_ptr Pointer to the root ST_Node of a symtable.
  * @param to_insert Pointer to a node we want to add.
  *
- * @return Pointer to the inserted Node.
+ * @return Pointer to the inserted ST_Node.
  */
-Node *Insert_Node(Node *root_ptr, Node *to_insert)
+ST_Node *Insert_Node(ST_Node *root_ptr, ST_Node *to_insert)
 {
     if (!root_ptr) // new node is created when NULL is detected
     {
@@ -101,15 +101,15 @@ Node *Insert_Node(Node *root_ptr, Node *to_insert)
 }
 
 /**
- * @brief Removes an existing Node.
+ * @brief Removes an existing ST_Node.
  *
- * @param root_ptr Pointer to the root Node of a symtable.
- * @param key Key that is used to locate the Node that will be removed.
+ * @param root_ptr Pointer to the root ST_Node of a symtable.
+ * @param key Key that is used to locate the ST_Node that will be removed.
  *
  * @return Pointer to the (possibly new) root of the subtree after removal,
  *         or NULL if the subtree becomes empty or removal fails.
  */
-Node *Remove_Node(Node *root_ptr, Key *key)
+ST_Node *Remove_Node(ST_Node *root_ptr, Key *key)
 {
     if (!root_ptr)
     {
@@ -129,14 +129,14 @@ Node *Remove_Node(Node *root_ptr, Key *key)
     }
     else // node found
     {
-        if (!root_ptr->right && !root_ptr->left) // Node has no children
+        if (!root_ptr->right && !root_ptr->left) // ST_Node has no children
         {
             Node_Dispose(root_ptr);
             return NULL;
         }
-        else if (root_ptr->right && root_ptr->left) // Node has both children
+        else if (root_ptr->right && root_ptr->left) // ST_Node has both children
         {
-            Node *max_node = Find_Max_Node(root_ptr->left);
+            ST_Node *max_node = Find_Max_Node(root_ptr->left);
 
             free(root_ptr->key.name); // old name needs to be freed in case str_duplicate fails
 
@@ -157,7 +157,7 @@ Node *Remove_Node(Node *root_ptr, Key *key)
         }
         else if (root_ptr->left && !root_ptr->right) // only left child present
         {
-            Node *onlyChild = root_ptr->left;
+            ST_Node *onlyChild = root_ptr->left;
             Node_Dispose(root_ptr);
 
             // tree needs to be balanced after removal
@@ -166,7 +166,7 @@ Node *Remove_Node(Node *root_ptr, Key *key)
         }
         else // only right child present
         {
-            Node *onlyChild = root_ptr->right;
+            ST_Node *onlyChild = root_ptr->right;
             Node_Dispose(root_ptr);
 
             // tree needs to be balanced after removal
@@ -182,16 +182,16 @@ Node *Remove_Node(Node *root_ptr, Key *key)
 }
 
 /**
- * @brief Searches for a Node based on a provided key. Can be used to verify existance of a Node or to obtain a pointer to it's adress.
+ * @brief Searches for a ST_Node based on a provided key. Can be used to verify existance of a ST_Node or to obtain a pointer to it's adress.
  *
- * @param root_ptr Pointer to the root Node of a symtable.
- * @param key Pointer to a key that is used to locate the Node.
+ * @param root_ptr Pointer to the root ST_Node of a symtable.
+ * @param key Pointer to a key that is used to locate the ST_Node.
  *
- * @return Pointer to a Node or NULL if no Node with corresponding key was found.
+ * @return Pointer to a ST_Node or NULL if no ST_Node with corresponding key was found.
  */
-Node *Search(Node *root_ptr, Key *key)
+ST_Node *Search(ST_Node *root_ptr, Key *key)
 {
-    if (!root_ptr) // Node not found
+    if (!root_ptr) // ST_Node not found
     {
         return NULL;
     }
@@ -215,7 +215,7 @@ Node *Search(Node *root_ptr, Key *key)
  *
  * @param root_ptr Root of the tree/subtree to dispose.
  */
-void Dispose_Tree(Node *root_ptr)
+void Dispose_Tree(ST_Node *root_ptr)
 {
     if (!root_ptr)
         return;
@@ -268,7 +268,7 @@ static int key_cmp(Key *key1, Key *key2)
  *
  * @return Height of the tree.
  */
-static void Tree_Height(Node *root_ptr, int *height)
+static void Tree_Height(ST_Node *root_ptr, int *height)
 {
     int height_l = 0, height_r = 0;
 
@@ -293,7 +293,7 @@ static void Tree_Height(Node *root_ptr, int *height)
  *
  * @param node Balance factor of this node will be set.
  */
-static void Set_Balance_Factor(Node *node)
+static void Set_Balance_Factor(ST_Node *node)
 {
     if (!node)
         return;
@@ -314,10 +314,10 @@ static void Set_Balance_Factor(Node *node)
  *
  * @return Pointer to the new root node of the subtree that was rotated.
  */
-Node *Right_Rotation(Node *root_ptr)
+static ST_Node *Right_Rotation(ST_Node *root_ptr)
 {
-    Node *left_child = root_ptr->left; // left child will become the new root_node of the subtree
-    Node *temp = left_child->right;    // right subtree of the left_child will be connected to current root_node->left
+    ST_Node *left_child = root_ptr->left; // left child will become the new root_node of the subtree
+    ST_Node *temp = left_child->right;    // right subtree of the left_child will be connected to current root_node->left
 
     left_child->right = root_ptr; // left_child now becomes the new root node
     root_ptr->left = temp;        // connects left ptr of the old root node to the right subtree of the new root node
@@ -336,10 +336,10 @@ Node *Right_Rotation(Node *root_ptr)
  *
  * @return Pointer to the new root node of the subtree that was rotated.
  */
-Node *Left_Rotation(Node *root_ptr)
+static ST_Node *Left_Rotation(ST_Node *root_ptr)
 {
-    Node *right_child = root_ptr->right; // right child will become the new root_node of the subtree
-    Node *temp = right_child->left;      // left subtree of the right_child will be connected to current root_ptr->right
+    ST_Node *right_child = root_ptr->right; // right child will become the new root_node of the subtree
+    ST_Node *temp = right_child->left;      // left subtree of the right_child will be connected to current root_ptr->right
 
     right_child->left = root_ptr; // right_child now becomes the new root node
     root_ptr->right = temp;       // connects right ptr of the old root node to the right subtree of the new root node
@@ -358,7 +358,7 @@ Node *Left_Rotation(Node *root_ptr)
  *
  * @return New root_ptr of the subtree after balancing.
  */
-static Node *Balance_Tree(Node *critical_node)
+static ST_Node *Balance_Tree(ST_Node *critical_node)
 {
     // avoids NULL ptr dereference
     if (!critical_node)
@@ -404,7 +404,7 @@ static char *str_duplicate(char *to_duplicate)
     // memory is allocated to store a copy of the passed string
     char *copy = malloc(strlen(to_duplicate) + 1);
 
-    // if allocation fails function returns NULL to signal Node creation failure
+    // if allocation fails function returns NULL to signal ST_Node creation failure
     if (!copy)
         return NULL;
 
@@ -412,15 +412,15 @@ static char *str_duplicate(char *to_duplicate)
 }
 
 /**
- * @brief Handles explicit typing and stores data inside the Node.
+ * @brief Handles explicit typing and stores data inside the ST_Node.
  *
- * @param node Pointer to a Node that will store the data.
+ * @param node Pointer to a ST_Node that will store the data.
  * @param data Pointer to data of unknown data type.
- * @param data_type Helps to determine what type of data is going to be stored inside the Node.
+ * @param data_type Helps to determine what type of data is going to be stored inside the ST_Node.
  *
  * @return False if storing the data fails.
  */
-static bool store_data(Node *node, void *data, Data_Type data_type)
+static bool store_data(ST_Node *node, void *data, Data_Type data_type)
 {
     node->data_type = data_type;
 
@@ -438,7 +438,7 @@ static bool store_data(Node *node, void *data, Data_Type data_type)
         // copy of the string is made
         char *copy = str_duplicate((char *)data);
 
-        // if str_duplicate fails function returns a NULL pointer to signal Node creation failure
+        // if str_duplicate fails function returns a NULL pointer to signal ST_Node creation failure
         if (!copy)
             return false;
 
@@ -452,14 +452,14 @@ static bool store_data(Node *node, void *data, Data_Type data_type)
 }
 
 /**
- * @brief Finds the most right Node of the left subtree.
+ * @brief Finds the most right ST_Node of the left subtree.
  *
- * @param root_ptr Root node of the subtree in which we want to find the min Node.
+ * @param root_ptr Root node of the subtree in which we want to find the min ST_Node.
  * @note Root of the left subtree needs to be passed!
  *
- * @return Min Node pointer.
+ * @return Min ST_Node pointer.
  */
-static Node *Find_Max_Node(Node *node)
+static ST_Node *Find_Max_Node(ST_Node *node)
 {
     if (!node->right) // no more right children
         return node;
@@ -470,9 +470,9 @@ static Node *Find_Max_Node(Node *node)
 /**
  * @brief Deallocates data inside the node and the node itself.
  *
- * @param node Pointer to Node we want to clean up after.
+ * @param node Pointer to ST_Node we want to clean up after.
  */
-static void Node_Dispose(Node *node)
+static void Node_Dispose(ST_Node *node)
 {
     free(node->key.name);
 

@@ -34,7 +34,7 @@ typedef struct
     ID_Type id_type; // used to differentiate between function, setter, getters, etc. which share the same name, tertiary key
 } Key;
 
-typedef struct Node
+typedef struct
 {
     Key key;             // contains infromation about the id that will help to differentiate between ids with the same name
     Data_Type data_type; // helps identifying what kind of data is stored inside the node
@@ -45,9 +45,9 @@ typedef struct Node
         char *string_value;
     } data;
     int balance_factor; // used to determine the balance of the Node's subtree
-    Node *left;         // left child pointer
-    Node *right;        // right child pointer
-} Node;
+    ST_Node *left;         // left child pointer
+    ST_Node *right;        // right child pointer
+} ST_Node;
 
 
 
@@ -64,7 +64,7 @@ typedef struct Node
  *
  * @note Data can store nums, strings or function args depending on the type of symbol.
  */
-Node *Create_Node(char *name, int args_count, ID_Type id_type, void *data, Data_Type data_type);
+ST_Node *Create_Node(char *name, int args_count, ID_Type id_type, void *data, Data_Type data_type);
 
 /**
  * @brief Inserts a new Node.
@@ -74,7 +74,7 @@ Node *Create_Node(char *name, int args_count, ID_Type id_type, void *data, Data_
  *
  * @return Pointer to the inserted Node.
  */
-Node *Insert_Node(Node *root_ptr, Node *to_insert);
+ST_Node *Insert_Node(ST_Node *root_ptr, ST_Node *to_insert);
 
 /**
  * @brief Removes an existing Node.
@@ -85,7 +85,7 @@ Node *Insert_Node(Node *root_ptr, Node *to_insert);
  * @return Pointer to the (possibly new) root of the subtree after removal,
  *         or NULL if the subtree becomes empty or removal fails.
  */
-Node *Remove_Node(Node *root_ptr, Key *key);
+ST_Node *Remove_Node(ST_Node *root_ptr, Key *key);
 
 /**
  * @brief Searches for a Node based on a provided key. Can be used to verify existance of a Node or to obtain a pointer to it's adress.
@@ -95,13 +95,13 @@ Node *Remove_Node(Node *root_ptr, Key *key);
  *
  * @return Pointer to a Node or NULL if no Node with corresponding key was found.
  */
-Node *Search(Node *root_ptr, Key *key);
+ST_Node *Search(ST_Node *root_ptr, Key *key);
 
 /**
  * @brief Recursively disposes of all nodes in the tree.
  *
  * @param root_ptr Root of the tree/subtree to dispose.
  */
-void Dispose_Tree(Node *root_ptr);
+void Dispose_Tree(ST_Node *root_ptr);
 
 #endif
