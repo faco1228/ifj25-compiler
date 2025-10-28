@@ -2,8 +2,8 @@
  * @file lex_funs.h
  * @author xracekm00
  * @brief Header file for lexical analyzer's functions
- * @version 0.2
- * @date 2025-10-26
+ * @version 0.3
+ * @date 2025-10-28
  * 
  * @copyright Copyright (c) 2025
  */
@@ -29,7 +29,6 @@
         } \
     } while (0)
 
-
 //********************************* Function prototypes *********************************//
 
 token_ptr process_next_token(token_ptr);
@@ -37,6 +36,8 @@ token_ptr process_next_token(token_ptr);
 void process_ident(token_ptr);
 
 void skip_comments(token_ptr);
+
+bool check_equal(token_ptr, int);
 
 void process_str_l(token_ptr);
 
@@ -55,7 +56,5 @@ void process_float(token_ptr, char*, unsigned*);
 void process_exp(token_ptr, char*, unsigned*);
 
 void store_pending_eof();
-
-void free_token(token_ptr);
 
 #endif

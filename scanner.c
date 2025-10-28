@@ -80,3 +80,53 @@ token_ptr get_token(){
 
     return token;
 }
+
+/**
+ * @brief Frees memory allocated for token
+ * 
+ * @param token Token to free
+ */
+void free_token(token_ptr token) {
+    if (token == NULL){
+        return;
+    }
+    
+    //Frees memory based on the token type
+    switch(token->type) {
+        case IDENT:
+        case GLOB_VAR:
+        case KEY_WORD:
+        case ONE_L_STRING:
+        case MUL_L_STRING:
+            if (token->value.str_value != NULL) {
+                free(token->value.str_value);
+                token->value.str_value = NULL;
+            }
+            break;
+        default:
+            break;
+    }
+    
+    //Freing token structure itself
+    free(token);
+    token = NULL;
+}
+
+/**
+ * @brief After the parser is done using scanner, it need to call this function
+ * 
+ */
+void scanner_cleanup() {
+    //Frees memory used by global variables
+    if (pending_token != NULL) {
+        free(pending_token);
+        pending_token = NULL;
+    }
+    if (pushed_token != NULL) {
+        free(pushed_token);
+        pushed_token = NULL;
+    }
+    //Resets global variables (not necesary) but good habit
+    eof_reached = false;
+    has_been_pushed = false;
+}
