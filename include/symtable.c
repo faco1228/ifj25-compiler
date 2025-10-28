@@ -7,29 +7,29 @@
 //**HELPER FUNCTION DECLARATIONS**//
 static char *str_duplicate(char *to_duplicate);
 static bool store_data(ST_Node *node, void *data, Data_Type data_type);
-static void Node_Dispose(ST_Node *node);
-static ST_Node *Find_Max_Node(ST_Node *node);
-static ST_Node *Left_Rotation(ST_Node *root_ptr);
-static ST_Node *Right_Rotation(ST_Node *root_ptr);
-static ST_Node *Balance_Tree(ST_Node *critical_node);
-static void Tree_Height(ST_Node *root_ptr, int *height);
-static void Set_Balance_Factor(ST_Node *node);
+static void node_dispose(ST_Node *node);
+static ST_Node *find_max_node(ST_Node *node);
+static ST_Node *left_rotation(ST_Node *root_ptr);
+static ST_Node *right_rotation(ST_Node *root_ptr);
+static ST_Node *balance_tree(ST_Node *critical_node);
+static void tree_height(ST_Node *root_ptr, int *height);
+static void set_balance_factor(ST_Node *node);
 static int key_cmp(Key *key1, Key *key2);
 
 /**
  * @brief Creates a new instance of a Variable_Node and initializes it's attributes.
  *
- * @param name Name of the symbol that is stored inside the ST_Node.
+ * @param name Name of the symbol that is stored inside the Node.
  * @param args_count Num of arguments of the current symbol. -1 for for global and local variables, non-negative int for others.
  * @param id_type Type of the currently passed identifier.
  * @param data Pointer to data of unknown type.
- * @param data_type Helps to determine what type of data is going to be stored inside the ST_Node.
+ * @param data_type Helps to determine what datatype is going to be stored inside the Node.
  *
  * @return New Variable_Node.
  *
  * @note Data can store nums, strings or function args depending on the type of symbol.
  */
-ST_Node *Create_Node(char *name, int args_count, ID_Type id_type, void *data, Data_Type data_type)
+ST_Node *create_node(char *name, int args_count, ID_Type id_type, void *data, Data_Type data_type)
 {
     ST_Node *node = malloc(sizeof(ST_Node));
 
@@ -57,7 +57,11 @@ ST_Node *Create_Node(char *name, int args_count, ID_Type id_type, void *data, Da
 
     // determines what type of data to store and stores it inside the node
     if (!store_data(node, data, data_type))
-        error_exit(ERR_INTERNAL);
+    {
+        node_dispose(node);
+        return NULL;
+        // success of create_node can be determined outside of the function, so error_exit() is not called here
+    }
 
     return node;
 }
@@ -66,11 +70,11 @@ ST_Node *Create_Node(char *name, int args_count, ID_Type id_type, void *data, Da
  * @brief Inserts a new ST_Node.
  *
  * @param root_ptr Pointer to the root ST_Node of a symtable.
- * @param to_insert Pointer to a node we want to add.
+ * @param to_insert Pointer to a node we want to insert.
  *
- * @return Pointer to the inserted ST_Node.
+ * @return Pointer to the root of the (possibly rebalanced) subtree.
  */
-ST_Node *Insert_Node(ST_Node *root_ptr, ST_Node *to_insert)
+ST_Node *insert_node(ST_Node *root_ptr, ST_Node *to_insert)
 {
     if (!root_ptr) // new node is created when NULL is detected
     {
@@ -82,22 +86,22 @@ ST_Node *Insert_Node(ST_Node *root_ptr, ST_Node *to_insert)
         int key_cmp_result = key_cmp(&to_insert->key, &root_ptr->key);
 
         if (key_cmp_result < 0) // go to left subtree
-            root_ptr->left = Insert_Node(root_ptr->left, to_insert);
+            root_ptr->left = insert_node(root_ptr->left, to_insert);
 
         else if (key_cmp_result > 0) // go to right subtree
-            root_ptr->right = Insert_Node(root_ptr->right, to_insert);
+            root_ptr->right = insert_node(root_ptr->right, to_insert);
 
         else // attempt to add already existing symbol made
             error_exit(ERR_SEM_REDEFINITION);
         // NOTE: If you encounter this error when calling Insert, you have probably
-        // forgotten to call Search() before trying to insert new symbol
+        // forgotten to call search() before trying to insert new symbol
     }
 
     // balance factor of the critical node is calculated
-    Set_Balance_Factor(root_ptr);
+    set_balance_factor(root_ptr);
 
     // if needed
-    return Balance_Tree(root_ptr);
+    return balance_tree(root_ptr);
 }
 
 /**
@@ -109,7 +113,7 @@ ST_Node *Insert_Node(ST_Node *root_ptr, ST_Node *to_insert)
  * @return Pointer to the (possibly new) root of the subtree after removal,
  *         or NULL if the subtree becomes empty or removal fails.
  */
-ST_Node *Remove_Node(ST_Node *root_ptr, Key *key)
+ST_Node *remove_node(ST_Node *root_ptr, Key *key)
 {
     if (!root_ptr)
     {
@@ -121,28 +125,30 @@ ST_Node *Remove_Node(ST_Node *root_ptr, Key *key)
 
     if (key_cmp_result < 0) // go to the left subtree
     {
-        root_ptr->left = Remove_Node(root_ptr->left, key);
+        root_ptr->left = remove_node(root_ptr->left, key);
     }
     else if (key_cmp_result > 0) // go to the right subtree
     {
-        root_ptr->right = Remove_Node(root_ptr->right, key);
+        root_ptr->right = remove_node(root_ptr->right, key);
     }
     else // node found
     {
         if (!root_ptr->right && !root_ptr->left) // ST_Node has no children
         {
-            Node_Dispose(root_ptr);
+            node_dispose(root_ptr);
             return NULL;
         }
         else if (root_ptr->right && root_ptr->left) // ST_Node has both children
         {
-            ST_Node *max_node = Find_Max_Node(root_ptr->left);
+            ST_Node *max_node = find_max_node(root_ptr->left);
 
             free(root_ptr->key.name); // old name needs to be freed in case str_duplicate fails
 
             // copy of the key is made
             root_ptr->key.name = str_duplicate(max_node->key.name);
+
             if (!root_ptr->key.name)
+                // has to be exited because there is no way to know that removal failed based on the return value of remove_node
                 error_exit(ERR_INTERNAL);
 
             root_ptr->key.args_count = max_node->key.args_count;
@@ -150,35 +156,36 @@ ST_Node *Remove_Node(ST_Node *root_ptr, Key *key)
 
             // data is copied from the terminal node
             if (!store_data(root_ptr, &max_node->data, max_node->data_type))
+                // has to be exited because there is no way to know that removal failed based on the return value of remove_node
                 error_exit(ERR_INTERNAL);
 
-            // terminal node is removed
-            root_ptr->left = Remove_Node(root_ptr->left, &max_node->key);
+            // max node is removed
+            root_ptr->left = remove_node(root_ptr->left, &max_node->key);
         }
         else if (root_ptr->left && !root_ptr->right) // only left child present
         {
             ST_Node *onlyChild = root_ptr->left;
-            Node_Dispose(root_ptr);
+            node_dispose(root_ptr);
 
             // tree needs to be balanced after removal
-            Set_Balance_Factor(onlyChild);
-            return Balance_Tree(onlyChild);
+            set_balance_factor(onlyChild);
+            return balance_tree(onlyChild);
         }
         else // only right child present
         {
             ST_Node *onlyChild = root_ptr->right;
-            Node_Dispose(root_ptr);
+            node_dispose(root_ptr);
 
             // tree needs to be balanced after removal
-            Set_Balance_Factor(onlyChild);
-            return Balance_Tree(onlyChild);
+            set_balance_factor(onlyChild);
+            return balance_tree(onlyChild);
         }
     }
 
     // tree needs to be balanced after removal
-    Set_Balance_Factor(root_ptr);
+    set_balance_factor(root_ptr);
 
-    return Balance_Tree(root_ptr);
+    return balance_tree(root_ptr);
 }
 
 /**
@@ -189,7 +196,7 @@ ST_Node *Remove_Node(ST_Node *root_ptr, Key *key)
  *
  * @return Pointer to a ST_Node or NULL if no ST_Node with corresponding key was found.
  */
-ST_Node *Search(ST_Node *root_ptr, Key *key)
+ST_Node *search(ST_Node *root_ptr, Key *key)
 {
     if (!root_ptr) // ST_Node not found
     {
@@ -200,10 +207,10 @@ ST_Node *Search(ST_Node *root_ptr, Key *key)
         int key_cmp_result = key_cmp(key, &root_ptr->key);
 
         if (key_cmp_result < 0) // go to the left subtree
-            return Search(root_ptr->left, key);
+            return search(root_ptr->left, key);
 
         else if (key_cmp_result > 0) // go to the right subtree
-            return Search(root_ptr->right, key);
+            return search(root_ptr->right, key);
 
         else // node found
             return root_ptr;
@@ -211,18 +218,18 @@ ST_Node *Search(ST_Node *root_ptr, Key *key)
 }
 
 /**
- * @brief Recursively disposes of all nodes in the tree.
+ * @brief Recursively disposes of all nodes in the tree using PostOrder tree traversal.
  *
- * @param root_ptr Root of the tree/subtree to dispose.
+ * @param root_ptr Root of a tree to dispose.
  */
-static void Dispose_Tree(ST_Node *root_ptr)
+static void dispose_tree(ST_Node *root_ptr)
 {
     if (!root_ptr)
         return;
 
-    Dispose_Tree(root_ptr->left);
-    Dispose_Tree(root_ptr->right);
-    Node_Dispose(root_ptr);
+    dispose_tree(root_ptr->left);
+    dispose_tree(root_ptr->right);
+    node_dispose(root_ptr);
 }
 
 //**HELPER FUNCTIONS DEFINITIONS**//
@@ -268,14 +275,14 @@ static int key_cmp(Key *key1, Key *key2)
  *
  * @return Height of the tree.
  */
-static void Tree_Height(ST_Node *root_ptr, int *height)
+static void tree_height(ST_Node *root_ptr, int *height)
 {
     int height_l = 0, height_r = 0;
 
     if (root_ptr)
     {
-        Tree_Height(root_ptr->left, &height_l);
-        Tree_Height(root_ptr->right, &height_r);
+        tree_height(root_ptr->left, &height_l);
+        tree_height(root_ptr->right, &height_r);
 
         if (height_l > height_r)
             *height = height_l + 1;
@@ -289,11 +296,11 @@ static void Tree_Height(ST_Node *root_ptr, int *height)
 }
 
 /**
- * @brief Using the Tree_height function this function finds Height of both subtrees of the passed node, and determines its balance factor.
+ * @brief Using the tree_height function this function finds Height of both subtrees of the passed node, and determines its balance factor.
  *
  * @param node Balance factor of this node will be set.
  */
-static void Set_Balance_Factor(ST_Node *node)
+static void set_balance_factor(ST_Node *node)
 {
     if (!node)
         return;
@@ -301,20 +308,20 @@ static void Set_Balance_Factor(ST_Node *node)
     int left_subtree_height, right_subtree_height;
 
     // finds height of both subtrees
-    Tree_Height(node->left, &left_subtree_height);
-    Tree_Height(node->right, &right_subtree_height);
+    tree_height(node->left, &left_subtree_height);
+    tree_height(node->right, &right_subtree_height);
 
     node->balance_factor = left_subtree_height - right_subtree_height;
 }
 
 /**
- * @brief Performes Right_Rotation around the critical node (also called pivot node).
+ * @brief Performes right_rotation around the critical node (also called pivot node).
  *
  * @param root_ptr Critical node.
  *
  * @return Pointer to the new root node of the subtree that was rotated.
  */
-static ST_Node *Right_Rotation(ST_Node *root_ptr)
+static ST_Node *right_rotation(ST_Node *root_ptr)
 {
     ST_Node *left_child = root_ptr->left; // left child will become the new root_node of the subtree
     ST_Node *temp = left_child->right;    // right subtree of the left_child will be connected to current root_node->left
@@ -323,20 +330,20 @@ static ST_Node *Right_Rotation(ST_Node *root_ptr)
     root_ptr->left = temp;        // connects left ptr of the old root node to the right subtree of the new root node
 
     // balance factor is calculated again after rotation, only root_ptr and left_child should be effected by the rotation
-    Set_Balance_Factor(root_ptr);
-    Set_Balance_Factor(left_child);
+    set_balance_factor(root_ptr);
+    set_balance_factor(left_child);
 
     return left_child; // new root_node is always the left child of the former root_node
 }
 
 /**
- * @brief Performes Left_Rotation around the critical node (also called pivot node).
+ * @brief Performes left_rotation around the critical node (also called pivot node).
  *
  * @param root_ptr Critical node.
  *
  * @return Pointer to the new root node of the subtree that was rotated.
  */
-static ST_Node *Left_Rotation(ST_Node *root_ptr)
+static ST_Node *left_rotation(ST_Node *root_ptr)
 {
     ST_Node *right_child = root_ptr->right; // right child will become the new root_node of the subtree
     ST_Node *temp = right_child->left;      // left subtree of the right_child will be connected to current root_ptr->right
@@ -345,8 +352,8 @@ static ST_Node *Left_Rotation(ST_Node *root_ptr)
     root_ptr->right = temp;       // connects right ptr of the old root node to the right subtree of the new root node
 
     // balance factor is calculated again after rotation, only root_ptr and right_child should be effected by the rotation
-    Set_Balance_Factor(root_ptr);
-    Set_Balance_Factor(right_child);
+    set_balance_factor(root_ptr);
+    set_balance_factor(right_child);
 
     return right_child; // new root_node is always the right child of the former root_node
 }
@@ -358,7 +365,7 @@ static ST_Node *Left_Rotation(ST_Node *root_ptr)
  *
  * @return New root_ptr of the subtree after balancing.
  */
-static ST_Node *Balance_Tree(ST_Node *critical_node)
+static ST_Node *balance_tree(ST_Node *critical_node)
 {
     // avoids NULL ptr dereference
     if (!critical_node)
@@ -367,27 +374,27 @@ static ST_Node *Balance_Tree(ST_Node *critical_node)
     // RL case
     if (critical_node->balance_factor < -1 && critical_node->right->balance_factor > 0)
     {
-        critical_node->right = Right_Rotation(critical_node->right);
-        return Left_Rotation(critical_node);
+        critical_node->right = right_rotation(critical_node->right);
+        return left_rotation(critical_node);
     }
 
     // LR case
     if (critical_node->balance_factor > 1 && critical_node->left->balance_factor < 0)
     {
-        critical_node->left = Left_Rotation(critical_node->left);
-        return Right_Rotation(critical_node);
+        critical_node->left = left_rotation(critical_node->left);
+        return right_rotation(critical_node);
     }
 
     // RR case
     if (critical_node->balance_factor < -1 && critical_node->right->balance_factor <= 0)
     {
-        return Left_Rotation(critical_node);
+        return left_rotation(critical_node);
     }
 
     // LL case
     if (critical_node->balance_factor > 1 && critical_node->left->balance_factor >= 0)
     {
-        return Right_Rotation(critical_node);
+        return right_rotation(critical_node);
     }
 
     return critical_node; // no balancing was required
@@ -459,12 +466,12 @@ static bool store_data(ST_Node *node, void *data, Data_Type data_type)
  *
  * @return Min ST_Node pointer.
  */
-static ST_Node *Find_Max_Node(ST_Node *node)
+static ST_Node *find_max_node(ST_Node *node)
 {
     if (!node->right) // no more right children
         return node;
     else
-        return Find_Max_Node(node->right);
+        return find_max_node(node->right);
 }
 
 /**
@@ -472,7 +479,7 @@ static ST_Node *Find_Max_Node(ST_Node *node)
  *
  * @param node Pointer to ST_Node we want to clean up after.
  */
-void Node_Dispose(ST_Node *node)
+void node_dispose(ST_Node *node)
 {
     free(node->key.name);
 
