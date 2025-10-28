@@ -10,7 +10,7 @@
  *
  * @param scope_stack Pointer to uninitialized Scope_Stack.
  */
-void Scope_Stack_Init(Scope_Stack *scope_stack)
+void scope_stack_init(Scope_Stack *scope_stack)
 {
     // Null pointer to Scope_Stack passed
     if (!scope_stack)
@@ -30,7 +30,7 @@ void Scope_Stack_Init(Scope_Stack *scope_stack)
  *
  * @param scope_stack Pointer to Scope_Stack.
  */
-void Scope_Stack_Dispose(Scope_Stack *scope_stack)
+void scope_stack_dispose(Scope_Stack *scope_stack)
 {
     if (!scope_stack)
         return;
@@ -58,8 +58,8 @@ void Scope_Stack_Dispose(Scope_Stack *scope_stack)
 void Scope_Stack_Push(Scope_Stack *scope_stack, ST_Node *root_ptr)
 {
     // when trying to push to a full Stack, its size is increased before pushing
-    if (Scope_Stack_Full(scope_stack))
-        Scope_Stack_Increase_Size(scope_stack); // if scope stack increase fails, Scope_Stack_Increase_Size() exits
+    if (scope_stack_full(scope_stack))
+        scope_stack_increase_size(scope_stack); // if scope stack increase fails, scope_stack_increase_size() exits
 
     // new Symtable pointer can be added to the Stack
     scope_stack->stack_top_index++;
@@ -70,7 +70,7 @@ void Scope_Stack_Push(Scope_Stack *scope_stack, ST_Node *root_ptr)
  * @brief Increases the size of symtable_array to fit one more element.
  * @param scope_stack Pointer to Scope_Stack.
  */
-void Scope_Stack_Increase_Size(Scope_Stack *scope_stack)
+void scope_stack_increase_size(Scope_Stack *scope_stack)
 {
     scope_stack->stack_array_size++;
 
@@ -85,12 +85,12 @@ void Scope_Stack_Increase_Size(Scope_Stack *scope_stack)
  * 
  * @param Scope_Stack Pointer to Scope_Stack.
  */
-void Scope_Stack_Pop(Scope_Stack *scope_stack)
+void scope_stack_pop(Scope_Stack *scope_stack)
 {
-    if (Scope_Stack_Empty(scope_stack)) // cannot pop from an empty stack, nothing happens
+    if (scope_stack_empty(scope_stack)) // cannot pop from an empty stack, nothing happens
         return;
 
-    Dispose_Tree(Scope_Stack_Top(scope_stack)); // tree is freed before popping
+    Dispose_Tree(scope_stack_top(scope_stack)); // tree is freed before popping
 
     scope_stack->stack_top_index--;
 }
@@ -99,7 +99,7 @@ void Scope_Stack_Pop(Scope_Stack *scope_stack)
  * @brief Checks if Scope_Stack is empty.
  * @param scope_stack Pointer to Scope_Stack.
  */
-bool Scope_Stack_Empty(Scope_Stack *scope_stack)
+bool scope_stack_empty(Scope_Stack *scope_stack)
 {
     if (!scope_stack)
         error_exit(ERR_INTERNAL);
@@ -111,7 +111,7 @@ bool Scope_Stack_Empty(Scope_Stack *scope_stack)
  * @brief Checks if Scope_Stack if full.
  * @param scope_stack Pointer to Scope_Stack.
  */
-bool Scope_Stack_Full(Scope_Stack *scope_stack)
+bool scope_stack_full(Scope_Stack *scope_stack)
 {
     if (!scope_stack)
         error_exit(ERR_INTERNAL);
@@ -126,9 +126,9 @@ bool Scope_Stack_Full(Scope_Stack *scope_stack)
  * 
  * @return Pointer to a symbol.
  */
-ST_Node *Scope_Stack_Lookup(Scope_Stack *scope_stack, Key *key)
+ST_Node *scope_stack_lookup(Scope_Stack *scope_stack, Key *key)
 {
-    if (Scope_Stack_Empty(scope_stack))
+    if (scope_stack_empty(scope_stack))
         return NULL;
     
     for (int idx = scope_stack->stack_top_index; idx >= 0; idx--) // loop through the stack all the way to global frame
@@ -149,10 +149,10 @@ ST_Node *Scope_Stack_Lookup(Scope_Stack *scope_stack, Key *key)
  *
  * @return Pointer to an existing Symtable root node or NULL if stack is empty.
  */
-ST_Node *Scope_Stack_Top(Scope_Stack *scope_stack)
+ST_Node *scope_stack_top(Scope_Stack *scope_stack)
 {
     // cannot return any Symtables from an empty stack
-    if (Scope_Stack_Empty(scope_stack))
+    if (scope_stack_empty(scope_stack))
         return NULL;
 
     return scope_stack->symtable_array[scope_stack->stack_top_index];
