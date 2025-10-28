@@ -4,7 +4,6 @@
 #include <stdlib.h>
 
 #define DEFAULT_SCOPE_STACK_SIZE 10
-#define STACK_FUNCTION_SUCCESSES 0
 
 /**
  * @brief Initializes a new Scope_Stack
@@ -82,7 +81,7 @@ void Scope_Stack_Increase_Size(Scope_Stack *scope_stack)
 }
 
 /**
- * @brief Removes Symtable pointer from stack top.
+ * @brief Removes Symtable pointer from stack top. Calls Disposte_Tree before popping
  * 
  * @param Scope_Stack Pointer to Scope_Stack.
  */
@@ -90,6 +89,8 @@ void Scope_Stack_Pop(Scope_Stack *scope_stack)
 {
     if (Scope_Stack_Empty(scope_stack)) // cannot pop from an empty stack, nothing happens
         return;
+
+    Dispose_Tree(Scope_Stack_Top(scope_stack)); // tree is freed before popping
 
     scope_stack->stack_top_index--;
 }

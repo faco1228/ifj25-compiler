@@ -90,7 +90,7 @@ ST_Node *Insert_Node(ST_Node *root_ptr, ST_Node *to_insert)
         else // attempt to add already existing symbol made
             error_exit(ERR_SEM_REDEFINITION);
         // NOTE: If you encounter this error when calling Insert, you have probably
-        // forgotten to call Search(new sy) before trying to insert new symbol
+        // forgotten to call Search() before trying to insert new symbol
     }
 
     // balance factor of the critical node is calculated
@@ -215,7 +215,7 @@ ST_Node *Search(ST_Node *root_ptr, Key *key)
  *
  * @param root_ptr Root of the tree/subtree to dispose.
  */
-void Dispose_Tree(ST_Node *root_ptr)
+static void Dispose_Tree(ST_Node *root_ptr)
 {
     if (!root_ptr)
         return;
@@ -472,7 +472,7 @@ static ST_Node *Find_Max_Node(ST_Node *node)
  *
  * @param node Pointer to ST_Node we want to clean up after.
  */
-static void Node_Dispose(ST_Node *node)
+void Node_Dispose(ST_Node *node)
 {
     free(node->key.name);
 
