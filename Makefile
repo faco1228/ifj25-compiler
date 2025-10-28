@@ -16,7 +16,7 @@ LDFLAGS = -lm -fsanitize=address  # Pridanie matematickej knižnice a overenie p
 # target: dependencies
 #    activities
 
-all: cpmpiler
+all: compiler
 
 compiler: scanner.o error.o lex_funs.o
 	$(CC) $(CFLAGS) scanner.o error.o lex_funs.o -o compiler $(LDFLAGS)
