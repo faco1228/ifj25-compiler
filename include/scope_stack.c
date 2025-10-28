@@ -119,6 +119,27 @@ bool Scope_Stack_Full(Scope_Stack *scope_stack)
 }
 
 /**
+ * @brief Looks through all the symtables that are currently on stack and tries to find a specific symbol.
+ * @param scope_stack Pointer to a scope_stack.
+ * @param key Key of a symbol we look for.
+ * 
+ * @return Pointer on a symbol 
+ */
+ST_Node *Scope_Stack_Lookup(Scope_Stack *scope_stack, Key *key)
+{
+    for (int idx = scope_stack->stack_top_index; idx >= 0; idx--) // loop through the stack all the way to global frame
+    {
+        ST_Node *symbol = Search(scope_stack->symtable_array[idx], key); 
+
+        if (symbol)
+            return symbol;
+    }
+
+    return NULL; // symbol not found
+    
+}
+
+/**
  * @brief Returns an adress of a Symtable that is currently on top of the stack.
  * @param scope_stack Pointer to Scope_Stack.
  *

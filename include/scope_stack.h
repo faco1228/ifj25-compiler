@@ -71,6 +71,15 @@ bool Scope_Stack_Empty(Scope_Stack *scope_stack);
 bool Scope_Stack_Full(Scope_Stack *scope_stack);
 
 /**
+ * @brief Looks through all the symtables that are currently on stack and tries to find a specific symbol.
+ * @param scope_stack Pointer to a scope_stack.
+ * @param key Key of a symbol we look for.
+ * 
+ * @return True if symbol was found, false otherwise.
+ */
+bool Scope_Stack_Lookup(Scope_Stack *scope_stack, Key *key);
+
+/**
  * @brief Returns an adress of a Symtable that is currently on top of the stack.
  * @param Scope_Stack Pointer to Scope_Stack.
  */
