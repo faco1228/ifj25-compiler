@@ -17,7 +17,7 @@ void Scope_Stack_Init(Scope_Stack *scope_stack)
     if (!scope_stack)
         error_exit(ERR_INTERNAL);
 
-    scope_stack->symtable_array = malloc(sizeof(Node *) * DEFAULT_SCOPE_STACK_SIZE);
+    scope_stack->symtable_array = malloc(sizeof(ST_Node *) * DEFAULT_SCOPE_STACK_SIZE);
 
     if (!scope_stack->symtable_array)
         error_exit(ERR_INTERNAL);
@@ -56,7 +56,7 @@ void Scope_Stack_Dispose(Scope_Stack *scope_stack)
  * @param root_ptr Pointer to the root of a new symtable.
  * @param scope_stack Pointer to Scope_Stack.
  */
-void Scope_Stack_Push(Scope_Stack *scope_stack, Node *root_ptr)
+void Scope_Stack_Push(Scope_Stack *scope_stack, ST_Node *root_ptr)
 {
     // when trying to push to a full Stack, its size is increased before pushing
     if (Scope_Stack_Full(scope_stack))
@@ -75,7 +75,7 @@ void Scope_Stack_Increase_Size(Scope_Stack *scope_stack)
 {
     scope_stack->stack_array_size++;
 
-    scope_stack->symtable_array = realloc(scope_stack->symtable_array, (sizeof(Node *) * scope_stack->stack_array_size));
+    scope_stack->symtable_array = realloc(scope_stack->symtable_array, (sizeof(ST_Node *) * scope_stack->stack_array_size));
 
     if (!scope_stack->symtable_array)
         error_exit(ERR_INTERNAL);
@@ -124,7 +124,7 @@ bool Scope_Stack_Full(Scope_Stack *scope_stack)
  *
  * @return Pointer to an existing Symtable root node or NULL if stack is empty.
  */
-Node *Scope_Stack_Top(Scope_Stack *scope_stack)
+ST_Node *Scope_Stack_Top(Scope_Stack *scope_stack)
 {
     // cannot return any Symtables from an empty stack
     if (Scope_Stack_Empty(scope_stack))

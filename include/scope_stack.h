@@ -16,7 +16,7 @@
 // Scope_Stack stores pointers to different symtable instances
 typedef struct Scope_Stack
 {
-    Node **symtable_array;
+    ST_Node **symtable_array;
 
     // index of the top of the stack
     // stackTop is set to -1 if the Stack is empty
@@ -44,7 +44,7 @@ void Scope_Stack_Dispose(Scope_Stack *scope_stack);
  * @param root_ptr Pointer to the root of a new symtable.
  * @param scope_stack Pointer to Scope_Stack.
  */
-void Scope_Stack_Push(Scope_Stack *scope_stack, Node *root_ptr);
+void Scope_Stack_Push(Scope_Stack *scope_stack, ST_Node *root_ptr);
 
 /**
  * @brief Increases the size of symtable_array to fit one more element.
@@ -74,6 +74,6 @@ bool Scope_Stack_Full(Scope_Stack *scope_stack);
  * @brief Returns an adress of a Symtable that is currently on top of the stack.
  * @param Scope_Stack Pointer to Scope_Stack.
  */
-Node *Scope_Stack_Top(Scope_Stack *scope_stack);
+ST_Node *Scope_Stack_Top(Scope_Stack *scope_stack);
 
 #endif
