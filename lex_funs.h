@@ -52,7 +52,7 @@ void process_number(token_ptr, int);
 
 void process_float(token_ptr, char*, unsigned*);
 
-void process_exp(char*, unsigned*);
+void process_exp(token_ptr, char*, unsigned*);
 
 void store_pending_eof();
 

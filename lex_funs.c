@@ -54,11 +54,10 @@ token_ptr process_next_token(token_ptr token){
     else if (isalpha(character) || (character == '_')){
         //When the first character is alphabetic or underscore
 
-
         //Allocating memory for the IDENTs name
         if ((token->value.name = malloc(sizeof(char) * MAX_NAME_LEN)) == NULL){
-            //NOTE: don't forget to delete this later
-            warnings(99, "memory allocation failed at line: %d\n", 54);
+            //warnings(99, "memory allocation failed at line: %d\n", 54);
+            free_token(token);
             error_exit(99);
         }
         //Character read is the first letter of the name
@@ -166,8 +165,8 @@ token_ptr process_next_token(token_ptr token){
             token->value.other_value = ',';
             break;
         default:
-            //NOTE: don't forget to delete this later
-            warnings(1, "unexpected character: '%c' (ASCII %d)\n", character, character);
+            //warnings(1, "unexpected character: '%c' (ASCII %d)\n", character, character);
+            free_token(token);
             error_exit(1);
             break;
         }
@@ -188,8 +187,8 @@ void process_ident(token_ptr token){
     while((next = fgetc(stdin)) != EOF && is_ident(next)){
         //Checks whether there's enough space for the IDENT
         if (index >= MAX_NAME_LEN - 1) {
-            //NOTE: don't forget to delete this later
-            warnings(1, "identifier too long\n");
+            //warnings(1, "identifier too long\n");
+            free_token(token);
             error_exit(1);
         }
 
@@ -281,7 +280,8 @@ void skip_comments(token_ptr token){
 
         //When EOF was reached but the nested comment didn't end
         if (depth > 0) {
-            warnings(1, "unterminated comment\n");
+            //warnings(1, "unterminated comment\n");
+            free_token(token);
             error_exit(1);
         }
 
@@ -314,8 +314,8 @@ void process_str_l(token_ptr token){
 
     //Allocating memory for the string
     if ((token->value.str_value = malloc(sizeof(char) * MAX_LINE_LEN)) == NULL){
-        //NOTE: don't forget to delete this later
-        warnings(99, "memory allocation failed at line: %d\n", 336);
+        //warnings(99, "memory allocation failed at line: %d\n", 336);
+        free_token(token);
         error_exit(99);
     }
 
@@ -347,9 +347,8 @@ void process_str_l(token_ptr token){
             ungetc(second, stdin);
         }
         else{
-            //NOTE: don't forget to delete this later
-            warnings(1, "unterminated string literal(EOF or newline)\n");
-            free(token->value.str_value);
+            //warnings(1, "unterminated string literal(EOF or newline)\n");
+            free_token(token);
             error_exit(1);
         }
     }
@@ -379,15 +378,13 @@ void process_str_l(token_ptr token){
 
     //After the while loop ended, the latest character read is: EOF / " / \n
     if (next == EOF){
-        //NOTE: don't forget to delete this later
-        warnings(1, "unterminated string literal(EOF)\n");
+        //warnings(1, "unterminated string literal(EOF)\n");
         free(token->value.str_value);
         error_exit(1);
     }
     else if(next == '\n'){
-        //NOTE: don't forget to delete this later
-        warnings(1, "unterminated string literal(newline)\n");
-        free(token->value.str_value);
+        //warnings(1, "unterminated string literal(newline)\n");
+        free_token(token);
         error_exit(1);
     }
     
@@ -406,8 +403,8 @@ void process_escape_sequence(token_ptr token, unsigned *index) {
     int escape_char = fgetc(stdin);
     //Checks whether EOF was reached
     if (escape_char == EOF){
-        //NOTE: don't forget to delete this later
-        warnings(1, "unterminated escape sequence in string\n");
+        //warnings(1, "unterminated escape sequence in string\n");
+        free_token(token);
         error_exit(1);
     }
 
@@ -432,8 +429,8 @@ void process_escape_sequence(token_ptr token, unsigned *index) {
             process_hex_escape(token, index);
             break;
         default:
-            //NOTE: don't forget to delete this later
-            warnings(1, "unknown escape sequence '\\%c'\n", escape_char);
+            //warnings(1, "unknown escape sequence '\\%c'\n", escape_char);
+            free_token(token);
             error_exit(1);
     }
 
@@ -457,13 +454,15 @@ void process_hex_escape(token_ptr token, unsigned *index) {
     
     //Checks whether EOF was reached
     if (hex1 == EOF || hex2 == EOF) {
-        warnings(1, "incomplete \\x escape sequence (EOF)\n");
+        //warnings(1, "incomplete \\x escape sequence (EOF)\n");
+        free_token(token);
         error_exit(1);
     }
     
     //Validate hex digits
     if (!isxdigit(hex1) || !isxdigit(hex2)) {
-        warnings(1, "invalid hex escape sequence \\x%c%c\n", hex1, hex2);
+        //warnings(1, "invalid hex escape sequence \\x%c%c\n", hex1, hex2);
+        free_token(token);
         error_exit(1);
     }
     
@@ -527,8 +526,8 @@ void process_mul_l_str(token_ptr token){
                 else{
                     //Checks whether EOF was reached
                     if (third == EOF){
-                        //NOTE: don't forget to delete this later
-                        warnings(1, "unterminated string literal (EOF found)\n");
+                        //warnings(1, "unterminated string literal (EOF found)\n");
+                        free_token(token);
                         error_exit(1);
                     }
                     //Stores character
@@ -539,8 +538,8 @@ void process_mul_l_str(token_ptr token){
             }
             else{
                 if (second == EOF){
-                    //NOTE: don't forget to delete this later
-                    warnings(1, "unterminated string literal (EOF found)\n");
+                    //warnings(1, "unterminated string literal (EOF found)\n");
+                    free_token(token);
                     error_exit(1);
                 }
                 //Stores character
@@ -552,9 +551,8 @@ void process_mul_l_str(token_ptr token){
         //Normal character, not a "
         else {
             if (next == EOF){
-                //NOTE: don't forget to delete this later
-                warnings(1, "unterminated string literal(EOF)\n");
-                free(token->value.str_value);
+                //warnings(1, "unterminated string literal(EOF)\n");
+                free_token(token);
                 error_exit(1);
             }
             
@@ -566,9 +564,8 @@ void process_mul_l_str(token_ptr token){
     }
 
     //There is no terminating sequence '"""'
-    //NOTE: don't forget to delete this later
-    warnings(1, "unterminated multiline string literal\n");
-    free(token->value.str_value);
+    //warnings(1, "unterminated multiline string literal\n");
+    free_token(token);
     error_exit(1);
 }
 
@@ -593,8 +590,8 @@ void process_dots(token_ptr token){
 
         //Allocating memory for the ".." or "..." strings
         if ((token->value.str_value = malloc(sizeof(char) * 4)) == NULL){
-            //NOTE: don't forget to delete this later
-            warnings(99, "memory allocation failed at line: %d\n", 629);
+            //warnings(99, "memory allocation failed at line: %d\n", 629);
+            free_token(token);
             error_exit(99);
         }
         
@@ -650,8 +647,8 @@ void process_number(token_ptr token, int first_char){
 
     //Allocating memory for temp buffer
     if ((temp_buffer = malloc(sizeof(char) * MAX_DIGITS)) == NULL){
-        //NOTE: don't forget to delete this later
-        warnings(99, "memory allocation failed\n");
+        //warnings(99, "memory allocation failed\n");
+        free_token(token);
         error_exit(99);
     }
     
@@ -677,7 +674,7 @@ void process_number(token_ptr token, int first_char){
         case 'e':
         case 'E':
             //It's exponential notation starting with 0
-            process_exp(temp_buffer, &index);
+            process_exp(token, temp_buffer, &index);
             break;
         case 'x':
             //It's a hexadecimal number
@@ -692,15 +689,18 @@ void process_number(token_ptr token, int first_char){
                 index++;
                 //Check if buffer is full
                 if (index >= MAX_DIGITS){
-                    warnings(1, "numeric literal too big\n");
+                    //warnings(1, "numeric literal too big\n");
+                    free_token(token);
+                    free(temp_buffer);
                     error_exit(1);
                 }
             }
 
             //If no hexadecimal digits were added after '0x'
             if (index == 2){
-                //NOTE: Don't forget to delete this later
-                warnings(1, "invalid hexadecimal literal\n");
+                //warnings(1, "invalid hexadecimal literal\n");
+                free_token(token);
+                free(temp_buffer);
                 error_exit(1);
             }
 
@@ -716,8 +716,9 @@ void process_number(token_ptr token, int first_char){
         default:
             //Leading zeros are not allowed for decimal numbers
             if (isdigit(digit)){
-                //NOTE: Don't forget to delete this later
-                warnings(1, "invalid number format (leading zeros)\n");
+                //warnings(1, "invalid number format (leading zeros)\n");
+                free_token(token);
+                free(temp_buffer);
                 error_exit(1);
             }
             else{
@@ -739,7 +740,9 @@ void process_number(token_ptr token, int first_char){
             index++;
             //Check if buffer is full
             if (index >= MAX_DIGITS){
-                warnings(1, "invalid number format (leading zeros)\n");
+                //warnings(1, "invalid number format (leading zeros)\n");
+                free_token(token);
+                free(temp_buffer);
                 error_exit(1);
             }
         }
@@ -754,7 +757,7 @@ void process_number(token_ptr token, int first_char){
         case 'e':
         case 'E':
             //It's exponential notation
-            process_exp(temp_buffer, &index);
+            process_exp(token, temp_buffer, &index);
             break;
         default:
             //The character doesn't belong to the number
@@ -807,7 +810,7 @@ void process_float(token_ptr token, char *buffer, unsigned *buf_index){
     }
     else if(digit == 'e' || digit == 'E'){
         //Check if there's an exponent
-        process_exp(buffer, buf_index);
+        process_exp(token, buffer, buf_index);
     }
     else{
         //Return the character that stopped the loop
@@ -825,7 +828,7 @@ void process_float(token_ptr token, char *buffer, unsigned *buf_index){
  * @param buffer String buffer containing digits and decimal point
  * @param buf_index Current position in buffer
  */
-void process_exp(char *buffer, unsigned *buf_index){
+void process_exp(token_ptr token, char *buffer, unsigned *buf_index){
     int digit;      //Variable for reading characters from input stream
     int count = 0;  //Variable to determine how many digits were read
 
@@ -836,7 +839,9 @@ void process_exp(char *buffer, unsigned *buf_index){
     //Reads next character (optional sign or digit)
     digit = fgetc(stdin);
     if (digit == EOF){
-        warnings(1, "invalid exponent format\n");
+        //warnings(1, "invalid exponent format\n");
+        free_token(token);
+        free(buffer);
         error_exit(1);
     }
     else if (digit == '+' || digit == '-'){
@@ -856,7 +861,9 @@ void process_exp(char *buffer, unsigned *buf_index){
     
     if (count == 0){
         //Exponent need at least one digit
-        warnings(1, "invalid exponent format\n");
+        //warnings(1, "invalid exponent format\n");
+        free_token(token);
+        free(buffer);
         error_exit(1);
     }
     
@@ -881,8 +888,7 @@ void store_pending_eof() {
     //Alocates new pending token
     if (pending_token == NULL) {
         if((pending_token = malloc(sizeof(token_t))) == NULL){
-            //NOTE: don't forget to delete this later
-            warnings(99, "memory allocation failed for EOF token\n");
+            //warnings(99, "memory allocation failed for EOF token\n");
             error_exit(99);
         }
     }
