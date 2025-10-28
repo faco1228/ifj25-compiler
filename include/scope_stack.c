@@ -1,134 +1,159 @@
 #include "scope_stack.h"
 #include "symtable.h"
+#include "../error.h"
 #include <stdlib.h>
 
 #define DEFAULT_SCOPE_STACK_SIZE 10
-#define INTERNAL_COMPILER_ERROR 99
-#define STACK_FUNCTION_SUCCESSES 0;
 
 /**
  * @brief Initializes a new Scope_Stack
  *
- * @param Scope_Stack Pointer to uninitialized Scope_Stack.
- * @return Status code.
+ * @param scope_stack Pointer to uninitialized Scope_Stack.
  */
-int Scope_Stack_Init(Scope_Stack *Scope_Stack)
+void scope_stack_init(Scope_Stack *scope_stack)
 {
     // Null pointer to Scope_Stack passed
-    if (!Scope_Stack)
-        return INTERNAL_COMPILER_ERROR;
+    if (!scope_stack)
+        error_exit(ERR_INTERNAL);
 
-    Scope_Stack->symtable_array = malloc(sizeof(Symtable *) * DEFAULT_SCOPE_STACK_SIZE);
+    scope_stack->symtable_array = malloc(sizeof(ST_Node *) * DEFAULT_SCOPE_STACK_SIZE);
 
-    if (!Scope_Stack->symtable_array)
-        return INTERNAL_COMPILER_ERROR;
+    if (!scope_stack->symtable_array)
+        error_exit(ERR_INTERNAL);
 
-    Scope_Stack->stack_top_index = -1; // stackTop value for an empty Stack
-    Scope_Stack->stack_size = DEFAULT_SCOPE_STACK_SIZE;
-
-    return STACK_FUNCTION_SUCCESSES;
+    scope_stack->stack_top_index = -1; // stackTop value for an empty Stack
+    scope_stack->stack_array_size = DEFAULT_SCOPE_STACK_SIZE;
 }
 
 /**
  * @brief Handles Scope_Stack clean up.
  *
- * @param Scope_Stack Pointer to Scope_Stack.
+ * @param scope_stack Pointer to Scope_Stack.
  */
-void Scope_Stack_Dispose(Scope_Stack *Scope_Stack)
+void scope_stack_dispose(Scope_Stack *scope_stack)
 {
+    if (!scope_stack)
+        return;
+
+    // free all symtables
+    for (int idx = 0; idx <= scope_stack->stack_top_index; idx++)
+    {
+        if (scope_stack->symtable_array[idx])
+        {
+            Dispose_Tree(scope_stack->symtable_array[idx]);
+        }
+    }
+
     // deallocation of symtable_array and prevention of dangling pointers
-    free(Scope_Stack->symtable_array);
-    Scope_Stack->symtable_array = NULL;
+    free(scope_stack->symtable_array);
+    scope_stack->symtable_array = NULL;
 }
 
 /**
  * @brief Adds Symtable pointer on stack top.
  *
- * @param Symtable Pointer to a new instance of Symtable.
- * @param Scope_Stack Pointer to Scope_Stack.
- *
- * @return Status code.
+ * @param root_ptr Pointer to the root of a new symtable.
+ * @param scope_stack Pointer to Scope_Stack.
  */
-int Scope_Stack_Push(Scope_Stack *Scope_Stack, Symtable *Symtable)
+void Scope_Stack_Push(Scope_Stack *scope_stack, ST_Node *root_ptr)
 {
     // when trying to push to a full Stack, its size is increased before pushing
-    if (Scope_Stack_Full(Scope_Stack))
-        Scope_Stack_Increase_Size(Scope_Stack);
-
-    
-    if (!Scope_Stack->symtable_array) // size increase of Stack failed
-        return INTERNAL_COMPILER_ERROR;
+    if (scope_stack_full(scope_stack))
+        scope_stack_increase_size(scope_stack); // if scope stack increase fails, scope_stack_increase_size() exits
 
     // new Symtable pointer can be added to the Stack
-    Scope_Stack->stack_top_index++;
-    Scope_Stack->symtable_array[Scope_Stack->stack_top_index] = Symtable;
-
-    return STACK_FUNCTION_SUCCESSES;
+    scope_stack->stack_top_index++;
+    scope_stack->symtable_array[scope_stack->stack_top_index] = root_ptr;
 }
 
 /**
  * @brief Increases the size of symtable_array to fit one more element.
- * @param Scope_Stack Pointer to Scope_Stack.
+ * @param scope_stack Pointer to Scope_Stack.
  */
-void Scope_Stack_Increase_Size(Scope_Stack *Scope_Stack)
+void scope_stack_increase_size(Scope_Stack *scope_stack)
 {
-    Scope_Stack->stack_size++;
+    scope_stack->stack_array_size++;
 
-    // NOTE: might be changed and realloc might not be used
-    realloc(Scope_Stack->symtable_array, (sizeof(Symtable *) * Scope_Stack->stack_size));
+    scope_stack->symtable_array = realloc(scope_stack->symtable_array, (sizeof(ST_Node *) * scope_stack->stack_array_size));
+
+    if (!scope_stack->symtable_array)
+        error_exit(ERR_INTERNAL);
 }
 
 /**
- * @brief Removes Symtable pointer from stack top.
- * @param Scope_Stack Pointer to Scope_Stack.
+ * @brief Removes Symtable pointer from stack top. Calls Disposte_Tree before popping
  * 
- * @return Status code.
+ * @param Scope_Stack Pointer to Scope_Stack.
  */
-int Scope_Stack_Pop(Scope_Stack *Scope_Stack)
+void scope_stack_pop(Scope_Stack *scope_stack)
 {
-    /**
-     * NOTE: Tento internal error je tu hlavne preto, aby bolo potom jednoduchsie debuggovat keby sa nieco pokazi
-     * 
-     * Ak niekomu rovno crashne program pri praci so stackom a bude to INTERNAL_COMPILER_ERROR code tak budete lahsi 
-     * vediet kde tu chybu hladat
-     */
-    if (Scope_Stack_Empty(Scope_Stack)) // cannot pop from an empty stack
-        return INTERNAL_COMPILER_ERROR;
+    if (scope_stack_empty(scope_stack)) // cannot pop from an empty stack, nothing happens
+        return;
 
-    Scope_Stack->stack_top_index--;
+    Dispose_Tree(scope_stack_top(scope_stack)); // tree is freed before popping
 
-    return STACK_FUNCTION_SUCCESSES;
+    scope_stack->stack_top_index--;
 }
 
 /**
  * @brief Checks if Scope_Stack is empty.
- * @param Scope_Stack Pointer to Scope_Stack.
+ * @param scope_stack Pointer to Scope_Stack.
  */
-bool Scope_Stack_Empty(Scope_Stack *Scope_Stack)
+bool scope_stack_empty(Scope_Stack *scope_stack)
 {
-    return Scope_Stack->stack_top_index == -1;
+    if (!scope_stack)
+        error_exit(ERR_INTERNAL);
+
+    return scope_stack->stack_top_index == -1;
 }
 
 /**
  * @brief Checks if Scope_Stack if full.
- * @param Scope_Stack Pointer to Scope_Stack.
+ * @param scope_stack Pointer to Scope_Stack.
  */
-bool Scope_Stack_Full(Scope_Stack *Scope_Stack)
+bool scope_stack_full(Scope_Stack *scope_stack)
 {
-    return Scope_Stack->stack_top_index == Scope_Stack->stack_size - 1;
+    if (!scope_stack)
+        error_exit(ERR_INTERNAL);
+
+    return scope_stack->stack_top_index == (int) scope_stack->stack_array_size - 1;
+}
+
+/**
+ * @brief Looks through all the symtables that are currently on stack and tries to find a symbol that was used inside some frame.
+ * @param scope_stack Pointer to a scope_stack.
+ * @param key Key of a symbol we look for.
+ * 
+ * @return Pointer to a symbol.
+ */
+ST_Node *scope_stack_lookup(Scope_Stack *scope_stack, Key *key)
+{
+    if (scope_stack_empty(scope_stack))
+        return NULL;
+    
+    for (int idx = scope_stack->stack_top_index; idx >= 0; idx--) // loop through the stack all the way to global frame
+    {
+        ST_Node *symbol = Search(scope_stack->symtable_array[idx], key); 
+
+        if (symbol)
+            return symbol;
+    }
+
+    return NULL; // symbol not found
+    
 }
 
 /**
  * @brief Returns an adress of a Symtable that is currently on top of the stack.
- * @param Scope_Stack Pointer to Scope_Stack.
+ * @param scope_stack Pointer to Scope_Stack.
  *
- * @return Pointer to an existing Symtable or NULL if stack is empty.
+ * @return Pointer to an existing Symtable root node or NULL if stack is empty.
  */
-Symtable *Scope_Stack_Top(Scope_Stack *Scope_Stack)
+ST_Node *scope_stack_top(Scope_Stack *scope_stack)
 {
     // cannot return any Symtables from an empty stack
-    if (Scope_Stack_Empty(Scope_Stack))
+    if (scope_stack_empty(scope_stack))
         return NULL;
 
-    return Scope_Stack->symtable_array[Scope_Stack->stack_top_index];
+    return scope_stack->symtable_array[scope_stack->stack_top_index];
 }

@@ -11,7 +11,6 @@
 #include <stdarg.h>
 #include "error.h"
 
-
 /**
  * @brief Prints a warning messages based on the provided warning code. 
  * 
