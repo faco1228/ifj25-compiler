@@ -6,8 +6,7 @@
 int main(void) {
     token_ptr token;
 
-    while (1) {
-        token = get_token();
+    while((token = get_token())->type != END_OF_FILE){
         if (token == NULL) {
             fprintf(stderr, "Error: NULL token returned.\n");
             return 1;
@@ -38,27 +37,49 @@ int main(void) {
             case OPERATOR:
                 printf("OPERATOR: '%c'\n", token->value.other_value);
                 break;
-            case LEFT_PAR: printf("LEFT_PAR\n"); break;
-            case RIGHT_PAR: printf("RIGHT_PAR\n"); break;
-            case LEFT_DOM_PAR: printf("LEFT_DOM_PAR\n"); break;
-            case RIGHT_DOM_PAR: printf("RIGHT_DOM_PAR\n"); break;
-            case DOUBLE_DOT: printf("DOUBLE_DOT\n"); break;
-            case TRIPE_DOT: printf("TRIPLE_DOT\n"); break;
-            case DOT: printf("DOT\n"); break;
-            case COMMA: printf("COMMA\n"); break;
-            case Q_MARK: printf("Q_MARK\n"); break;
-            case SEMICOLON: printf("SEMICOLON\n"); break;
-            case MINUS: printf("MINUS\n"); break;
-            case EOL: printf("EOL\n"); break;
+            case LEFT_PAR: 
+                printf("LEFT_PAR\n");
+                break;
+            case RIGHT_PAR: 
+                printf("RIGHT_PAR\n");
+                break;
+            case LEFT_DOM_PAR: 
+                printf("LEFT_DOM_PAR\n");
+                break;
+            case RIGHT_DOM_PAR: 
+                printf("RIGHT_DOM_PAR\n");
+                break;
+            case DOUBLE_DOT:
+                printf("DOUBLE_DOT\n");
+                break;
+            case TRIPE_DOT: 
+                printf("TRIPLE_DOT\n");
+                break;
+            case DOT: 
+                printf("DOT\n");
+                break;
+            case COMMA: 
+                printf("COMMA\n");
+                break;
+            case Q_MARK: 
+                printf("Q_MARK\n");
+                break;
+            case SEMICOLON: 
+                printf("SEMICOLON\n");
+                break;
+            case MINUS: 
+                printf("MINUS\n");
+                break;
+            case EOL: 
+                printf("EOL\n");
+                break;
             case END_OF_FILE:
                 printf("EOF\n");
-                free_token(token);
                 return 0;
             default:
                 printf("UNKNOWN TOKEN\n");
                 break;
         }
-
         free_token(token);
     }
 }

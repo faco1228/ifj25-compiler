@@ -30,15 +30,31 @@ token_ptr process_next_token(token_ptr token){
 
     //Reads char from input stream
     character = fgetc(stdin);
+
+    //Skips whitespaces
+    while (isspace(character)) {
+        //When the WS is '\n'
+        if (character == '\n') {
+            token->type = EOL;
+            token->value.other_value = '\n';
+            return token;
+        }
+        //Reads next character
+        character = fgetc(stdin);
+    }
+
+    //printf("%c\n", character);
+
     //Case: EOF was reached
     if (character == EOF){
         token->type = END_OF_FILE;
         token->value.other_value = EOF;
         return token;
     }
-    
-    //When the first character is alphabetic or underscore
-    if (is_ident(character)){
+    else if (isalpha(character) || (character == '_')){
+        //When the first character is alphabetic or underscore
+
+
         //Allocating memory for the IDENTs name
         if ((token->value.name = malloc(sizeof(char) * MAX_NAME_LEN)) == NULL){
             //NOTE: don't forget to delete this later
@@ -49,25 +65,14 @@ token_ptr process_next_token(token_ptr token){
         token->value.name[0] = character;
         //Will take care of the rest of the name
         process_ident(token);
+        return token;
     }
     else if (isdigit(character)){
         //Will take care of the rest of the number
         process_number(token, character);
+        return token;
     }
-    
     else{
-        //Skips whitespaces
-        while (isspace(character)) {
-            //When the WS is '\n'
-            if (character == '\n') {
-                token->type = EOL;
-                token->value.other_value = '\n';
-                return token;
-            }
-            //Reads next character
-            character = fgetc(stdin);
-        }
-
         //Decides what to do with the read character
         switch (character){
         case EOF:
@@ -95,6 +100,7 @@ token_ptr process_next_token(token_ptr token){
             * c) operator
             */
             skip_comments(token);
+            return token;
             break;
         case '=':
             token->type = OPERATOR;
@@ -124,6 +130,7 @@ token_ptr process_next_token(token_ptr token){
             * c)...
             */
             process_dots(token);
+            return token;
             break;
         case '\n':
             token->type = EOL;
@@ -132,6 +139,7 @@ token_ptr process_next_token(token_ptr token){
         case '"':
             //This function processes both one and multiline str literals
             process_str_l(token);
+            return token;
             break;
         case '?':
             token->type = Q_MARK;
@@ -162,7 +170,7 @@ token_ptr process_next_token(token_ptr token){
             warnings(1, "unexpected character: '%c' (ASCII %d)\n", character, character);
             error_exit(1);
             break;
-        }  
+        }
     }
 
     return token;
@@ -174,26 +182,28 @@ token_ptr process_next_token(token_ptr token){
  * @param token Token structure to fill
  */
 void process_ident(token_ptr token){
-    int next = 0;                       //Variable for reading characters from input stream
+    int next;                           //Variable for reading characters from input stream
     unsigned index = 1;                 //Index in the ident's name
 
     while((next = fgetc(stdin)) != EOF && is_ident(next)){
-        //Updates IDENT name
-        token->value.name[index] = next;
-        //Incrementing index
-        index++;
-    
+        //Checks whether there's enough space for the IDENT
         if (index >= MAX_NAME_LEN - 1) {
             //NOTE: don't forget to delete this later
             warnings(1, "identifier too long\n");
             error_exit(1);
         }
+
+        //Updates IDENT name
+        token->value.name[index] = next;
+        //Incrementing index
+        index++;
+    
     }
     
     //The last character has to be '\0'
     token->value.name[index] = '\0';
 
-    /* After while loop terminated there's unwanted character stored in c:
+    /* After while loop terminated there's an unwanted character stored in c:
      * A) EOF
      * B) white sapce: ' ', '\n', '\t'
      * C) Next tokens first character
@@ -213,9 +223,8 @@ void process_ident(token_ptr token){
         //When match was found
         if (!strcmp(token->value.name, key_words_arr[i])){
             //Sets token's parameteres
-            free(token->value.name); 
             token->type = KEY_WORD;
-            token->value.str_value = (char *)key_words_arr[i];
+            strcpy(token->value.str_value, key_words_arr[i]);
             return;
         }
     }
@@ -300,9 +309,8 @@ void skip_comments(token_ptr token){
  * @param token Token structure to fill
  */
 void process_str_l(token_ptr token){
-    int next;             //Variable for reading characters from input stream
-    unsigned index = 0;   //String index
-    bool is_multiline = false;
+    int next;                           //Variable for reading characters from input stream
+    unsigned index = 0;                 //String index
 
     //Allocating memory for the string
     if ((token->value.str_value = malloc(sizeof(char) * MAX_LINE_LEN)) == NULL){
@@ -311,59 +319,54 @@ void process_str_l(token_ptr token){
         error_exit(99);
     }
 
-    //Reading next characters until EOF or '"'/' """ '
-    while ((next = fgetc(stdin)) != EOF){
+    //Checking for potential multiline string
+    int second = fgetc(stdin);
+    if (second == '"'){
+        int third = fgetc(stdin);
+        if (third == '"'){
+            //It's a multiline string
+            process_mul_l_str(token);
+            return;
+        }
+        else{
+            //Empty string found
+            if (third == EOF){
+                store_pending_eof();
+            }
+            else{
+                ungetc(third, stdin);    
+            }
+            token->type = ONE_L_STRING;
+            token->value.other_value = '\0';
+            return;
+        }
+    }
+    else{
+        //We are processing one line string, put second back
+        if (second != EOF && second != '\n'){
+            ungetc(second, stdin);
+        }
+        else{
+            //NOTE: don't forget to delete this later
+            warnings(1, "unterminated string literal(EOF or newline)\n");
+            free(token->value.str_value);
+            error_exit(1);
+        }
+    }
+
+    //Processing single line string - reading characters until EOF or '"'/' """ '
+    while ((next = fgetc(stdin)) != EOF && next != '"' && next != '\n'){
 
         //Checks if there's enough space to store the whole string
         if (index >= (MAX_LINE_LEN - 1)){
             not_enough_space(token->value.str_value);
         }
-        
+
         //When the character is an escape-sequance
         if (next == '\\'){
             process_escape_sequence(token, &index);
         }
-        else if (next == '"'){
-            int second = fgetc(stdin);
-
-            // EOF hneď po " -> chyba
-            if (second == EOF) {
-                warnings(1, "unterminated string literal (EOF after opening quote)\n");
-                error_exit(1);
-            }
-
-            if (second == '"') {
-                int third = fgetc(stdin);
-
-                if (third == '"') {
-                    // """ -> multiline string
-                    is_multiline = true;
-                    process_mul_l_str(token);
-                    return;
-                } else {
-                    // "" -> empty string
-                    if (third != EOF) {
-                        ungetc(third, stdin);
-                    }
-                    token->type = ONE_L_STRING;
-                    token->value.str_value[0] = '\0';
-                    return;
-                }
-            } else {
-                // Normálne ukončenie jednoriadkového stringu
-                ungetc(second, stdin);
-                token->type = ONE_L_STRING;
-                token->value.str_value[index] = '\0';
-                return;
-            }
-        }
-        else {
-            //Checks if one line string lit contains forbidden '\n'
-            if (next == '\n' && !is_multiline){
-                warnings(1, "newline in single-line string\n");
-                error_exit(1);
-            }
-
+        else{
             //Stores character
             token->value.str_value[index] = next;
             //Increments index
@@ -374,9 +377,22 @@ void process_str_l(token_ptr token){
     //The last character has to be '\0'
     token->value.str_value[index] = '\0';
 
+    //After the while loop ended, the latest character read is: EOF / " / \n
     if (next == EOF){
-        store_pending_eof();
+        //NOTE: don't forget to delete this later
+        warnings(1, "unterminated string literal(EOF)\n");
+        free(token->value.str_value);
+        error_exit(1);
     }
+    else if(next == '\n'){
+        //NOTE: don't forget to delete this later
+        warnings(1, "unterminated string literal(newline)\n");
+        free(token->value.str_value);
+        error_exit(1);
+    }
+    
+    //If got here, everything was read successfully
+    token->type = ONE_L_STRING;
 }
 
 /**
@@ -478,25 +494,27 @@ void process_mul_l_str(token_ptr token){
     //Sets token's atributes
     token->type = MUL_L_STRING;
 
+    //Skips whitespaces after opening """
+    while (to_ignore && (next = fgetc(stdin)) != EOF){
+        //When non-whitespace character encountered
+        if (!isspace(next)){
+            ungetc(next, stdin);
+            to_ignore = false;
+        }
+    }
+    
     //Reading characters until terminating """
-    while ((next = fgetc(stdin)) != EOF) {
+    while ((next = fgetc(stdin)) != EOF){
+        //Checks if there's enough space for the while string
+        if (index >= (MAX_LINE_LEN - 1)){
+            not_enough_space(token->value.str_value);
+        }
+
         //Checks if this could be start of terminating """
         if (next == '"') {
             int second = fgetc(stdin);
-            //Checks whether EOF was reached
-            if (second == EOF){
-                //NOTE: don't forget to delete this later
-                warnings(1, "unterminated string literal (EOF found)\n");
-                error_exit(1);
-            }
             if (second == '"') {
                 int third = fgetc(stdin);
-                //Checks whether EOF was reached
-                if (third == EOF){
-                    //NOTE: don't forget to delete this later
-                    warnings(1, "unterminated string literal (EOF found)\n");
-                    error_exit(1);
-                }
                 if (third == '"') {
                     //Terminating """ found - end of string reached
                     //Removes whitespace before closing """
@@ -507,51 +525,37 @@ void process_mul_l_str(token_ptr token){
                     return;
                 }
                 else{
-                    //NOTE: Neviem, ci mozu byt uprostred multiline string literal uvodzovky!
-                    //Ak hej, tak treba osetrit aj if(second != '"') !!!
+                    //Checks whether EOF was reached
+                    if (third == EOF){
+                        //NOTE: don't forget to delete this later
+                        warnings(1, "unterminated string literal (EOF found)\n");
+                        error_exit(1);
+                    }
+                    //Stores character
+                    token->value.str_value[index] = third;
+                    //Increments index
+                    index++;
                 }
-
-                //Terminating """ wasn't found, we have to put previously read characters back into input stream buffer
-                ungetc(third, stdin);
-                ungetc(second, stdin);
-
-                //Updating status variable
-                to_ignore = false;
-                /*
-                * Since terminating sequence """ wasn't found
-                * we have to store the read '"' as normal character
-                */
-                token->value.str_value[index] = next;
-                //Increments index
-                index++;
             }
-            else {
-                //Not even "", have to put the second character back...
-                ungetc(second, stdin);
-                
-                //Updating status variable
-                to_ignore = false;
+            else{
+                if (second == EOF){
+                    //NOTE: don't forget to delete this later
+                    warnings(1, "unterminated string literal (EOF found)\n");
+                    error_exit(1);
+                }
                 //Stores character
-                token->value.str_value[index] = next;
+                token->value.str_value[index] = second;
                 //Increments index
                 index++;
             }
         }
-        //Normal character - not ' " '
+        //Normal character, not a "
         else {
-            // Reallocate if needed
-            if (index >= (MAX_LINE_LEN - 1)) {
-                not_enough_space(token->value.str_value);
-            }
-
-            //If we were after opening """ and this is not whitespace
-            if (to_ignore && !isspace(next)) {
-                to_ignore = false;
-            }
-            
-            //If we were after opening """ and this is a whitespace
-            if (to_ignore && isspace(next)) {
-                continue;
+            if (next == EOF){
+                //NOTE: don't forget to delete this later
+                warnings(1, "unterminated string literal(EOF)\n");
+                free(token->value.str_value);
+                error_exit(1);
             }
             
             //Store character
@@ -564,6 +568,7 @@ void process_mul_l_str(token_ptr token){
     //There is no terminating sequence '"""'
     //NOTE: don't forget to delete this later
     warnings(1, "unterminated multiline string literal\n");
+    free(token->value.str_value);
     error_exit(1);
 }
 
@@ -902,6 +907,7 @@ void free_token(token_ptr token) {
     switch(token->type) {
         case IDENT:
         case GLOB_VAR:
+        case KEY_WORD:
             if (token->value.name != NULL) {
                 free(token->value.name);
                 token->value.name = NULL;
