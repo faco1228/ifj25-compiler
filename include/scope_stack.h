@@ -77,7 +77,7 @@ bool Scope_Stack_Full(Scope_Stack *scope_stack);
  * 
  * @return True if symbol was found, false otherwise.
  */
-bool Scope_Stack_Lookup(Scope_Stack *scope_stack, Key *key);
+ST_Node Scope_Stack_Lookup(Scope_Stack *scope_stack, Key *key);
 
 /**
  * @brief Returns an adress of a Symtable that is currently on top of the stack.
