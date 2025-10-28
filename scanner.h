@@ -2,32 +2,33 @@
  * @file scanner.h
  * @author xracekm00
  * @brief Header file for lexical analyzer - scanner
- * @version 0.1
- * @date 2025-10-12
+ * @version 0.3
+ * @date 2025-10-26
  * 
  * @copyright Copyright (c) 2025
  */
 
-#include <stdio.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <string.h>
-
 #ifndef SCANNER_H
 #define SCANNER_H
 
+#include <stdbool.h>
+
 //Enum defining different types of token
+
 enum token_type {IDENT, KEY_WORD, GLOB_VAR, INT_LIT, FLOAT_LIT, ONE_L_STRING, MUL_L_STRING, 
-                OPERATOR, LEFT_PAR, RIGHT_PAR, LEFT_DOM_PAR, RIGHT_DOM_PAR, EOL, END_OF_FILE,
-                DOUBLE_DOT, TRIPE_DOT, DOT, Q_MARK, SEMICOLON, MINUS, COMMA};
+                 OPERATOR, LEFT_PAR, RIGHT_PAR, LEFT_DOM_PAR, RIGHT_DOM_PAR, EOL, END_OF_FILE,
+                 DOUBLE_DOT, TRIPLE_DOT, DOT, Q_MARK, SEMICOLON, MINUS, COMMA};
+
+enum other_value_type {EOL_V, PLUS_V, MINUS_V, DIVISON_V, ASTERISK_V, EQUAL_SIGN_V, LEFT_PAR_V, RIGHT_PAR_V, LEFT_DOM_PAR_V, 
+                  RIGHT_DOM_PAR_V, QUESTION_MARK_V, SEMICOLON_V, LESS_THAN_V, GREATER_THAN_V, LESS_OR_EQ_THAN_V, GREATER_OR_EQ_THAN_V,
+                  EXC_MARK_V, Q_MARK_V, COMMA_V, DOT_V, DOUBLE_DOT_V, TRIPLE_DOT_V};
+                  //Fore End Of File is used value of EOF, but that's a built in constant
 
 union token_info{
-    long int_value;
-    double float_value;
+    long long int_value;
+    long double float_value;
     char *str_value;
-    char* name;
-    int other_value; //operators, parentheses, ., domain pars,...
+    enum other_value_type other_value;
 };
 
 //Token data type
@@ -43,48 +44,27 @@ extern const char *key_words_arr[];
 extern bool has_been_pushed;
 extern token_ptr pushed_token;
 
-//Defining max length of variable
-#define MAX_LEN 100
+//Global variables for EOF encounters during lookahead
+extern bool eof_reached;
+extern token_ptr pending_token;
 
-//Defining possible max length of line
-#define MAX_LINE_LEN 100
+//Defining max length of variable name
+#define MAX_NAME_LEN 100
 
-//Macro to determine whether the input character still belongs to the ident token being processed
-#define is_ident(c) \
-    ((isalnum(c)) || (c == '_'))
+//Defining max length of line
+#define MAX_LINE_LEN 1024
 
-//Macro for safe memory reallocation with error handling
-#define not_enough_space(buffer) \
-    do{ \
-        if((buffer = realloc(buffer, (strlen(buffer) + 1) * 2)) == NULL){ \
-            warnings(99, "memory allocation failed\n"); \
-            error_exit(99); \
-        } \
-    } while (0)
+//Defining max ammount of digits in storable number
+#define MAX_DIGITS 50
 
-//************************************** Function prototypes **************************************//
+//********************************* Function prototypes *********************************//
+
 void push_token(token_ptr);
 
 token_ptr get_token();
 
-token_ptr process_next_token(token_ptr);
+void free_token(token_ptr);
 
-void process_ident(token_ptr);
-
-void skip_comments(token_ptr);
-
-void process_str_l(token_ptr);
-
-void process_mul_l_str(token_ptr);
-
-void process_dots(token_ptr);
-
-int hex_digit_value(int);
-
-void process_number(token_ptr, int);
-
-void process_float(token_ptr, char*, unsigned);
-
-void process_exp(token_ptr, char*, unsigned);
+void scanner_cleanup();
 
 #endif
