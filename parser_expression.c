@@ -52,22 +52,25 @@ const precedence_relation precedence_table[OP_END+1][OP_END+1] = {
  * @return precedence_index corresponding to the token
  */
 precedence_index token_to_index(token_ptr token) {
-
     switch (token->type) {
         case OPERATOR:
             switch (token->value.other_value) {
-                case '+': return OP_ADD;
-                case '-': return OP_SUB;
-                case '*': return OP_MUL;
-                case '/': return OP_DIV;
-                case '<': return OP_LOWER;
-                case '>': return OP_GREATER;
-                case '=': return OP_EQUAL;
-                default: return OP_OPERAND;
+                case PLUS_V:              return OP_ADD;            // +
+                case MINUS_V:             return OP_SUB;            // -
+                case ASTERISK_V:          return OP_MUL;            // *
+                case DIVISON_V:           return OP_DIV;            // /
+                case LESS_THAN_V:         return OP_LOWER;          // <
+                case GREATER_THAN_V:      return OP_GREATER;        // >
+                case LESS_OR_EQ_THAN_V:   return OP_LOWER_EQUAL;    // <=
+                case GREATER_OR_EQ_THAN_V:return OP_GREATER_EQUAL;  // >=
+                case EQUAL_SIGN_V:        return OP_EQUAL;          // ==
+                case EXC_MARK_V:          return OP_NOT_EQUAL;      // !=
+                default:                  return OP_OPERAND;        // fallback
             }
 
-        case LEFT_PAR:  return OP_LPAR;
-        case RIGHT_PAR: return OP_RPAR;
+        case LEFT_PAR:   return OP_LPAR;
+        case RIGHT_PAR:  return OP_RPAR;
+
         case IDENT:
         case GLOB_VAR:
         case INT_LIT:
@@ -75,13 +78,14 @@ precedence_index token_to_index(token_ptr token) {
         case ONE_L_STRING:
         case MUL_L_STRING:
             return OP_OPERAND;
+
         case END_OF_FILE:
             return OP_END;
+
         default:
             return OP_OPERAND;
     }
 }
-
 
 
 /**
@@ -91,11 +95,15 @@ precedence_index token_to_index(token_ptr token) {
 void precedence_table_compare(Stack *stack, token_ptr current_token) {
     // To get the top of the stack
     token_ptr top_token = stack_top(stack);
-    if (!top_token)
+    if (top_token == NULL)
         error_exit(2); // If Stack is empty then its syntax ERR
+
+
     // To get the position needed for Precedence relations table
     precedence_index top_index = token_to_index(top_token);
     precedence_index curr_index = token_to_index(current_token);
+
+
 
     precedence_relation rel = precedence_table[top_index][curr_index];
     // Precedence's work with Stack
@@ -114,8 +122,8 @@ void precedence_table_compare(Stack *stack, token_ptr current_token) {
             break;
 
         case precedence_equal_reduce:
-            // Equal precedence (for parentheses): remove top token
-            stack_pop(stack);
+            // Equal precedence then we gonna push the Current token
+                stack_push(stack, current_token);
             break;
 
         case precedence_reduce:
@@ -193,7 +201,10 @@ bool parse_expression() {
 // pri EOL line musis peakovat aby si vedel co mas a ci mas pokracovat 
 // do errorov nedavat cisla ale nazvy z enumu 
 // push a pop porobit 
+// dokoncit ten token to index lebo chybaju tam <= >= != a tak dalej ze v precedencnej tabulke to je ale tu nie 
 
 
 // vyraz je syntakticky spravny ked nam na stacku ostane vstupny vyraz $ a jedno cislo / id / expression
 // koniec expressionu budem riesit tak ze si to rozdelim na situacie ked je to if/while(expresion) a ked je to A = expression ze samo by mi mohol poslat posledny token pred zavolanim expressiony aby som vedel ktora z tych 2 situacii to je lebo keby to je if(exp) tak viem ze sa exp konci ked prite patricne )
+// Opravit token pre <= ... v  tomto subore lebo asi to nefunguje ako by malo 
+// pri precedencnej tabulke sa pozerame na vrchny terminal , cize keby je na vrcholu zasobniku neterminal na ten sa nepozerame. 

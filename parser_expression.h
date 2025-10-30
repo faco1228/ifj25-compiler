@@ -52,22 +52,21 @@ typedef enum relation {
 
 
 typedef enum {
-    OP_ADD,      // +
-    OP_SUB,      // -
-    OP_MUL,      // *
-    OP_DIV,      // /
-    OP_LOWER,       // <
-    OP_GREATER,       // >
-    OP_LOWER_EQUAL,      // <=
-    OP_GREATER_EQUAL,      // >=
-    OP_EQUAL,       // ==
-    OP_NOT_EUAL,      // !=
-    OP_LPAR,     // (
-    OP_RPAR,     // )
-    OP_OPERAND,  // literal, identifikátor, getter
-    OP_END       // $
+    OP_ADD,             // +
+    OP_SUB,             // -
+    OP_MUL,             // *
+    OP_DIV,             // /
+    OP_LOWER,           // <
+    OP_GREATER,         // >
+    OP_LOWER_EQUAL,     // <=
+    OP_GREATER_EQUAL,   // >=
+    OP_EQUAL,           // ==
+    OP_NOT_EQUAL,       // !=
+    OP_LPAR,            // (
+    OP_RPAR,            // )
+    OP_OPERAND,         // literal, identifikátor, getter
+    OP_END              // $
 } precedence_index;
-
 
 
 
