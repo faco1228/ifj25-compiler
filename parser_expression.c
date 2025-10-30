@@ -13,10 +13,12 @@
 
  // TOTO MI PORADIL CHAT LEBO MY SME NEMALI TOKEN ZE MARKER A PODLA MOJEJ IMPLEMENTACIE STACKU TO TAM POTREBUEJEM
 #ifndef MARKER
-#define MARKER 9237492384  // must not collide with real token types
+#define MARKER 12345  // must not collide with real token types
 #endif
-
-
+// Urobil som si nonterminal E aby som mohol davat na stack
+#ifndef NONTERMINAL_E 
+#define NONTERMINAL_E 123456789
+#endif
 
 /**
  * @brief Precedence table for operators.
@@ -92,21 +94,39 @@ precedence_index token_to_index(token_ptr token) {
  * @brief Performs one comparison between stack top and current token.
  * Adds marker '<' when shifting, and reduces until marker on reduction.
  */
-void precedence_table_compare(Stack *stack, token_ptr current_token) {
+void precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *top_terminal) {
     // To get the top of the stack
     token_ptr top_token = stack_top(stack);
     if (top_token == NULL)
         error_exit(2); // If Stack is empty then its syntax ERR
 
 
+
+
+ 
+
+    // The first token should be a terminal if not then its syntax err 
+    if(top_token->type != NONTERMINAL_E && top_token->type != MARKER){
+        *top_terminal = top_token;
+    }
+    // This shouldnt happen
+    if(top_terminal == NULL){
+        error_exit(ERR_SYNTACTIC);
+    }
+    // malo by to zapezpecit to aby som mal vzdy najvrchnejsi terminal
+
+
+
     // To get the position needed for Precedence relations table
-    precedence_index top_index = token_to_index(top_token);
+    precedence_index top_index = token_to_index(top_terminal);
     precedence_index curr_index = token_to_index(current_token);
 
 
 
     precedence_relation rel = precedence_table[top_index][curr_index];
-    // Precedence's work with Stack
+
+
+    // Depending on what operator we get from the precedence table we will proceed
     switch (rel) {
 
         case precedence_shift:
@@ -126,7 +146,11 @@ void precedence_table_compare(Stack *stack, token_ptr current_token) {
                 stack_push(stack, current_token);
             break;
 
+
+
+
         case precedence_reduce:
+        
             // Reduce: pop tokens until marker '<' is found
             while (!stack_is_empty(stack) && stack_top(stack)->type != MARKER) {
                 stack_pop(stack);
@@ -146,7 +170,22 @@ void precedence_table_compare(Stack *stack, token_ptr current_token) {
 
 
 
-bool parse_expression() {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Puropose of the recognition token is to know if im in assignement or condition
+bool parse_expression(token_ptr recognition_token) {
 
     // Initialize the stack
     Stack stack;
@@ -163,21 +202,57 @@ bool parse_expression() {
     // Get first token
     token_ptr current_token = get_token();
 
-    // Parse until '{' (temporary end of expression)
-    while (current_token->type != LEFT_DOM_PAR) {
+    // Create a token_ptr for the top terminal because in the precedence table
+    // we have to compare the current token with the top terminal on the Stack
+    token_ptr top_terminal= NULL; // This pointer is used in function Precedence_table_compare
 
-        // Skip EOL tokens so they won't affect precedence
-        if (current_token->type == EOL) {
-            current_token = get_token();
-            continue;
-        }
 
-        // Perform precedence based analysis
-        precedence_table_compare(&stack, current_token);
+    // To know when to end I have to know if im in a assignment or condition 
+
+    switch (recognition_token->type)
+    {   // 
+        case OPERATOR : 
+            switch (recognition_token->value.other_value)
+            {
+            // Means that Im in assignment
+            case EQUAL_SIGN_V:
+                
+                break;
+
+            }
+
+
+        break;
+        // Means that we are in assignment
+        case LEFT_PAR  :
+        
+        
+
+
+        break;
+   
+
+
+        // Parse until '{' (temporary end of expression)
+        while (current_token->type != LEFT_DOM_PAR) {
+
+            // Skip EOL tokens so they won't affect precedence
+            if (current_token->type == EOL) {
+              current_token = get_token();
+              continue;
+         }
+
+            // Perform precedence based analysis
+            precedence_table_compare(&stack, current_token, &top_terminal);
 
         
-        current_token = get_token();
-    }
+            current_token = get_token();
+        }
+ }
+    
+
+
+
 
     // Free memory and stack
     stack_free(&stack);
@@ -188,23 +263,14 @@ bool parse_expression() {
 
 
 
-// moj parser by nevedel spravit priklad ako A>=B lebo nemame tokey >= samostatne iba ako dva tokedy > a = 
+
 // nevie rozoznat unarny -
 // nevie kedy konci expression 
-// MARKER ako token mi poradil chat 
-
-
-
-
-
 
 // pri EOL line musis peakovat aby si vedel co mas a ci mas pokracovat 
 // do errorov nedavat cisla ale nazvy z enumu 
-// push a pop porobit 
-// dokoncit ten token to index lebo chybaju tam <= >= != a tak dalej ze v precedencnej tabulke to je ale tu nie 
-
-
+// realne asi len reduction a error case musim porobit (asi najlepsie ako samostatne funkcie )
+// prerobit  lexikalne automaty reskeptive doplnit != , <= ... 
 // vyraz je syntakticky spravny ked nam na stacku ostane vstupny vyraz $ a jedno cislo / id / expression
 // koniec expressionu budem riesit tak ze si to rozdelim na situacie ked je to if/while(expresion) a ked je to A = expression ze samo by mi mohol poslat posledny token pred zavolanim expressiony aby som vedel ktora z tych 2 situacii to je lebo keby to je if(exp) tak viem ze sa exp konci ked prite patricne )
-// Opravit token pre <= ... v  tomto subore lebo asi to nefunguje ako by malo 
-// pri precedencnej tabulke sa pozerame na vrchny terminal , cize keby je na vrcholu zasobniku neterminal na ten sa nepozerame. 
+// pri precedencnej tabulke sa pozerame na vrchny terminal , cize keby je na vrcholu zasobniku neterminal na ten sa nepozerame. asi som uz spravil ? 

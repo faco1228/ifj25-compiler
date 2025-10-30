@@ -21,7 +21,8 @@ typedef struct StackItem {
 
 // Pointer on the top of the stack
 typedef struct {
-    StackItem *top;           
+    StackItem *top;  
+    int stack_size;          
 } Stack;
 
 

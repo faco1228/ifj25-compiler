@@ -24,7 +24,7 @@
  * @brief Parses and checks syntax of expression.
  * 
  */
-bool parse_expression(void);
+bool parse_expression(token_ptr recognition_token );
 
 
 
@@ -32,7 +32,7 @@ bool parse_expression(void);
  * @brief Compares current token with the one on the top of the Stack
  * 
  */
-void precedence_table_compare ( Stack *stack , token_ptr current_token);
+void precedence_table_compare ( Stack *stack , token_ptr current_token, token_ptr *top_terminal);
 
 
 
