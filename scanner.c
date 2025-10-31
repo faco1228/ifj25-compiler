@@ -2,8 +2,8 @@
  * @file scanner.c
  * @author xracekm00
  * @brief Contains scanner's backbone as well as functions for parser's use
- * @version 0.3
- * @date 2025-10-26
+ * @version 0.4
+ * @date 2025-10-30
  * 
  * @copyright Copyright (c) 2025
  */
@@ -32,7 +32,7 @@ token_ptr pending_token = NULL;
 /**
  * @brief Returns token back to scanner
  * 
- * @param token Token to be returned
+ * @param token to be filled
  */
 void push_token(token_ptr token){
     has_been_pushed = true;
@@ -50,6 +50,7 @@ token_ptr get_token(){
     if ((pending_token != NULL) && eof_reached){
         //Next token is the one that was unintentionally processed
         token = pending_token;
+
         //Updating gloval variables
         eof_reached = false;
         pending_token = NULL;
@@ -61,6 +62,7 @@ token_ptr get_token(){
     if (has_been_pushed &&( pushed_token != NULL)){
         //Next token is the on that's been returned
         token = pushed_token;
+
         //Updating global variables
         has_been_pushed = false;
         pushed_token = NULL;
@@ -68,14 +70,13 @@ token_ptr get_token(){
         return token;
     }
     
-    //Allocating new token
+    //Allocating memory for a new token
     if ((token = malloc(sizeof(token_t))) == NULL){
-        //NOTE: don't forget to delete this later
-        warnings(99, "memory allocation failed at line: %d\n", 73);
-        error_exit(99);
+        //warnings(99, "memory allocation failed at line: %d\n", 73);
+        error_exit(ERR_INTERNAL);
     }
-
-    //Process next token
+    
+    //Takes care of the rest
     process_next_token(token); 
 
     return token;
@@ -84,9 +85,10 @@ token_ptr get_token(){
 /**
  * @brief Frees memory allocated for token
  * 
- * @param token Token to free
+ * @param token to be freed
  */
 void free_token(token_ptr token) {
+    //Checks parameters validity
     if (token == NULL){
         return;
     }
@@ -110,6 +112,8 @@ void free_token(token_ptr token) {
     //Freing token structure itself
     free(token);
     token = NULL;
+
+    return;
 }
 
 /**
@@ -122,11 +126,15 @@ void scanner_cleanup() {
         free(pending_token);
         pending_token = NULL;
     }
+
     if (pushed_token != NULL) {
         free(pushed_token);
         pushed_token = NULL;
     }
+
     //Resets global variables (not necesary) but good habit
     eof_reached = false;
     has_been_pushed = false;
+
+    return;
 }

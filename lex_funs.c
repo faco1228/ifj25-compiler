@@ -2,8 +2,8 @@
  * @file scanner.h
  * @author xracekm00
  * @brief Contains functions for partial token processing
- * @version 0.3
- * @date 2025-10-28
+ * @version 0.4
+ * @date 2025-10-30
  * 
  * @copyright Copyright (c) 2025
  */
@@ -21,49 +21,51 @@
 /**
  * @brief Reads input and identifies token type
  * 
- * @param token Token structure to fill
- * @return Pointer to a new token
+ * @param token to be filled
+ * @return pointer to a token with updated attributes
  */
 token_ptr process_next_token(token_ptr token){
     //Variable for reading charcters from input stream
     int character;
 
-    //Reads char from input stream
+    //Reads next character
     character = fgetc(stdin);
 
     //Skips whitespaces
     while (isspace(character)) {
         //When the WS is '\n'
         if (character == '\n') {
-            token->type = EOL;
-            token->value.other_value = EOL_V;
+            token->type = END_OF_LINE;
+            token->value.other_value = EOL;
             return token;
         }
+
         //Reads next character
         character = fgetc(stdin);
     }
 
-    //printf("%c\n", character);
-
-    //Case: EOF was reached
+    //When end of file was reached
     if (character == EOF){
         token->type = END_OF_FILE;
         token->value.other_value = EOF;
         return token;
     }
     else if (isalpha(character) || (character == '_')){
-        //When the first character is alphabetic or underscore
+        //Let's process IDENT
 
-        //Allocating memory for the IDENTs name
+        //Allocating memory for IDENT's name
         if ((token->value.str_value = malloc(sizeof(char) * MAX_NAME_LEN)) == NULL){
-            //warnings(99, "memory allocation failed at line: %d\n", 54);
+            //warnings(99, "memory allocation failed at line: %d\n", 58);
             free_token(token);
-            error_exit(99);
+            error_exit(ERR_INTERNAL);
         }
+
         //Character read is the first letter of the name
         token->value.str_value[0] = character;
+
         //Will take care of the rest of the name
         process_ident(token);
+
         return token;
     }
     else if (isdigit(character)){
@@ -72,7 +74,7 @@ token_ptr process_next_token(token_ptr token){
         return token;
     }
     else{
-        //Decides what to do with the read character
+        //Let's decides what to do with the character read
         switch (character){
         case EOF:
             token->type = END_OF_FILE;
@@ -89,7 +91,7 @@ token_ptr process_next_token(token_ptr token){
             break;
         case '*':
             token->type = OPERATOR;
-            token->value.other_value = ASTERISK_V;
+            token->value.other_value = STAR_V;
             break;
         case '/':
             /*
@@ -98,12 +100,18 @@ token_ptr process_next_token(token_ptr token){
             * b) multiline comment
             * c) operator
             */
-            skip_comments(token);
+            process_slash(token);
+
             return token;
             break;
         case '=':
-            token->type = OPERATOR;
-            token->value.other_value = EQUAL_SIGN_V;
+            //Has to peak one character ahead to determine whether the operator isn't ==
+            if (check_equal(token, character)){}
+            else{
+                token->type = OPERATOR;
+                token->value.other_value = EQUAL_SIGN_V;
+            }
+
             break;
         case '(':
             token->type = LEFT_PAR;
@@ -129,16 +137,17 @@ token_ptr process_next_token(token_ptr token){
             * c)...
             */
             process_dots(token);
+
             return token;
             break;
         case '\n':
-            token->type = EOL;
-            token->value.other_value = EOL_V;
+            token->type = END_OF_FILE;
+            token->value.other_value = EOL;
             break;
         case '"':
-            //This function processes both one and multiline str literals
-            process_str_l(token);
-            return token;
+            //This function processes both oneline and multiline string literals
+            process_str_lit(token);
+
             break;
         case '?':
             token->type = Q_MARK;
@@ -149,26 +158,31 @@ token_ptr process_next_token(token_ptr token){
             token->value.other_value = SEMICOLON_V;
             break;
         case '<':
-            if (check_equal(token, character)){
-                return token;
-            }
+            //Has to peak one character ahead to determine whether the operator isn't <=
+            if (check_equal(token, character)){}
             else{
                 token->type = OPERATOR;
                 token->value.other_value = LESS_THAN_V;
             }
+
             break;
         case '>':
-            if (check_equal(token, character)){
-                return token;
-            }
+            //Has to peak one character ahead to determine whether the operator isn't >=
+            if (check_equal(token, character)){}
             else{
                 token->type = OPERATOR;
                 token->value.other_value = GREATER_THAN_V;
             }
+
             break;
         case '!':
-            token->type = OPERATOR;
-            token->value.other_value = EXC_MARK_V;
+            //Has to peak one character ahead to determine whether the operator isn't !=
+            if (check_equal(token, character)){}
+            else{
+                token->type = EXC_MARK;
+                token->value.other_value = EXC_MARK_V;
+            }
+
             break;
         case ',':
             token->type = COMMA;
@@ -177,7 +191,7 @@ token_ptr process_next_token(token_ptr token){
         default:
             //warnings(1, "unexpected character: '%c' (ASCII %d)\n", character, character);
             free_token(token);
-            error_exit(1);
+            error_exit(ERR_LEXICAL);
             break;
         }
     }
@@ -188,37 +202,37 @@ token_ptr process_next_token(token_ptr token){
 /**
  * @brief Processes identifier or keyword token
  * 
- * @param token Token structure to fill
+ * @param token to be filled
  */
 void process_ident(token_ptr token){
-    int next;                           //Variable for reading characters from input stream
-    unsigned index = 1;                 //Index in the ident's name
+    int next;                 //Variable for reading characters from input stream
+    unsigned index = 1;       //Index in the ident's name
 
+    //Reads next characters
     while((next = fgetc(stdin)) != EOF && is_ident(next)){
         //Checks whether there's enough space for the IDENT
         if (index >= MAX_NAME_LEN - 1) {
             //warnings(1, "identifier too long\n");
             free_token(token);
-            error_exit(1);
+            error_exit(ERR_LEXICAL);
         }
 
         //Updates IDENT name
         token->value.str_value[index] = next;
         //Incrementing index
         index++;
-    
     }
     
-    //The last character has to be '\0'
+    //Strings have to be null terminated
     token->value.str_value[index] = '\0';
 
-    /* After while loop terminated there's an unwanted character stored in c:
+    /* After while loop ended there's an unwanted character stored in c:
      * A) EOF
      * B) white sapce: ' ', '\n', '\t'
      * C) Next tokens first character
     */
 
-    //IDENT was successfully read, but EOF token will be axpected as well
+    //When IDENT was successfully read, but EOF token will be expected as well
     if (next == EOF){
         store_pending_eof();
     }
@@ -227,13 +241,14 @@ void process_ident(token_ptr token){
         ungetc(next, stdin);
     }
 
-    //Now we have to compare IDENT's name with all possible key words
+    //Has to compare IDENT's name with all possible key words
     for (int i = 0; key_words_arr[i] != NULL; i++){
         //When match was found
         if (!strcmp(token->value.str_value, key_words_arr[i])){
             //Sets token's parameteres
             token->type = KEY_WORD;
             strcpy(token->value.str_value, key_words_arr[i]);
+            
             return;
         }
     }
@@ -242,42 +257,52 @@ void process_ident(token_ptr token){
     if (token->value.str_value[0] == '_' && token->value.str_value[1] == '_'){
         token->type = GLOB_VAR;
         //token->name is already set
+
+        return;
+    }
+    else if(token->value.str_value[0] == '_'){
+        //Since token isn't global variable, other idents can not start with '_'
+        error_exit(ERR_LEXICAL);
     }
     else{
         token->type = IDENT;
         //token->name has already been set
+        
+        return;
     }
 }
 
 /**
- * @brief Skips one-line and multiline comments
+ * @brief Skips one-line and multiline comments / stores division operator
  * 
- * @param token Token structure to fill
+ * @param token to be filled
  */
-void skip_comments(token_ptr token){
-    int next = fgetc(stdin);      //Variable for reading characters from input stream
+void process_slash(token_ptr token){
+    //Variable for reading characters from input stream (reads next char)
+    int next = fgetc(stdin);
 
     //Scenario: one line comment
     if (next == '/') {
         //Skips one line
         while ((next = fgetc(stdin)) != '\n' && next != EOF);
+
         //Sets token's atributes
         if (next == EOF){
             token->type = END_OF_FILE;
             token->value.other_value = EOF; 
         }
         else{
-            token->type = EOL;
-            token->value.other_value = EOL_V;   
+            token->type = END_OF_LINE;
+            token->value.other_value = EOL;
         }
-    } 
+    }
+    //Scenario: multiline line comment
     else if (next == '*') {
-        //Scenario: multiline line comment
 
         int previous = 0;   //stores previous character
         int depth = 1;      //Information of scope (nesting depth)
 
-        //Skipping lines until the all the '/*' found their matching '*/'
+        //Skips lines until all '/*' found their matching '*/'
         while (depth > 0 && (next = fgetc(stdin)) != EOF) {
             if (previous == '/' && next == '*'){
                 depth++;
@@ -292,17 +317,19 @@ void skip_comments(token_ptr token){
         if (depth > 0) {
             //warnings(1, "unterminated comment\n");
             free_token(token);
-            error_exit(1);
+            error_exit(ERR_LEXICAL);
         }
 
-        //Multiline comment should be treated as a whitespace, therefore let's ask for new token
+        //Multiline comment should be treated as whitespace -> let's ask for a new token
         token_ptr new_token = get_token();
-        *token = *new_token;   // prepíš obsah pôvodného tokenu
+        *token = *new_token;
+        
+        //Clean up after the temp token
         free(new_token);
         new_token = NULL;
     }
+    //Scenario: the '/' character was actually operator
     else {
-        //Scenario: the '/' character was actually operator
         if (next == EOF){
             store_pending_eof();
         }
@@ -310,30 +337,48 @@ void skip_comments(token_ptr token){
             ungetc(next, stdin);
         }
         token->type = OPERATOR;
-        token->value.other_value = DIVISON_V;
+        token->value.other_value = SLASH_V;
     }
 }
 
 /**
- * @brief Peaks one character ahead to determine whether the token is <= / >= or just < / >
+ * @brief Peaks one character ahead to determine whether the token should contain '='
  * 
  * @param token to be filled
- * @return true when equal sign follow
+ * @return true when equal sign follows
  * @return false otherwise
  */
 bool check_equal(token_ptr token, int operator){
-    int next = fgetc(stdin); //Variable for reading characters from input stream
+    //Variable for reading characters from input stream (reads next character)
+    int next = fgetc(stdin); 
 
     if (next == '='){
+        //Based on what was the first character let's compose the token value
+        switch (operator)
+        {
+        case '<':
+            token->value.other_value = LESS_OR_EQ_THAN_V;
+            break;
+        case '>':
+            token->value.other_value = GREATER_OR_EQ_THAN_V;
+            break;
+        case '=':
+            token->value.other_value = LOGICAL_EQUAL_V;
+            break;
+        case '!':
+            token->value.other_value = LOGICAL_NOT_EQUAL_V;
+            break;
+        default:
+            //The function was called for wrong character
+            free(token);
+            error_exit(ERR_INTERNAL);
+            break;
+        }
+
         //Sets tokens attributes
         token->type = OPERATOR;
-        if (operator == '<'){
-            token->value.other_value = LESS_OR_EQ_THAN_V;
-        }
-        else{
-            token->value.other_value = GREATER_OR_EQ_THAN_V;
-        }
-        //Equalsign was found successfully
+
+        //Equal sign was found successfully
         return true;
     }
     else if(next == EOF){
@@ -342,6 +387,7 @@ bool check_equal(token_ptr token, int operator){
     else{
         ungetc(next, stdin);
     }
+
     //Equal sign wasn't found
     return false;
 }
@@ -349,56 +395,61 @@ bool check_equal(token_ptr token, int operator){
 /**
  * @brief Processes string literals (single-line and multiline)
  * 
- * @param token Token structure to fill
+ * @param token to be filled
  */
-void process_str_l(token_ptr token){
-    int next;                           //Variable for reading characters from input stream
-    unsigned index = 0;                 //String index
+void process_str_lit(token_ptr token){
+    int next;                 //Variable for reading characters from input stream
+    unsigned index = 0;       //String index
 
     //Allocating memory for the string
     if ((token->value.str_value = malloc(sizeof(char) * MAX_LINE_LEN)) == NULL){
-        //warnings(99, "memory allocation failed at line: %d\n", 336);
+        //warnings(99, "memory allocation failed at line: %d\n", 384);
         free_token(token);
-        error_exit(99);
+        error_exit(ERR_INTERNAL);
     }
 
-    //Checking for potential multiline string
+    //Checks for potential multiline string
     int second = fgetc(stdin);
     if (second == '"'){
+        //Scanerio: "" read
         int third = fgetc(stdin);
+
         if (third == '"'){
-            //It's a multiline string
+            //Scanerio: """ read -> It's a multiline string
             process_mul_l_str(token);
+
             return;
         }
         else{
-            //Empty string found
+            //Third quot. mark wasn't found -> Empty string
             if (third == EOF){
                 store_pending_eof();
             }
             else{
                 ungetc(third, stdin);    
             }
+
+            //Sets tokens attributes
             token->type = ONE_L_STRING;
             token->value.str_value[0] = '\0';
             return;
         }
     }
     else{
-        //We are processing one line string, put second back
+        //Let's process one line string and put second back
         if (second != EOF && second != '\n'){
             ungetc(second, stdin);
         }
         else{
             //warnings(1, "unterminated string literal(EOF or newline)\n");
             free_token(token);
-            error_exit(1);
+            error_exit(ERR_LEXICAL);
         }
     }
 
-    //Processing single line string - reading characters until EOF or '"'/' """ '
-    while ((next = fgetc(stdin)) != EOF && next != '"' && next != '\n'){
-
+    //Reading characters until EOF or closing " / """
+    while ((next = fgetc(stdin)) != EOF && (next != '"') && (next != '\n')){
+        
         //Checks if there's enough space to store the whole string
         if (index >= (MAX_LINE_LEN - 1)){
             not_enough_space(token->value.str_value);
@@ -416,39 +467,42 @@ void process_str_l(token_ptr token){
         }
     }
 
-    //The last character has to be '\0'
+    //Strings have to be null terminated
     token->value.str_value[index] = '\0';
 
-    //After the while loop ended, the latest character read is: EOF / " / \n
+    //After the while loop ended, the character read could be: EOF / " / \n
     if (next == EOF){
         //warnings(1, "unterminated string literal(EOF)\n");
         free_token(token);
-        error_exit(1);
+        error_exit(ERR_LEXICAL);
     }
     else if(next == '\n'){
         //warnings(1, "unterminated string literal(newline)\n");
         free_token(token);
-        error_exit(1);
+        error_exit(ERR_LEXICAL);
     }
     
     //If got here, everything was read successfully
     token->type = ONE_L_STRING;
+
+    return;
 }
 
 /**
  * @brief Processes escape sequences in strings
  * 
- * @param token Token structure being processed
- * @param index Pointer to current index in string buffer
+ * @param token to be filled
+ * @param index pointer to a current index in string buffer
  */
 void process_escape_sequence(token_ptr token, unsigned *index) {
     //Variable to store 2nd part of the esc seq (\n, \r, \t, \\, \")
     int escape_char = fgetc(stdin);
+
     //Checks whether EOF was reached
     if (escape_char == EOF){
         //warnings(1, "unterminated escape sequence in string\n");
         free_token(token);
-        error_exit(1);
+        error_exit(ERR_LEXICAL);
     }
 
     switch (escape_char) {
@@ -468,27 +522,27 @@ void process_escape_sequence(token_ptr token, unsigned *index) {
             token->value.str_value[*index] = '"';
             break;
         case 'x':
-            //Handles hecadecimal escape-sequances
+            //Handles hexadecimal escape-sequances
             process_hex_escape(token, index);
             break;
         default:
             //warnings(1, "unknown escape sequence '\\%c'\n", escape_char);
             free_token(token);
-            error_exit(1);
+            error_exit(ERR_LEXICAL);
     }
 
-    //Incrementing string index
+    //Increments index in string
     (*index)++;
 }
 
 /**
  * @brief Processes hexadecimal escape sequences (\xHH)
  * 
- * @param token Token structure being processed
- * @param index Pointer to current index
+ * @param token to be filled
+ * @param index pointer to a current index
  */
 void process_hex_escape(token_ptr token, unsigned *index) {
-    //Buffer to store 2 hex digits + null terminator
+    //Buffer to store 2 hex digits and null terminator
     char hex_buffer[3];
 
     //Read exactly 2 hex digits
@@ -499,14 +553,14 @@ void process_hex_escape(token_ptr token, unsigned *index) {
     if (hex1 == EOF || hex2 == EOF) {
         //warnings(1, "incomplete \\x escape sequence (EOF)\n");
         free_token(token);
-        error_exit(1);
+        error_exit(ERR_LEXICAL);
     }
     
     //Validate hex digits
     if (!isxdigit(hex1) || !isxdigit(hex2)) {
         //warnings(1, "invalid hex escape sequence \\x%c%c\n", hex1, hex2);
         free_token(token);
-        error_exit(1);
+        error_exit(ERR_LEXICAL);
     }
     
     //Creating string from hexa digits
@@ -514,19 +568,19 @@ void process_hex_escape(token_ptr token, unsigned *index) {
     hex_buffer[1] = hex2;
     hex_buffer[2] = '\0';
     
-    //Converting to ASCII
+    //Converting to ASCII value
     long ascii_value = strtol(hex_buffer, NULL, 16);
     
-    //Store character
+    //Store character to a string
     token->value.str_value[*index] = ascii_value;
-    //Increments the string index
-    //(*index)++;
+
+    return;
 }
 
 /**
- * @brief Processes multiline string literals (""")
+ * @brief Processes multiline string literals
  * 
- * @param token Token structure to fill
+ * @param token to be filled
  */
 void process_mul_l_str(token_ptr token){
     int next;               //Variable for reading characters from input stream
@@ -538,41 +592,50 @@ void process_mul_l_str(token_ptr token){
 
     //Skips whitespaces after opening """
     while (to_ignore && (next = fgetc(stdin)) != EOF){
-        //When non-whitespace character encountered
+        //When non-whitespace character is encountered
         if (!isspace(next)){
             ungetc(next, stdin);
             to_ignore = false;
         }
     }
     
-    //Reading characters until terminating """
+    //Reading characters until terminating """ is found
     while ((next = fgetc(stdin)) != EOF){
-        //Checks if there's enough space for the while string
+
+        //Checks if there's enough space for the whole string
         if (index >= (MAX_LINE_LEN - 1)){
             not_enough_space(token->value.str_value);
         }
 
-        //Checks if this could be start of terminating """
+        //Checks if this could be start of terminating """ sequance
         if (next == '"') {
             int second = fgetc(stdin);
+
             if (second == '"') {
+                //Scenario: "" read
+
                 int third = fgetc(stdin);
                 if (third == '"') {
-                    //Terminating """ found - end of string reached
+                    //Scenario """ read -> end of multiline string reached
+
                     //Removes whitespace before closing """
                     while (index > 0 && isspace(token->value.str_value[index - 1])) {
                         index--;
                     }
+
+                    //Strings have to be null terminated
                     token->value.str_value[index] = '\0';
+
                     return;
                 }
                 else{
-                    //Checks whether EOF was reached
+                    //Third quot. mark wasn't found
                     if (third == EOF){
                         //warnings(1, "unterminated string literal (EOF found)\n");
                         free_token(token);
-                        error_exit(1);
+                        error_exit(ERR_LEXICAL);
                     }
+
                     //Stores character
                     token->value.str_value[index] = third;
                     //Increments index
@@ -580,23 +643,25 @@ void process_mul_l_str(token_ptr token){
                 }
             }
             else{
+                //Not even second quot. mark wasn't found
                 if (second == EOF){
                     //warnings(1, "unterminated string literal (EOF found)\n");
                     free_token(token);
-                    error_exit(1);
+                    error_exit(ERR_LEXICAL);
                 }
+
                 //Stores character
                 token->value.str_value[index] = second;
                 //Increments index
                 index++;
             }
         }
-        //Normal character, not a "
+        //Non quot. mark character was read
         else {
             if (next == EOF){
                 //warnings(1, "unterminated string literal(EOF)\n");
                 free_token(token);
-                error_exit(1);
+                error_exit(ERR_LEXICAL);
             }
             
             //Store character
@@ -606,38 +671,44 @@ void process_mul_l_str(token_ptr token){
         }
     }
 
-    //There is no terminating sequence '"""'
+    //If program got here, there is no terminating sequence """
+
     //warnings(1, "unterminated multiline string literal\n");
     free_token(token);
-    error_exit(1);
+    error_exit(ERR_LEXICAL);
 }
 
 
 /**
  * @brief Processes dot operators (., .., ...)
  * 
- * @param token Token structure to fill
+ * @param token to be filled
  */
 void process_dots(token_ptr token){
-    int next = fgetc(stdin); //Variable for reading characters from input stream
+    //Variable for reading characters from input stream (reads next char)
+    int next = fgetc(stdin);
 
     /*
     * We have already read '.' and want to peak ahead to find out
     * whether there is second or maybe even a third dot, since we
-    * want to differenciate those 3 token types: DOT, DOUBLE_DOT, TRIPLE_DOT
+    * want to differenciate 3 token types: DOT, DOUBLE_DOT, TRIPLE_DOT
     */
 
     if (next == '.') {
-        //There already is "..", let's read one more character
+        //Scenario: ".." read
         int third = fgetc(stdin);
         
         if (third == '.') {
-            //There is "..."
+            //Scenario: "..." read
+
+            //Sets tokens attributes
             token->type = TRIPLE_DOT;
             token->value.other_value = TRIPLE_DOT_V;
+
             return;
-        } else {
-            //There is "..", we need to put back the previously read character
+        }
+        else {
+            //Third dot wasn't found
             if (third == EOF){
                 store_pending_eof();
             }
@@ -648,10 +719,12 @@ void process_dots(token_ptr token){
             //Sets tokens atributes
             token->type = DOUBLE_DOT;
             token->value.other_value = DOUBLE_DOT_V;
+
             return;
         }
     }
     else{
+        //Not even second dot was found
         if (next == EOF){
             store_pending_eof();
         }
@@ -659,19 +732,22 @@ void process_dots(token_ptr token){
             ungetc(next, stdin);
         }
         
+        //Sets tokens attributes
         token->type = DOT;
         token->value.other_value = DOT_V;
     }
+
+    return;
 }
 
 /**
  * @brief Processes numeric literals (integer, float, hexadecimal)
  * 
- * @param token Token structure to fill
- * @param first_char First digit character (0-9) already read from input
+ * @param token to be filled
+ * @param first_char first digit (0-9) that has already been read
  */
 void process_number(token_ptr token, int first_char){
-    int digit;              //Variable for reading next character
+    int digit;              //Variable for reading characters from input stream
     char *temp_buffer;      //Temporary buffer for storing numeric string
     unsigned index = 0;     //Index in the buffer
     bool is_hexa = false;   //Tracks whether the variable is hexadecimal
@@ -680,12 +756,12 @@ void process_number(token_ptr token, int first_char){
     if ((temp_buffer = malloc(sizeof(char) * MAX_DIGITS)) == NULL){
         //warnings(99, "memory allocation failed\n");
         free_token(token);
-        error_exit(99);
+        error_exit(ERR_INTERNAL);
     }
     
     //Inserts first character
     temp_buffer[index] = first_char;
-    //Incrementing index
+    //Incrementing index in the buffer
     index++; 
 
     //When the first character was '0'
@@ -695,57 +771,57 @@ void process_number(token_ptr token, int first_char){
         
         switch (digit){
         case '.':
-            //Storying decimal point
+            //Storing decimal point
             temp_buffer[index] = digit;
             index++;
+
             //Takes care of the float
             process_float(token, temp_buffer, &index);
+
             break;
         case 'e':
         case 'E':
-            //It's exponential notation starting with 0
+            //Exponential notation starting with 0
 
-            //Storying decimal point
+            //Storying e/E
             temp_buffer[index] = digit;
             index++;
+
             //Takes care of the rest
             process_exp(token, temp_buffer, &index);
+
             break;
         case 'x':
-            //It's a hexadecimal number
+            //Hexadecimal number
             is_hexa = true;
-            //Stores x for later convertion from hexa to decimal
+
+            //Storing x
             temp_buffer[index] = 'x';
             index++;
             
             //Reads hexadecimal digits
             while (isxdigit(digit = fgetc(stdin))){
-                temp_buffer[index] = digit;
-                index++;
                 //Check if buffer is full
                 if (index >= MAX_DIGITS){
                     //warnings(1, "numeric literal too long\n");
                     free_token(token);
                     free(temp_buffer);
                     temp_buffer = NULL;
-                    error_exit(1);
+                    error_exit(ERR_LEXICAL);
                 }
+
+                //Stores digit
+                temp_buffer[index] = digit;
+                index++;
             }
 
             //If no hexadecimal digits were added after '0x'
-            if (index == 2){
+            if (index <= 2){
                 //warnings(1, "invalid hexadecimal literal\n");
                 free_token(token);
                 free(temp_buffer);
                 temp_buffer = NULL;
-                error_exit(1);
-            }
-
-            //Have to check whether the character that ended the loop could immediately follow number
-            if (isalpha(digit) || digit == '_'){
-                free_token(token);
-                free(temp_buffer);
-                error_exit(1);
+                error_exit(ERR_LEXICAL);
             }
 
             //The previously read character has to be returned
@@ -764,17 +840,9 @@ void process_number(token_ptr token, int first_char){
                 free_token(token);
                 free(temp_buffer);
                 temp_buffer = NULL;
-                error_exit(1);
+                error_exit(ERR_LEXICAL);
             }
             else{
-                //Have to check whether the character that ended the loop could immediately follow number
-                if (isalpha(digit) || digit == '_'){
-                    free_token(token);
-                    free(temp_buffer);
-                    temp_buffer = NULL;
-                    error_exit(1);
-                }
-
                 if (digit == EOF){
                     store_pending_eof();
                 }
@@ -785,50 +853,49 @@ void process_number(token_ptr token, int first_char){
             break;
         }
     }
-    //When first character was non-zero digit (1-9)
+    //When first character was digit different form zeto
     else if (isdigit(first_char) && (first_char != '0')){
-        //Reads while the characters are digit characters
+
+        //Reads while the characters are digits
         while (isdigit(digit = fgetc(stdin))){
-            temp_buffer[index] = digit;
-            index++;
             //Check if buffer is full
             if (index >= MAX_DIGITS){
                 //warnings(1, "invalid number format (leading zeros)\n");
                 free_token(token);
                 free(temp_buffer);
                 temp_buffer = NULL;
-                error_exit(1);
+                error_exit(ERR_LEXICAL);
             }
+
+            //Stores digit
+            temp_buffer[index] = digit;
+            index++;
         }
         
         //After the while loop terminated, check what character stopped the loop
         switch (digit){
         case '.':
-            //Storying decimal point
+            //Storing decimal point
             temp_buffer[index] = digit;
             index++;
+
             //Takes care of the rest
             process_float(token, temp_buffer, &index);
+
             break;
         case 'e':
         case 'E':
-            //It's exponential notation
+            //Exponential notation
 
-            //Storying decimal point
+            //Storing decimal point
             temp_buffer[index] = digit;
             index++;
+
             //Takes care of the rest
             process_exp(token, temp_buffer, &index);
+
             break;
         default:
-            //Have to check whether the character that ended the loop could immediately follow number
-            if (isalpha(digit) || digit == '_'){
-                free_token(token);
-                free(temp_buffer);
-                temp_buffer = NULL;
-                error_exit(1);
-            }
-
             //The character doesn't belong to the number
             if (digit == EOF){
                 store_pending_eof();
@@ -839,112 +906,111 @@ void process_number(token_ptr token, int first_char){
         }
     }
 
-    //Terminate buffer with '\0'
+    //Strings have to be null terminated
     temp_buffer[index] = '\0';
 
-    //Convert string to appropriate numeric value
+    //Converts string to appropriate numeric value
     if (is_hexa){
+        //Converts string containing hexadecimal number into integer value
         token->value.int_value = strtol(temp_buffer, NULL, 0);
         token->type = INT_LIT;
     }
     else if (token->type == FLOAT_LIT){
+        //Converts string containing float number into float value
         token->value.float_value = strtod(temp_buffer, NULL);
     }
     else{
+        //Converts string containing integer number into integer value
         token->value.int_value = strtol(temp_buffer, NULL, 10);
         token->type = INT_LIT;
     }
     
+    //Memory cleanup
     free(temp_buffer);
     temp_buffer = NULL;
+
+    return;
 }
 
 /**
  * @brief Processes decimal part and optional exponent of float
  * 
- * @param token Token structure to fill
- * @param buffer String buffer containing digits before decimal point
- * @param buf_index Current position in buffer
+ * @param token to be filled
+ * @param buffer string containing digits (before decimal point)
+ * @param buf_index current position in buffer
  */
 void process_float(token_ptr token, char *buffer, unsigned *buf_index){
     int digit;      //Varaible for reading characters from input stream
-    int count = 0;  //Counts how many decimal numbers the number contains
+    int count = 0;  //Counts how many numbers the number contains after decimal point
     
-    //Read decimal digits
+    //Reads decimal digits
     while (isdigit(digit = fgetc(stdin))){
         buffer[*buf_index] = digit;
         (*buf_index)++;
         count++;
     }
 
-    //Options that digit could contain after the while loop ended
+    //Sets tokens attributes
+    token->type = FLOAT_LIT;
+
+    //Strings have to be null terminated
+    buffer[*buf_index] = '\0';
+
+    //After the while loop ended, ther's an unwanted character
     if (digit == EOF){
-        buffer[*buf_index] = '\0';
         store_pending_eof();
     }
     //Check if there's an exponent
     else if(digit == 'e' || digit == 'E'){
-        //Storying decimal point
+        //Storing decimal point
         buffer[*buf_index] = digit;
         (*buf_index)++;
+
         //Takes care of the rest
         process_exp(token, buffer, buf_index);
-    }
-    else{
-        //Have to check whether the character that ended the loop could immediately follow number
-        if (isalpha(digit) || digit == '_'){
-            free_token(token);
-            free(buffer);
-            buffer = NULL;
-            error_exit(1);
-        }
-
-        //Nummbers like 5. without decimal point are invalid
-        if (count == 0){
-            free_token(token);
-            free(buffer);
-            buffer = NULL;
-            error_exit(1);
-        }
         
+        return;
+    }
+    else{        
         //Return the character that stopped the loop
         ungetc(digit, stdin);
-        //Terminate the string
-        buffer[*buf_index] = '\0';
     }
     
-    token->type = FLOAT_LIT;
+    return;
 }
 
 /**
- * @brief Processes exponent notation (e/E) of numeric literal
+ * @brief Processes numeric literals with scientific/exponent notation (e/E)
  * 
- * @param token Token structure to fill
- * @param buffer String buffer containing digits and decimal point
- * @param buf_index Current position in buffer
+ * @param token to be filled
+ * @param buffer string containing digits (maybe as well decimal point)
+ * @param buf_index current position in buffer
  */
 void process_exp(token_ptr token, char *buffer, unsigned *buf_index){
     int digit;      //Variable for reading characters from input stream
     int count = 0;  //Variable to determine how many digits were read
     
-    /* Even though int literal can use scientific notation, there's not smart enough function
-    *  in C that could detect and convert this number from string into decimal. Therefore
-    *  I'm treating this number as float, idc. 
+    /* Even though integer literal can use scientific notation, there's not smart enough function
+    *  in C that could detect and convert this number from string into decimal. 
+    *  Therefore I'm treating those numbers as float. 
     */
 
+    //Sets tokens attributes
     token->type = FLOAT_LIT;
 
-    //Reads next character (optional sign or digit)
+    //Reads next characte
     digit = fgetc(stdin);
+
     if (digit == EOF){
         //warnings(1, "invalid exponent format\n");
         free_token(token);
         free(buffer);
         buffer = NULL;
-        error_exit(1);
+        error_exit(ERR_LEXICAL);
     }
     //Check for optional sign
     else if (digit == '+' || digit == '-'){
+        //Stores sign
         buffer[*buf_index] = digit;
         (*buf_index)++;
             
@@ -956,37 +1022,34 @@ void process_exp(token_ptr token, char *buffer, unsigned *buf_index){
     while (isdigit(digit)){
         //Tracks how many digits were read
         count++;
+
         //Stores digits into buffer
         buffer[*buf_index] = digit;
         (*buf_index)++;
+
+        //Reads next digit
         digit = fgetc(stdin);
     }
 
-    //Exponent need at least one digit
+    //Exponent needs at least one digit
     if (count == 0){
         //warnings(1, "invalid exponent format\n");
         free_token(token);
         free(buffer);
         buffer = NULL;
 
-        error_exit(1);
+        error_exit(ERR_LEXICAL);
     }
     
+    //Strings have to be null terminated
+    buffer[*buf_index] = '\0';
+
     //Return the character that stopped the loop
     if (digit == EOF){
-        buffer[*buf_index] = '\0';
         store_pending_eof();
     }
     else{
-        //Have to check whether the character that ended the loop could immediately follow number
-        if (isalpha(digit) || digit == '_'){
-            free_token(token);
-            free(buffer);
-            buffer = NULL;
-            error_exit(1);
-        }
-        //Else just terminate string and return the character read
-        buffer[*buf_index] = '\0';
+        //Return the character that stopped the loop
         ungetc(digit, stdin);
     }
 }
@@ -996,16 +1059,18 @@ void process_exp(token_ptr token, char *buffer, unsigned *buf_index){
  * 
  */
 void store_pending_eof() {
-    //Alocates new pending token
+    //Alocating new pending token
     if (pending_token == NULL) {
         if((pending_token = malloc(sizeof(token_t))) == NULL){
             //warnings(99, "memory allocation failed for EOF token\n");
-            error_exit(99);
+            error_exit(ERR_INTERNAL);
         }
     }
+
     //Sets tokens attributes
     pending_token->type = END_OF_FILE;
     pending_token->value.other_value = EOF;
+
     //Updates global variable
     eof_reached = true;
 }
