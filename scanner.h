@@ -2,8 +2,8 @@
  * @file scanner.h
  * @author xracekm00
  * @brief Header file for lexical analyzer - scanner
- * @version 0.3
- * @date 2025-10-26
+ * @version 0.4
+ * @date 2025-10-30
  * 
  * @copyright Copyright (c) 2025
  */
@@ -14,26 +14,42 @@
 #include <stdbool.h>
 
 //Enum defining different types of token
+//Note: Type operator includes both aritmetical and logical operators
+//Note: Subtraction operator has separate type, since it can be used as unary operator (extension)
+enum token_type {
+    IDENT, KEY_WORD, GLOB_VAR, 
+    INT_LIT, FLOAT_LIT, 
+    ONE_L_STRING, MUL_L_STRING, 
+    OPERATOR, MINUS,
+    LEFT_PAR, RIGHT_PAR, LEFT_DOM_PAR, RIGHT_DOM_PAR, 
+    END_OF_LINE, END_OF_FILE,
+    DOT, DOUBLE_DOT, TRIPLE_DOT,
+    Q_MARK, EXC_MARK, SEMICOLON, COMMA
+};
 
-enum token_type {IDENT, KEY_WORD, GLOB_VAR, INT_LIT, FLOAT_LIT, ONE_L_STRING, MUL_L_STRING, 
-                 OPERATOR, LEFT_PAR, RIGHT_PAR, LEFT_DOM_PAR, RIGHT_DOM_PAR, EOL, END_OF_FILE,
-                 DOUBLE_DOT, TRIPLE_DOT, DOT, Q_MARK, SEMICOLON, MINUS, COMMA};
+//Enum defining different values a token's attribute other_value can obtain
+//Note: Token type END_OF_FILE uses value EOF - It's not included in enum because it's built in constant
+enum other_value_type {
+    EOL, //EOF (built in)
+    PLUS_V, MINUS_V, SLASH_V, STAR_V, EQUAL_SIGN_V, 
+    LEFT_PAR_V, RIGHT_PAR_V, LEFT_DOM_PAR_V, RIGHT_DOM_PAR_V, 
+    QUESTION_MARK_V, EXC_MARK_V, SEMICOLON_V, Q_MARK_V, COMMA_V,
+    LESS_THAN_V, GREATER_THAN_V, LESS_OR_EQ_THAN_V, GREATER_OR_EQ_THAN_V,
+    LOGICAL_EQUAL_V, LOGICAL_NOT_EQUAL_V,
+    DOT_V, DOUBLE_DOT_V, TRIPLE_DOT_V
+};
 
-enum other_value_type {EOL_V, PLUS_V, MINUS_V, DIVISON_V, ASTERISK_V, EQUAL_SIGN_V, LEFT_PAR_V, RIGHT_PAR_V, LEFT_DOM_PAR_V, 
-                  RIGHT_DOM_PAR_V, QUESTION_MARK_V, SEMICOLON_V, LESS_THAN_V, GREATER_THAN_V, LESS_OR_EQ_THAN_V, GREATER_OR_EQ_THAN_V,
-                  EXC_MARK_V, Q_MARK_V, COMMA_V, DOT_V, DOUBLE_DOT_V, TRIPLE_DOT_V};
-                  //Fore End Of File is used value of EOF, but that's a built in constant
-
+//Each token can store one of these types of data
 union token_info{
-    long long int_value;
-    long double float_value;
-    char *str_value;
-    enum other_value_type other_value;
+    long long int_value;                //INT_LIT
+    long double float_value;            //FLOAT_LIT
+    char *str_value;                    //Could be either name or string literal value
+    enum other_value_type other_value;  //Other values, see line 16
 };
 
 //Token data type
 typedef struct token{
-    enum token_type type;
+    enum token_type type; 
     union token_info value;
 }token_t, *token_ptr;
                 

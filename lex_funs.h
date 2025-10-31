@@ -2,8 +2,8 @@
  * @file lex_funs.h
  * @author xracekm00
  * @brief Header file for lexical analyzer's functions
- * @version 0.3
- * @date 2025-10-28
+ * @version 0.4
+ * @date 2025-10-30
  * 
  * @copyright Copyright (c) 2025
  */
@@ -15,6 +15,7 @@
 #include "error.h"
 #include <stdio.h>
 #include <ctype.h>
+#include <stdbool.h>
 
 //Macro to determine whether the input character still belongs to the IDENT token being processed
 #define is_ident(c) \
@@ -24,8 +25,7 @@
 #define not_enough_space(buffer) \
     do{ \
         if((buffer = realloc(buffer, (strlen(buffer) + 1) * 2)) == NULL){ \
-            warnings(99, "memory allocation failed\n"); \
-            error_exit(99); \
+            error_exit(ERR_INTERNAL); \
         } \
     } while (0)
 
@@ -35,11 +35,11 @@ token_ptr process_next_token(token_ptr);
 
 void process_ident(token_ptr);
 
-void skip_comments(token_ptr);
+void process_slash(token_ptr);
 
 bool check_equal(token_ptr, int);
 
-void process_str_l(token_ptr);
+void process_str_lit(token_ptr);
 
 void process_escape_sequence(token_ptr, unsigned *);
 
