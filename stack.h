@@ -21,7 +21,8 @@ typedef struct StackItem {
 
 // Pointer on the top of the stack
 typedef struct {
-    StackItem *top;  
+    StackItem *top;
+    StackItem *top_terminal;  // Pointer to the top terminal in Stack
     int stack_size;          
 } Stack;
 
@@ -47,5 +48,9 @@ token_ptr stack_top(Stack *s);
 void stack_free(Stack *s);
 
 
+void stack_set_top_terminal_pointer (Stack *s ,StackItem *item);
+
+
+void stack_push_after (Stack *s, token_ptr token );
 
 #endif 

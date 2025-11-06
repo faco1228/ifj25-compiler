@@ -98,7 +98,7 @@ void precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     // To get the top of the stack
     token_ptr top_token = stack_top(stack);
     if (top_token == NULL)
-        error_exit(2); // If Stack is empty then its syntax ERR
+        error_exit(ERR_SYNTACTIC); // If Stack is empty then its syntax ERR
 
 
 
@@ -106,14 +106,20 @@ void precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
  
 
     // The first token should be a terminal if not then its syntax err 
-    if(top_token->type != NONTERMINAL_E && top_token->type != MARKER){
+    if(top_token->type != NONTERMINAL_E){
         *top_terminal = top_token;
+        // Sets the pointer on the top terminal in case of < to know after which terminal to push it 
+        stack_set_top_terminal_pointer(stack , stack->top);
     }
     // This shouldnt happen
     if(top_terminal == NULL){
         error_exit(ERR_SYNTACTIC);
     }
     // malo by to zapezpecit to aby som mal vzdy najvrchnejsi terminal
+
+    // Set a pointer to top_terminal so I
+
+
 
 
 
@@ -130,13 +136,14 @@ void precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     switch (rel) {
 
         case precedence_shift:
-            // Insert a marker before pushing the new token
+            // Insert a marker after top terminal before pushing the new token
             {
                 token_ptr marker = malloc(sizeof(token_t));
                 if (!marker) error_exit(99);
                 marker->type = MARKER; // Special internal token type
                 marker->value.other_value = '<';
-                stack_push(stack, marker);
+                
+                stack_push_after(stack, marker);
                 stack_push(stack, current_token);
             }
             break;
@@ -274,3 +281,17 @@ bool parse_expression(token_ptr recognition_token) {
 // vyraz je syntakticky spravny ked nam na stacku ostane vstupny vyraz $ a jedno cislo / id / expression
 // koniec expressionu budem riesit tak ze si to rozdelim na situacie ked je to if/while(expresion) a ked je to A = expression ze samo by mi mohol poslat posledny token pred zavolanim expressiony aby som vedel ktora z tych 2 situacii to je lebo keby to je if(exp) tak viem ze sa exp konci ked prite patricne )
 // pri precedencnej tabulke sa pozerame na vrchny terminal , cize keby je na vrcholu zasobniku neterminal na ten sa nepozerame. asi som uz spravil ? 
+
+
+/*
+Znak nového řádku je (kromě případů, kde je povinný) možné použít za  tečkami, čárkami, operátory a 
+. Sekvence několik znaků nového řádku se
+považuje za jeden znak nového řádku.
+*/
+// . Statický getter je možné použít na místě termu. 
+
+
+
+/*
+V základním zadání je vždy přítomná i část else. Za ukončovací kulatou závorkou, za koncem
+bloku1 ani za klíčovým slovem else nesmí být znak nového řádku.*/
