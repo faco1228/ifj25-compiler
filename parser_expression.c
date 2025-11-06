@@ -117,7 +117,7 @@ void precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     }
     // malo by to zapezpecit to aby som mal vzdy najvrchnejsi terminal
 
-    // Set a pointer to top_terminal so I
+  
 
 
 
@@ -155,6 +155,11 @@ void precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
 
 
 
+
+
+
+
+            
 
         case precedence_reduce:
         
