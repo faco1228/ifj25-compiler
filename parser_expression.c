@@ -106,16 +106,17 @@ void precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
  
 
     // The first token should be a terminal if not then its syntax err 
-    if(top_token->type != NONTERMINAL_E){
+    if(top_token->type != NONTERMINAL_E && top_token->type != MARKER){
         *top_terminal = top_token;
         // Sets the pointer on the top terminal in case of < to know after which terminal to push it 
         stack_set_top_terminal_pointer(stack , stack->top);
     }
-    // This shouldnt happen
+ // malo by to zapezpecit to aby som mal vzdy najvrchnejsi terminal
+    // This shouldnt happen because there always should be '$' on the beggining of the stack
     if(top_terminal == NULL){
         error_exit(ERR_SYNTACTIC);
     }
-    // malo by to zapezpecit to aby som mal vzdy najvrchnejsi terminal
+   
 
   
 
@@ -139,7 +140,7 @@ void precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
             // Insert a marker after top terminal before pushing the new token
             {
                 token_ptr marker = malloc(sizeof(token_t));
-                if (!marker) error_exit(99);
+                if (!marker) error_exit(ERR_INTERNAL);
                 marker->type = MARKER; // Special internal token type
                 marker->value.other_value = '<';
                 
@@ -159,19 +160,17 @@ void precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
 
 
 
+
+case precedence_reduce: {
+   
+
+    break; 
+}
+
+
+
+
             
-
-        case precedence_reduce:
-        
-            // Reduce: pop tokens until marker '<' is found
-            while (!stack_is_empty(stack) && stack_top(stack)->type != MARKER) {
-                stack_pop(stack);
-            }
-            // Pop the marker itself
-            if (!stack_is_empty(stack))
-                stack_pop(stack);
-            break;
-
         case precedence_error:
         default:
             // Syntax error according to precedence table
@@ -203,10 +202,10 @@ bool parse_expression(token_ptr recognition_token) {
     Stack stack;
     stack_init(&stack);
 
-    // Push special symbol ($)
+    // Push special symbol ($) on the stack 
     token_ptr special_char = malloc(sizeof(token_t));
     if (!special_char) 
-        error_exit(99);
+        error_exit(ERR_INTERNAL);
     special_char->type = END_OF_FILE;
     special_char->value.other_value = '$';
     stack_push(&stack, special_char);

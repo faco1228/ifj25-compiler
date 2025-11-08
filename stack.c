@@ -15,8 +15,9 @@ bool stack_is_empty(Stack *s) {
 }
 
 void stack_push(Stack *s, token_ptr token) {
+
     StackItem *new_item = malloc(sizeof(StackItem));
-    if (!new_item) error_exit(99);
+    if (!new_item) error_exit(ERR_INTERNAL);
 
     new_item->token = token;
     new_item->next = NULL;
@@ -24,8 +25,9 @@ void stack_push(Stack *s, token_ptr token) {
     if (s->head == NULL) {
         s->head = new_item;
         s->top = new_item;
-    } else {
-        // pushes to the end of the list
+    }
+    else {
+        // Pushes to the end of the list land sets the top on the last item in list
         s->top->next = new_item;
         s->top = new_item;
     }
@@ -44,17 +46,19 @@ void stack_pop(Stack *s) {
         prev = tmp;
         tmp = tmp->next;
     }
-
+    // If there are more than 1 item 
     if (prev) {
         prev->next = NULL;
         s->top = prev; 
-
-    } else {
+    } 
+    // If its the last item
+    else {
         s->head = NULL;
         s->top = NULL;
     }
 
-    if (tmp->token) free_token(tmp->token);
+    if (tmp->token)
+        free_token(tmp->token);
     free(tmp);
     s->stack_size--;
 }
@@ -66,12 +70,13 @@ token_ptr stack_top(Stack *s) {
     return s->top->token; 
 }
 
+
 void stack_free(Stack *s) {
     while (!stack_is_empty(s)) stack_pop(s);
-    if (s->stack_size != 0) error_exit(99);
+    if (s->stack_size != 0) error_exit(ERR_INTERNAL);
 }
 
-// sets the pointer on the highest terminal in the stack/ latest terminal in the list 
+// sets the pointer on the highest terminal in the stack/ latest terminal in the list (item is chosen in parse_expression)
 void stack_set_top_terminal_pointer(Stack *s, StackItem *item) {
     s->top_terminal = item;
 }
