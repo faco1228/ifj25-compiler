@@ -8,6 +8,9 @@
 #ifndef SYMTABLE_H
 #define SYMTABLE_H
 
+// defining the ST_Node data type
+typedef struct ST_Node ST_Node;
+
 // Purpose of Data_Type code is to determine what information about the symbol should stored
 typedef enum Data_Types
 {
@@ -33,20 +36,14 @@ typedef struct
     ID_Type id_type; // used to differentiate between function, setter, getters, etc. which share the same name, tertiary key
 } Key;
 
-typedef struct
+struct ST_Node
 {
     Key key;             // contains infromation about the id that will help to differentiate between ids with the same name
     Data_Type data_type; // helps identifying what kind of data is stored inside the node
-    union                // used to store different types of data inside the node
-    {
-        int int_value;
-        float float_value;
-        char *string_value;
-    } data;
     int balance_factor; // used to determine the balance of the Node's subtree
     ST_Node *left;      // left child pointer
     ST_Node *right;     // right child pointer
-} ST_Node;
+};
 
 /**
  * @brief Creates a new instance of a Variable_Node and initializes it's attributes.
@@ -61,7 +58,7 @@ typedef struct
  *
  * @note Data can store nums, strings or function args depending on the type of symbol.
  */
-ST_Node *create_node(char *name, int args_count, ID_Type id_type, void *data, Data_Type data_type);
+ST_Node *create_node(char *name, int args_count, ID_Type id_type, Data_Type data_type);
 
 /**
  * @brief Inserts a new ST_Node.

@@ -40,7 +40,7 @@ void scope_stack_dispose(Scope_Stack *scope_stack)
     {
         if (scope_stack->symtable_array[idx])
         {
-            Dispose_Tree(scope_stack->symtable_array[idx]);
+            dispose_tree(scope_stack->symtable_array[idx]);
         }
     }
 
@@ -55,7 +55,7 @@ void scope_stack_dispose(Scope_Stack *scope_stack)
  * @param root_ptr Pointer to the root of a new symtable.
  * @param scope_stack Pointer to Scope_Stack.
  */
-void Scope_Stack_Push(Scope_Stack *scope_stack, ST_Node *root_ptr)
+void scope_stack_push(Scope_Stack *scope_stack, ST_Node *root_ptr)
 {
     // when trying to push to a full Stack, its size is increased before pushing
     if (scope_stack_full(scope_stack))
@@ -90,7 +90,7 @@ void scope_stack_pop(Scope_Stack *scope_stack)
     if (scope_stack_empty(scope_stack)) // cannot pop from an empty stack, nothing happens
         return;
 
-    Dispose_Tree(scope_stack_top(scope_stack)); // tree is freed before popping
+    dispose_tree(scope_stack_top(scope_stack)); // tree is freed before popping
 
     scope_stack->stack_top_index--;
 }
@@ -133,7 +133,7 @@ ST_Node *scope_stack_lookup(Scope_Stack *scope_stack, Key *key)
     
     for (int idx = scope_stack->stack_top_index; idx >= 0; idx--) // loop through the stack all the way to global frame
     {
-        ST_Node *symbol = Search(scope_stack->symtable_array[idx], key); 
+        ST_Node *symbol = search(scope_stack->symtable_array[idx], key); 
 
         if (symbol)
             return symbol;

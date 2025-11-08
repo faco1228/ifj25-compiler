@@ -6,7 +6,6 @@
 
 //**HELPER FUNCTION DECLARATIONS**//
 static char *str_duplicate(char *to_duplicate);
-static bool store_data(ST_Node *node, void *data, Data_Type data_type);
 static void node_dispose(ST_Node *node);
 static ST_Node *find_max_node(ST_Node *node);
 static ST_Node *left_rotation(ST_Node *root_ptr);
@@ -22,14 +21,11 @@ static int key_cmp(Key *key1, Key *key2);
  * @param name Name of the symbol that is stored inside the Node.
  * @param args_count Num of arguments of the current symbol. -1 for for global and local variables, non-negative int for others.
  * @param id_type Type of the currently passed identifier.
- * @param data Pointer to data of unknown type.
- * @param data_type Helps to determine what datatype is going to be stored inside the Node.
+ * @param data_type Determines the data type of a variable.
  *
  * @return New Variable_Node.
- *
- * @note Data can store nums, strings or function args depending on the type of symbol.
  */
-ST_Node *create_node(char *name, int args_count, ID_Type id_type, void *data, Data_Type data_type)
+ST_Node *create_node(char *name, int args_count, ID_Type id_type, Data_Type data_type)
 {
     ST_Node *node = malloc(sizeof(ST_Node));
 
@@ -54,14 +50,6 @@ ST_Node *create_node(char *name, int args_count, ID_Type id_type, void *data, Da
     node->key.name = name_copy;
     node->key.args_count = args_count;
     node->key.id_type = id_type;
-
-    // determines what type of data to store and stores it inside the node
-    if (!store_data(node, data, data_type))
-    {
-        node_dispose(node);
-        return NULL;
-        // success of create_node can be determined outside of the function, so error_exit() is not called here
-    }
 
     return node;
 }
@@ -154,11 +142,6 @@ ST_Node *remove_node(ST_Node *root_ptr, Key *key)
             root_ptr->key.args_count = max_node->key.args_count;
             root_ptr->key.id_type = max_node->key.id_type;
 
-            // data is copied from the terminal node
-            if (!store_data(root_ptr, &max_node->data, max_node->data_type))
-                // has to be exited because there is no way to know that removal failed based on the return value of remove_node
-                error_exit(ERR_INTERNAL);
-
             // max node is removed
             root_ptr->left = remove_node(root_ptr->left, &max_node->key);
         }
@@ -222,7 +205,7 @@ ST_Node *search(ST_Node *root_ptr, Key *key)
  *
  * @param root_ptr Root of a tree to dispose.
  */
-static void dispose_tree(ST_Node *root_ptr)
+void dispose_tree(ST_Node *root_ptr)
 {
     if (!root_ptr)
         return;
@@ -419,46 +402,6 @@ static char *str_duplicate(char *to_duplicate)
 }
 
 /**
- * @brief Handles explicit typing and stores data inside the ST_Node.
- *
- * @param node Pointer to a ST_Node that will store the data.
- * @param data Pointer to data of unknown data type.
- * @param data_type Helps to determine what type of data is going to be stored inside the ST_Node.
- *
- * @return False if storing the data fails.
- */
-static bool store_data(ST_Node *node, void *data, Data_Type data_type)
-{
-    node->data_type = data_type;
-
-    switch (data_type)
-    {
-    case INT:
-        node->data.int_value = *(int *)data;
-        break;
-
-    case FLOAT:
-        node->data.float_value = *(float *)data;
-        break;
-
-    case STRING:
-        // copy of the string is made
-        char *copy = str_duplicate((char *)data);
-
-        // if str_duplicate fails function returns a NULL pointer to signal ST_Node creation failure
-        if (!copy)
-            return false;
-
-        node->data.string_value = copy; // data inside the node points to the adress of the copy
-        break;
-    default:
-        break;
-    }
-
-    return true;
-}
-
-/**
  * @brief Finds the most right ST_Node of the left subtree.
  *
  * @param root_ptr Root node of the subtree in which we want to find the min ST_Node.
@@ -482,11 +425,5 @@ static ST_Node *find_max_node(ST_Node *node)
 void node_dispose(ST_Node *node)
 {
     free(node->key.name);
-
-    if (node->data_type == STRING && node->data.string_value)
-    {
-        free(node->data.string_value);
-    }
-
     free(node);
 }
