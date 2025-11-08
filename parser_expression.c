@@ -90,11 +90,113 @@ precedence_index token_to_index(token_ptr token) {
 }
 
 
+
+
+
+
+/**
+ * @brief Performs reduction when precedence_table gives '>'
+ * Pops tokens until '<' marker and replaces recognized handle with NONTERMINAL_E.
+ */
+void precedence_reduce_func(Stack *stack) {
+    if (stack_is_empty(stack))
+        error_exit(ERR_SYNTACTIC);
+
+    // Buffer for saving last 5 terminals/nonterminals
+    token_ptr items[5]; 
+    int count = 0; // Count that will hepl us to know which rule to use
+
+    // Pops the items in stak until MARKER
+    while (!stack_is_empty(stack)) {
+        token_ptr top = stack_top(stack);
+        if (top->type == MARKER) {
+            stack_pop(stack); // To remove MARKER
+            break;
+        }
+        // If we have to pop more than 5 items there is a problem
+        if (count >= 5)
+            error_exit(ERR_SYNTACTIC);
+        items[count++] = top;
+        stack_pop(stack);
+    }
+
+
+    // now we have the handle reversed, i.e. right to left
+    // we will reverse the order for easy comparison
+    token_ptr first_stack_item   = (count >= 1) ? items[count - 1] : NULL;
+    token_ptr second_stack_item  = (count >= 2) ? items[count - 2] : NULL;
+    token_ptr third_stack_item   = (count >= 3) ? items[count - 3] : NULL;
+
+    bool matched = false;
+
+    
+    // E -> i
+    if (count == 1) {
+        token_ptr t = first_stack_item;
+        if (t->type != OPERATOR &&
+            t->type != MARKER &&
+            t->type != NONTERMINAL_E) {
+            matched = true;
+        }
+    }
+    // E -> (E)
+    else if (count == 3 &&
+             first_stack_item->type == LEFT_PAR &&
+             second_stack_item->type == NONTERMINAL_E &&
+             third_stack_item->type == RIGHT_PAR) {
+        matched = true;
+    }
+    // Binary operators: E -> E op E
+    else if (count == 3 &&
+             first_stack_item->type == NONTERMINAL_E &&
+             third_stack_item->type == NONTERMINAL_E &&
+             second_stack_item->type == OPERATOR) {
+
+        switch (second_stack_item->value.other_value) {
+            case PLUS_V:
+            case MINUS_V:
+            case ASTERISK_V:
+            case DIVISON_V:
+            case LESS_THAN_V:
+            case GREATER_THAN_V:
+            case LESS_OR_EQ_THAN_V:
+            case GREATER_OR_EQ_THAN_V:
+            case EQUAL_SIGN_V:
+            case EXC_MARK_V:
+                matched = true;
+                break;
+            default:
+                break;
+        }
+    }
+    // If there is no rule for it then it's Syntax error
+    if (!matched)
+        error_exit(ERR_SYNTACTIC);
+
+    // Insert the NONTERMINAL_E 
+    token_ptr newE = malloc(sizeof(token_t));
+    if (!newE) error_exit(ERR_INTERNAL);
+    newE->type = NONTERMINAL_E;
+
+    stack_push(stack, newE);
+}
+
+
+
+
+
+
+
+
+
+
+
 /**
  * @brief Performs one comparison between stack top and current token.
  * Adds marker '<' when shifting, and reduces until marker on reduction.
  */
 void precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *top_terminal) {
+    
     // To get the top of the stack
     token_ptr top_token = stack_top(stack);
     if (top_token == NULL)
@@ -111,7 +213,7 @@ void precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
         // Sets the pointer on the top terminal in case of < to know after which terminal to push it 
         stack_set_top_terminal_pointer(stack , stack->top);
     }
- // malo by to zapezpecit to aby som mal vzdy najvrchnejsi terminal
+    // malo by to zapezpecit to aby som mal vzdy najvrchnejsi terminal
     // This shouldnt happen because there always should be '$' on the beggining of the stack
     if(top_terminal == NULL){
         error_exit(ERR_SYNTACTIC);
@@ -155,17 +257,12 @@ void precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
             break;
 
 
+        case precedence_reduce: {
 
+             precedence_reduce_func(stack);
 
-
-
-
-
-case precedence_reduce: {
-   
-
-    break; 
-}
+        break; 
+        }
 
 
 

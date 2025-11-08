@@ -35,6 +35,14 @@ bool parse_expression(token_ptr recognition_token );
 void precedence_table_compare ( Stack *stack , token_ptr current_token, token_ptr *top_terminal);
 
 
+/**
+ * @brief  Performs reduction when precedence_table gives '>'
+ * Pops tokens until '<' marker and replaces recognized handle with NONTERMINAL_E.
+ * 
+ */ 
+void precedence_reduce_func(Stack *stack);
+
+
 
 /**
  * @brief Will set relation between current Token and the Stack top token
