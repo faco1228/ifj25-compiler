@@ -221,7 +221,10 @@ void precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
    
 
   
-
+    // Special case: comparing $ with $ means its the end of the analysis
+    if (top_token->type == END_OF_FILE && current_token->type == END_OF_FILE) {
+        return;
+    }
 
 
 
@@ -316,7 +319,7 @@ bool parse_expression(token_ptr recognition_token) {
 
 
     // To know when to end I have to know if im in a assignment or condition 
-
+    // THIS I HAVE TO FINISH (WHEN THERE IS END OF EXPRESSION)
     switch (recognition_token->type)
     {   // 
         case OPERATOR : 
@@ -362,9 +365,64 @@ bool parse_expression(token_ptr recognition_token) {
 
 
 
-    // Free memory and stack
-    stack_free(&stack);
-    return true;
+
+
+
+
+
+
+
+
+
+
+
+    //After we hit the end of Expression so we start comparing top_terminal with $ as a current token
+    // Create end marker token ($)
+
+    token_ptr end_token = malloc(sizeof(token_t));
+    if (!end_token)
+        error_exit(ERR_INTERNAL);
+    end_token->type = END_OF_FILE;
+    end_token->value.other_value = '$';
+
+    token_ptr top_terminal_final = NULL;
+
+    while (true) {
+        // aktualizuj top_terminal_final na najvyšší terminál
+        StackItem *tmp = stack.head;
+        while (tmp) {
+            if (tmp->token->type != NONTERMINAL_E && tmp->token->type != MARKER)
+                top_terminal_final = tmp->token;
+            tmp = tmp->next;
+        }
+
+        // Ak sa porovnávajú dve $, ukonči cyklus
+        if (top_terminal_final->type == END_OF_FILE &&
+            end_token->type == END_OF_FILE) {
+            break;
+        }
+
+        // vykonaj porovnanie ($ je "current token")
+        precedence_table_compare(&stack, end_token, &top_terminal_final);
+    }
+
+    // Tests after the final cycle with $ if on the stack is $E 
+    if (stack.stack_size == 2 &&
+        stack.head &&
+        stack.head->token->type == END_OF_FILE &&
+        stack.top &&
+        stack.top->token->type == NONTERMINAL_E) {
+        // If on the stack is $E then free the end_token and the whole stack
+        free(end_token);
+        stack_free(&stack);
+        return true;// Means the syntax is correct
+        
+    } else {
+        // Means something is wrong with the syntax
+        free(end_token);
+        error_exit(ERR_SYNTACTIC);
+    }
+
 }
 
 

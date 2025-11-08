@@ -4,7 +4,7 @@
 #include "error.h"
 
 void stack_init(Stack *s) {
-    s->head = NULL;   // beginning of the  list and end of the stack
+    s->head = NULL;   // beginning of the list and end of the stack
     s->top = NULL;    // top of the stack and end of the list
     s->top_terminal = NULL; // terminal on the top of the stack and end of the list
     s->stack_size = 0;
