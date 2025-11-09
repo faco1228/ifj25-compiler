@@ -13,7 +13,7 @@
 
  // TOTO MI PORADIL CHAT LEBO MY SME NEMALI TOKEN ZE MARKER A PODLA MOJEJ IMPLEMENTACIE STACKU TO TAM POTREBUEJEM
 #ifndef MARKER
-#define MARKER 12345  // must not collide with real token types
+#define MARKER 132456  // must not collide with real token types
 #endif
 // Urobil som si nonterminal E aby som mohol davat na stack
 #ifndef NONTERMINAL_E 
@@ -215,7 +215,7 @@ void precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     }
     // malo by to zapezpecit to aby som mal vzdy najvrchnejsi terminal
     // This shouldnt happen because there always should be '$' on the beggining of the stack
-    if(top_terminal == NULL){
+    if(*top_terminal == NULL){
         error_exit(ERR_SYNTACTIC);
     }
    
@@ -225,7 +225,7 @@ void precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
 
 
     // To get the position needed for Precedence relations table
-    precedence_index top_index = token_to_index(top_terminal);
+    precedence_index top_index = token_to_index(*top_terminal);
     precedence_index curr_index = token_to_index(current_token);
 
 
@@ -336,6 +336,56 @@ bool parse_expression(token_ptr recognition_token) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // To know when to end I have to know if im in a assignment or condition 
     // THIS I HAVE TO FINISH (WHEN THERE IS END OF EXPRESSION)
     switch (recognition_token->type)
@@ -343,47 +393,124 @@ bool parse_expression(token_ptr recognition_token) {
         case OPERATOR : 
             switch (recognition_token->value.other_value)
             {
-            // Means that Im in assignment
-            case EQUAL_SIGN_V:
-                
-                break;
+                // Means that Im in assignment 
+                case EQUAL_SIGN_V:{
 
+                    // We gonna peek one token 
+                    token_ptr peek_token = get_token();
+                    push_token(peek_token);
+
+                    // The end of the expression is when there is EOL and the previous token wasn`t OPERATOR
+                    while(!(current_token->type != OPERATOR && peek_token->type == EOL)){
+
+
+                        // Skip all the EOLs 
+                        while (current_token->type == EOL)
+                        {
+                            current_token = get_token();
+                        } 
+
+
+                        //Perform precedence based analysis
+                        precedence_table_compare(&stack, current_token, &top_terminal);
+
+                        //Get next token
+                        current_token = get_token();
+
+                        // to set our peek_token for condition of while
+                        peek_token = get_token();
+                        push_token(peek_token);
+
+
+                        // if current token is EOF or { then it has to be syntax error
+                        if (current_token->type == END_OF_FILE ||
+                            current_token->type == LEFT_DOM_PAR)
+                            error_exit(ERR_SYNTACTIC);
+
+
+                    }
+                        
+
+
+                
+                    break;
+                }
+                
+                default:
+                    break;
+            }
+    // ked je assignment tak sa to konci tusim len ked je EOL a neni operator predchadzajuci token
+    // alebo ked dostanes nejaky vstup co nepatri do expression(ale to by mala precedence_table_compare poriesit ten error )
+
+        break;
+
+
+
+        // Means that we are in condition
+        case LEFT_PAR: {
+            int left_par_count = 0;
+            int right_par_count = 0;
+
+            // We start after one LEFT_PAR already (recognition_token)
+            // therefore if there is one more right par than left its the end of condition
+            while (left_par_count - right_par_count != -1) {
+                    // We gonna peek one token 
+                    token_ptr peek_token = get_token();
+                    push_token(peek_token);
+
+                // IF peek is EOL and our current tokens isnt operator then its error 
+                if (peek_token->type == EOL) {
+
+                    // if peek is EOF and current_token is operator when we gonna ask for tokens until its not EOL 
+                    if (current_token->type == OPERATOR) {
+
+                        // Skip all the EOLs 
+                        do {
+                            current_token = get_token();
+                        } while (current_token->type == EOL);
+
+                        // If current_token skipped all the EOLs then contunie 
+                        continue;
+                    
+                    }
+                    else {
+                        // If EOL is elsewhere then syntax error
+                        error_exit(ERR_SYNTACTIC);
+                    }
+                }
+
+                // Counting the number of parentheses
+                if (current_token->type == LEFT_PAR)
+                    left_par_count++;
+                else if (current_token->type == RIGHT_PAR)
+                    right_par_count++;
+
+                //Perform precedence based analysis
+                precedence_table_compare(&stack, current_token, &top_terminal);
+
+                //Get next token
+                current_token = get_token();
+
+                // if current token is EOF or { then it has to be syntax error
+                if (current_token->type == END_OF_FILE ||
+                    current_token->type == LEFT_DOM_PAR)
+                    error_exit(ERR_SYNTACTIC);
             }
 
-
-        break;
-        // Means that we are in assignment
-        case LEFT_PAR  :
-        
-        
-
-
-        break;
-   
-
-
-        // Parse until '{' (temporary end of expression)
-        while (current_token->type != LEFT_DOM_PAR) {
-
-            // Skip EOL tokens so they won't affect precedence
-            if (current_token->type == EOL) {
-              current_token = get_token();
-              continue;
-         }
-
-            // Perform precedence based analysis
-            precedence_table_compare(&stack, current_token, &top_terminal);
-
-        
-            current_token = get_token();
+            // End of condition case and asking for tokens
+            break;
         }
- }
+
+        case KEY_WORD:
+            default: break;// Este dolnit return ale neviem ako ? v zmysle ze ze to bude asi tak isto ako pri asignment ale neviem ako vytvorit taky case 
+
+    }
     
 
-
-
-
-
+    /*pyta si tokeny a ked narazy na EOF pri peeku tak zisti ci bol current nejaky operator ak nie tak syntax error 
+    potom posuva current token az kym nepreskoci EOL-y a pocas toho pocita pocet zatvoriek aby sedeli a potom vola precedencnu analyzu
+    este kontorluje na konci nejake nevalidne znaky v expresione 
+    */ 
 
 
 
@@ -459,11 +586,15 @@ bool parse_expression(token_ptr recognition_token) {
         stack_free(&stack);
         return true;// Means the syntax is correct
         
-    } else {
+    }
+    else {
         // Means something is wrong with the syntax
         free(end_token);
         error_exit(ERR_SYNTACTIC);
     }
+
+
+    return false;
 
 }
 
@@ -478,15 +609,15 @@ bool parse_expression(token_ptr recognition_token) {
 // pri EOL line musis peakovat aby si vedel co mas a ci mas pokracovat 
 // nevie rozoznat volanie funkcie ako sucast expression
 
-// prerobit  lexikalne automaty reskeptive doplnit != , <= ... 
+// prerobit  lexikalne automaty aby sedeli nazvy  
 
 // koniec expressionu budem riesit tak ze si to rozdelim na situacie ked je to if/while(expresion) a ked je to A = expression ze samo by mi mohol poslat posledny token pred zavolanim expressiony aby som vedel ktora z tych 2 situacii to je lebo keby to je if(exp) tak viem ze sa exp konci ked prite patricne )
 
 
 
 /*
-Znak nového řádku je (kromě případů, kde je povinný) možné použít za  tečkami, čárkami, operátory a 
-. Sekvence několik znaků nového řádku se
+Znak nového řádku je (kromě případů, kde je povinný) možné použít za  tečkami, čárkami, operátory. 
+ Sekvence několik znaků nového řádku se
 považuje za jeden znak nového řádku.
 */
 // . Statický getter je možné použít na místě termu. 
