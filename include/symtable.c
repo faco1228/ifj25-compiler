@@ -36,6 +36,9 @@ ST_Node *create_node(char *name, int args_count, ID_Type id_type, Data_Type data
     node->left = NULL;
     node->right = NULL;
 
+    // node data_type definition
+    node->data_type = data_type;
+
     // copy of the primary key (name) is made
     char *name_copy = str_duplicate(name);
 
@@ -46,7 +49,7 @@ ST_Node *create_node(char *name, int args_count, ID_Type id_type, Data_Type data
         return NULL;
     }
 
-    // node key struct init
+    // node key init
     node->key.name = name_copy;
     node->key.args_count = args_count;
     node->key.id_type = id_type;
@@ -81,7 +84,7 @@ ST_Node *insert_node(ST_Node *root_ptr, ST_Node *to_insert)
 
         else // attempt to add already existing symbol made
             error_exit(ERR_SEM_REDEFINITION);
-        // NOTE: If you encounter this error when calling Insert, you have probably
+        // NOTE: If you encounter this error after calling insert, you have probably
         // forgotten to call search() before trying to insert new symbol
     }
 
