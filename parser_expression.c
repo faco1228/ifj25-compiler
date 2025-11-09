@@ -43,7 +43,7 @@ const precedence_relation precedence_table[OP_END+1][OP_END+1] = {
     { precedence_shift,  precedence_shift,  precedence_shift,  precedence_shift,  precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_equal_reduce, precedence_shift, precedence_error }, // (
     { precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_error, precedence_reduce, precedence_error, precedence_reduce }, // )
     { precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_error, precedence_reduce, precedence_error, precedence_reduce }, // i (operand)
-    { precedence_shift,  precedence_shift,  precedence_shift,  precedence_shift,  precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_error, precedence_shift, precedence_error }  // $
+    { precedence_shift,  precedence_shift,  precedence_shift,  precedence_shift,  precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_error, precedence_shift, precedence_finish }  // $
 };
 
 
@@ -220,11 +220,6 @@ void precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     }
    
 
-  
-    // Special case: comparing $ with $ means its the end of the analysis
-    if (top_token->type == END_OF_FILE && current_token->type == END_OF_FILE) {
-        return;
-    }
 
 
 
@@ -267,14 +262,18 @@ void precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
         break; 
         }
 
+         // Special case: comparing $ with $ means its the end of the analysis
+        case precedence_finish: {
+            return;
+        }
 
-
+    
 
             
         case precedence_error:
         default:
             // Syntax error according to precedence table
-            error_exit(2);
+            error_exit(ERR_SYNTACTIC);
     }
 }
 
@@ -316,6 +315,25 @@ bool parse_expression(token_ptr recognition_token) {
     // Create a token_ptr for the top terminal because in the precedence table
     // we have to compare the current token with the top terminal on the Stack
     token_ptr top_terminal= NULL; // This pointer is used in function Precedence_table_compare
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     // To know when to end I have to know if im in a assignment or condition 
@@ -361,6 +379,30 @@ bool parse_expression(token_ptr recognition_token) {
         }
  }
     
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -432,14 +474,14 @@ bool parse_expression(token_ptr recognition_token) {
 
 // nevie rozoznat unarny -
 // nevie kedy konci expression 
-
+// neviem for cycle 
 // pri EOL line musis peakovat aby si vedel co mas a ci mas pokracovat 
-// do errorov nedavat cisla ale nazvy z enumu 
-// realne asi len reduction a error case musim porobit (asi najlepsie ako samostatne funkcie )
+// nevie rozoznat volanie funkcie ako sucast expression
+
 // prerobit  lexikalne automaty reskeptive doplnit != , <= ... 
-// vyraz je syntakticky spravny ked nam na stacku ostane vstupny vyraz $ a jedno cislo / id / expression
+
 // koniec expressionu budem riesit tak ze si to rozdelim na situacie ked je to if/while(expresion) a ked je to A = expression ze samo by mi mohol poslat posledny token pred zavolanim expressiony aby som vedel ktora z tych 2 situacii to je lebo keby to je if(exp) tak viem ze sa exp konci ked prite patricne )
-// pri precedencnej tabulke sa pozerame na vrchny terminal , cize keby je na vrcholu zasobniku neterminal na ten sa nepozerame. asi som uz spravil ? 
+
 
 
 /*
@@ -454,3 +496,34 @@ považuje za jeden znak nového řádku.
 /*
 V základním zadání je vždy přítomná i část else. Za ukončovací kulatou závorkou, za koncem
 bloku1 ani za klíčovým slovem else nesmí být znak nového řádku.*/
+
+
+
+
+
+
+/*
+Podporovány
+jsou také speciální typy funkcí „zastupujících proměnné“, tzv. statické gettery a settery, ke kterým
+se syntakticky přistupuje jako k proměnným, ale sémanticky dochází k provedení těla funkce.
+*/
+
+
+
+
+/*
+Syntaxe definice funkce
+Definice funkce je konstrukce (hlavička a tělo) ve tvaru:
+static id ( seznam_parametrů ) blok ⟨𝐸𝑂𝐿⟩
+Hlavička definice funkce sahá od klíčového slova static až po pravou kulatou závorku, pak
+následuje tělo funkce tvořené blokem (viz sekci 4.2) a znakem nového řádku. Seznam_parametrů
+je tvořen posloupností identifikátorů oddělených čárkou, přičemž za posledním parametrem se
+čárka nesmí uvádět. Seznam může být i prázdný.*/
+
+
+
+/*
+otazky na sama:
+1. ked vola parse_expression tak je tam aj to ( pri napr if while atd 
+2. ten token mi posiela ? 
+ */

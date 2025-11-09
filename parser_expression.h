@@ -52,7 +52,8 @@ typedef enum relation {
     precedence_shift,   // <
     precedence_reduce,   // >
     precedence_equal_reduce,   // =
-    precedence_error   // error
+    precedence_error,   // error
+    precedence_finish // comparing two $
 } precedence_relation;
 
 
