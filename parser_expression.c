@@ -294,19 +294,24 @@ void precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
 
 
 
+// Puropose of the recognition token is to know if im in assignement or condition
 bool parse_expression(token_ptr recognition_token) {
 
-    // Na začiatku funkcie na debugg vypisy :
-    printf("DEBUG: parse_expression called, recognition_token type=%d\n",
+
+
+       // Na začiatku funkcie na debugg vypisy :
+    printf("DEBUG: parse_expression called, recognition_token type=%d\n", 
            recognition_token->type);
+
+
 
     // Initialize the stack
     Stack stack;
     stack_init(&stack);
 
-    // Push special symbol ($) on the stack
+    // Push special symbol ($) on the stack 
     token_ptr special_char = malloc(sizeof(token_t));
-    if (!special_char)
+    if (!special_char) 
         error_exit(ERR_INTERNAL);
     special_char->type = END_OF_FILE;
     special_char->value.other_value = '$';
@@ -317,123 +322,148 @@ bool parse_expression(token_ptr recognition_token) {
 
     // Create a token_ptr for the top terminal because in the precedence table
     // we have to compare the current token with the top terminal on the Stack
-    token_ptr top_terminal = NULL; // This pointer is used in function Precedence_table_compare
+    token_ptr top_terminal= NULL; // This pointer is used in function Precedence_table_compare
 
-    // To know when to end I have to know if im in a assignment or condition
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // To know when to end I have to know if im in a assignment or condition 
+    // THIS I HAVE TO FINISH (WHEN THERE IS END OF EXPRESSION)
     switch (recognition_token->type)
-    {
-        // Assignment context: recognition_token is '='
-        case OPERATOR :
+    {   // 
+        case OPERATOR : 
             switch (recognition_token->value.other_value)
             {
-                case EQUAL_SIGN_V: {
+                // Means that Im in assignment 
+                case EQUAL_SIGN_V:{
 
-                    /*
-                     * We will loop, consuming tokens until we detect end-of-expression.
-                     * Strategy:
-                     *  - process current_token with precedence analysis
-                     *  - read next token into current_token
-                     *  - use lookahead (peek) to decide whether EOL marks end of expr
-                     *  - respect special rule: if EOL appears after an operator, then
-                     *    allow continuation on next non-EOL token
-                     */
-
-                    // initial peek (to preserve same behavior as before where peek was used)
+                    // We gonna peek one token 
                     token_ptr peek_token = get_token();
                     push_token(peek_token);
 
-                    // If there are no tokens at all -> syntax error
-                    if (current_token->type == EOL && (peek_token->type == EOL || peek_token->type == END_OF_FILE))
-                        error_exit(ERR_SYNTACTIC);
+                    // In a case of this a = a s o it will go at least one time
+                    do{
 
-                    while (true) {
-                        // Debug vypis
-                        printf("DEBUG: current_token type=%d\n", current_token->type);
+                            // Debug vypis 
+                            printf("DEBUG: current_token type=%d\n", current_token->type);
 
-                        // Skip any leading EOLs (but careful: we should not skip past EOF)
-                        while (current_token->type == EOL) {
-                            // peek next token to decide if EOL is acceptable end
-                            token_ptr tmp_peek = get_token();
-                            push_token(tmp_peek);
-
-                            // if peek is also EOL or EOF => empty or end -> error or end depending
-                            if (tmp_peek->type == EOL || tmp_peek->type == END_OF_FILE) {
-                                // if nothing meaningful after EOL -> treat as end only if we already have something on stack
-                                // but in assignment we expect at least one operand before EOL; if stack still only has $, it's empty expr
-                                if (stack.stack_size <= 1) {
-                                    error_exit(ERR_SYNTACTIC);
-                                }
-                                // otherwise end of expression
-                                current_token = tmp_peek;
-                                break;
-                            }
-                            // otherwise consume this EOL and continue with next token
+                        // Skip all the EOLs 
+                        while (current_token->type == EOL)
+                        {
                             current_token = get_token();
-                        }
+                        } 
 
-                        if (current_token->type == END_OF_FILE)
-                            error_exit(ERR_SYNTACTIC);
 
-                        // remember if current token is operator (so we know how to handle EOL after it)
-                        bool prev_was_operator = (current_token->type == OPERATOR);
-
-                        // Perform precedence based analysis
+                        //Perform precedence based analysis
                         precedence_table_compare(&stack, current_token, &top_terminal);
 
-                        // Get next token to decide continuation / end
+
+                        // In case of only one token (A = a ) we have to chect the condition
+                        if (!(current_token->type != OPERATOR && peek_token->type == EOL)){
+                            break;
+                        }
+
+
+                        //Get next token
                         current_token = get_token();
 
-                        // If next token is EOF -> this can be considered end only if last token wasn't an operator
-                        if (current_token->type == END_OF_FILE) {
-                            if (prev_was_operator) {
-                                // operator at end -> syntax error
-                                error_exit(ERR_SYNTACTIC);
-                            } else {
-                                // treat as end of expression (no more tokens)
-                                break;
-                            }
-                        }
+                        // to set our peek_token for condition of while
+                        peek_token = get_token();
+                        push_token(peek_token);
 
-                        // If next token is EOL, peek after it to decide
-                        if (current_token->type == EOL) {
-                            peek_token = get_token();
-                            push_token(peek_token);
 
-                            // If peek is EOL or EOF -> end of expression (provided last token isn't operator)
-                            if ((peek_token->type == EOL || peek_token->type == END_OF_FILE) && !prev_was_operator) {
-                                break;
-                            }
-
-                            // If we had operator before EOL, allow skipping EOL and continue with the token after EOL
-                            if (prev_was_operator) {
-                                // consume the EOL and set current_token to the next real token (which is peek_token)
-                                current_token = get_token();
-                                // continue loop to process that token
-                                continue;
-                            }
-
-                            // Otherwise: EOL but peek isn't EOL -> continue with the token after EOL
-                            current_token = get_token();
-                            continue;
-                        }
-
-                        // If next token is LEFT_DOM_PAR or other unexpected token -> syntax error
-                        if (current_token->type == LEFT_DOM_PAR) {
+                        // if current token is EOF or { then it has to be syntax error
+                        if (current_token->type == END_OF_FILE ||
+                            current_token->type == LEFT_DOM_PAR)
                             error_exit(ERR_SYNTACTIC);
-                        }
 
-                        // Otherwise continue main loop (current_token now holds next token)
-                    }
+                    // The end of the expression is when there is EOL and the previous token wasn`t OPERATOR
+                    }while(!(current_token->type != OPERATOR && peek_token->type == EOL)); 
+                        
 
+
+                
                     break;
                 }
-
+                
                 default:
                     break;
             }
+    // ked je assignment tak sa to konci tusim len ked je EOL a neni operator predchadzajuci token
+    // alebo ked dostanes nejaky vstup co nepatri do expression(ale to by mala precedence_table_compare poriesit ten error )
+
         break;
 
-        // Condition context: recognition_token is LEFT_PAR
+
+
+        // Means that we are in condition
         case LEFT_PAR: {
             int left_par_count = 0;
             int right_par_count = 0;
@@ -441,13 +471,32 @@ bool parse_expression(token_ptr recognition_token) {
             // We start after one LEFT_PAR already (recognition_token)
             // therefore if there is one more right par than left its the end of condition
             while (left_par_count - right_par_count != -1) {
-                // Debug vypis
-                printf("DEBUG: current_token type=%d\n", current_token->type);
+                    // We gonna peek one token 
+                    token_ptr peek_token = get_token();
+                    push_token(peek_token);
 
-                // Skip EOLs (but don't swallow meaningful EOF)
-                if (current_token->type == EOL) {
-                    current_token = get_token();
-                    continue;
+                    // Debug vypis
+                    printf("DEBUG: current_token type=%d\n", current_token->type);
+                // IF peek is EOL and our current tokens isnt operator then its error 
+                if (peek_token->type == EOL) {
+
+                    // if peek is EOF and current_token is operator when we gonna ask for tokens until its not EOL 
+                    if (current_token->type == OPERATOR ) {
+
+                        // Skip all the EOLs 
+                        do {
+                            current_token = get_token();
+                        } while (current_token->type == EOL);
+                            // Neviem preco ale ked toto som sem dal tak sa mi fixol jeden test ???
+                            current_token = get_token();
+                        // If current_token skipped all the EOLs then contunie 
+                        continue;
+                    
+                    }
+                    else {
+                        // If EOL is elsewhere then syntax error
+                        error_exit(ERR_SYNTACTIC);
+                    }
                 }
 
                 // Counting the number of parentheses
@@ -459,10 +508,14 @@ bool parse_expression(token_ptr recognition_token) {
                 //Perform precedence based analysis
                 precedence_table_compare(&stack, current_token, &top_terminal);
 
+                // toto som sem tiez nahodne vyskusal dat a opravilo to nejake testy
+                if(left_par_count - right_par_count != -1){
+                    break;
+                }
                 //Get next token
                 current_token = get_token();
 
-                // if current token is EOF or LEFT_DOM_PAR then it's a syntax error
+                // if current token is EOF or { then it has to be syntax error
                 if (current_token->type == END_OF_FILE ||
                     current_token->type == LEFT_DOM_PAR)
                     error_exit(ERR_SYNTACTIC);
@@ -473,9 +526,48 @@ bool parse_expression(token_ptr recognition_token) {
         }
 
         case KEY_WORD:
-        default:
-            break; // not handled here
+            default: break;// Este dolnit return ale neviem ako ? v zmysle ze ze to bude asi tak isto ako pri asignment ale neviem ako vytvorit taky case 
+
     }
+    
+
+    /*pyta si tokeny a ked narazy na EOF pri peeku tak zisti ci bol current nejaky operator ak nie tak syntax error 
+    potom posuva current token az kym nepreskoci EOL-y a pocas toho pocita pocet zatvoriek aby sedeli a potom vola precedencnu analyzu
+    este kontorluje na konci nejake nevalidne znaky v expresione 
+    */ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     //After we hit the end of Expression so we start comparing top_terminal with $ as a current token
     // Create end marker token ($)
@@ -507,7 +599,7 @@ bool parse_expression(token_ptr recognition_token) {
         precedence_table_compare(&stack, end_token, &top_terminal_final);
     }
 
-    // Tests after the final cycle with $ if on the stack is $E
+    // Tests after the final cycle with $ if on the stack is $E 
     if (stack.stack_size == 2 &&
         stack.head &&
         stack.head->token->type == END_OF_FILE &&
@@ -517,15 +609,21 @@ bool parse_expression(token_ptr recognition_token) {
         free(end_token);
         stack_free(&stack);
         return true;// Means the syntax is correct
-
-    } else {
+        
+    }
+    else {
         // Means something is wrong with the syntax
         free(end_token);
         error_exit(ERR_SYNTACTIC);
     }
 
+
     return false;
+
 }
+
+
+
 
 
 
