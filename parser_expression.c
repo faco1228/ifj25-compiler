@@ -604,15 +604,13 @@ bool parse_expression(token_ptr recognition_token) {
 
 
 // nevie rozoznat unarny -
-// nevie kedy konci expression 
+// nevie kedy konci expression pre Return
 // neviem for cycle 
-// pri EOL line musis peakovat aby si vedel co mas a ci mas pokracovat 
 // nevie rozoznat volanie funkcie ako sucast expression
 
 // prerobit  lexikalne automaty aby sedeli nazvy  
 
-// koniec expressionu budem riesit tak ze si to rozdelim na situacie ked je to if/while(expresion) a ked je to A = expression ze samo by mi mohol poslat posledny token pred zavolanim expressiony aby som vedel ktora z tych 2 situacii to je lebo keby to je if(exp) tak viem ze sa exp konci ked prite patricne )
-
+// Nepresli mi nejake testy a ked si nieco zmenim v kode tak to nezmeni vysledok testov cize aj to treba poriesit 
 
 
 /*
@@ -653,8 +651,3 @@ je tvořen posloupností identifikátorů oddělených čárkou, přičemž za p
 
 
 
-/*
-otazky na sama:
-1. ked vola parse_expression tak je tam aj to ( pri napr if while atd 
-2. ten token mi posiela ? 
- */
