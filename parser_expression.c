@@ -424,7 +424,7 @@ bool parse_expression(token_ptr recognition_token) {
                         //Perform precedence based analysis
                         precedence_table_compare(&stack, current_token, &top_terminal);
 
-
+                        // Toto je habadura cuz nam to spravy ze testy prejdu ale to len preto ze to skonci po 1.
                         // In case of only one token (A = a ) we have to chect the condition
                         if (!(current_token->type != OPERATOR && peek_token->type == EOL)){
                             break;
