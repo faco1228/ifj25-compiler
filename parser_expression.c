@@ -65,7 +65,7 @@ precedence_index token_to_index(token_ptr token) {
                 case GREATER_THAN_V:      return OP_GREATER;        // >
                 case LESS_OR_EQ_THAN_V:   return OP_LOWER_EQUAL;    // <=
                 case GREATER_OR_EQ_THAN_V:return OP_GREATER_EQUAL;  // >=
-                case EQUAL_SIGN_V:        return OP_EQUAL;          // ==
+                case EQUAL_SIGN_V:        return EQUAL_SIGN_V;          // ==
                 case EXC_MARK_V:          return OP_NOT_EQUAL;      // !=
                 default:                  return OP_OPERAND;        // fallback
             }
@@ -99,8 +99,11 @@ precedence_index token_to_index(token_ptr token) {
  * Pops tokens until '<' marker and replaces recognized handle with NONTERMINAL_E.
  */
 void precedence_reduce_func(Stack *stack) {
-    if (stack_is_empty(stack))
-        error_exit(ERR_SYNTACTIC);
+    if (stack_is_empty(stack)){
+            printf("V precedence reduce func stack_is_empty Error \n");
+            error_exit(ERR_SYNTACTIC);
+    }
+
 
     // Buffer for saving last 5 terminals/nonterminals
     token_ptr items[5]; 
@@ -114,8 +117,11 @@ void precedence_reduce_func(Stack *stack) {
             break;
         }
         // If we have to pop more than 5 items there is a problem
-        if (count >= 5)
+        if (count >= 5){
+            printf("V precedence reduce func ked je count vacsi rovny 5 \n");
             error_exit(ERR_SYNTACTIC);
+        }
+
         items[count++] = top;
         stack_pop(stack);
     }
@@ -170,8 +176,11 @@ void precedence_reduce_func(Stack *stack) {
         }
     }
     // If there is no rule for it then it's Syntax error
-    if (!matched)
-        error_exit(ERR_SYNTACTIC);
+    if (!matched){
+        printf("V precedence reduce func  neni match \n");
+        error_exit(ERR_SYNTACTIC);        
+    }
+
 
     // Insert the NONTERMINAL_E 
     token_ptr newE = malloc(sizeof(token_t));
@@ -179,6 +188,7 @@ void precedence_reduce_func(Stack *stack) {
     newE->type = NONTERMINAL_E;
 
     stack_push(stack, newE);
+    
 }
 
 
@@ -199,8 +209,11 @@ void precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     
     // To get the top of the stack
     token_ptr top_token = stack_top(stack);
-    if (top_token == NULL)
+    if (top_token == NULL){
+        printf("V precedence_table_compare  ked top token je NULL \n");
         error_exit(ERR_SYNTACTIC); // If Stack is empty then its syntax ERR
+
+    }
 
 
 
@@ -216,6 +229,7 @@ void precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     // malo by to zapezpecit to aby som mal vzdy najvrchnejsi terminal
     // This shouldnt happen because there always should be '$' on the beggining of the stack
     if(*top_terminal == NULL){
+        printf("V precedence_table_compare ked top_terminal je NULL error \n");
         error_exit(ERR_SYNTACTIC);
     }
    
@@ -273,6 +287,7 @@ void precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
         case precedence_error:
         default:
             // Syntax error according to precedence table
+            printf("V precedence_table_compare v casey precedence_error \n");
             error_exit(ERR_SYNTACTIC);
     }
 }
@@ -424,11 +439,6 @@ bool parse_expression(token_ptr recognition_token) {
                         //Perform precedence based analysis
                         precedence_table_compare(&stack, current_token, &top_terminal);
 
-                        // Toto je habadura cuz nam to spravy ze testy prejdu ale to len preto ze to skonci po 1.
-                        // In case of only one token (A = a ) we have to chect the condition
-                        if (!(current_token->type != OPERATOR && peek_token->type == EOL)){
-                            break;
-                        }
 
 
                         //Get next token
@@ -441,8 +451,11 @@ bool parse_expression(token_ptr recognition_token) {
 
                         // if current token is EOF or { then it has to be syntax error
                         if (current_token->type == END_OF_FILE ||
-                            current_token->type == LEFT_DOM_PAR)
-                            error_exit(ERR_SYNTACTIC);
+                            current_token->type == LEFT_DOM_PAR){
+                            printf(" V assignmente ked je EOF alebo { \n");
+                            error_exit(ERR_SYNTACTIC);                                
+                            }
+
 
                     // The end of the expression is when there is EOL and the previous token wasn`t OPERATOR
                     }while(!(current_token->type != OPERATOR && peek_token->type == EOL)); 
@@ -487,13 +500,13 @@ bool parse_expression(token_ptr recognition_token) {
                         do {
                             current_token = get_token();
                         } while (current_token->type == EOL);
-                            // Neviem preco ale ked toto som sem dal tak sa mi fixol jeden test ???
-                            current_token = get_token();
+
                         // If current_token skipped all the EOLs then contunie 
                         continue;
                     
                     }
                     else {
+                        printf("V conditione ked EOL je inde ako ma byt \n");
                         // If EOL is elsewhere then syntax error
                         error_exit(ERR_SYNTACTIC);
                     }
@@ -508,17 +521,17 @@ bool parse_expression(token_ptr recognition_token) {
                 //Perform precedence based analysis
                 precedence_table_compare(&stack, current_token, &top_terminal);
 
-                // toto som sem tiez nahodne vyskusal dat a opravilo to nejake testy
-                if(left_par_count - right_par_count != -1){
-                    break;
-                }
+
                 //Get next token
                 current_token = get_token();
 
                 // if current token is EOF or { then it has to be syntax error
                 if (current_token->type == END_OF_FILE ||
-                    current_token->type == LEFT_DOM_PAR)
-                    error_exit(ERR_SYNTACTIC);
+                    current_token->type == LEFT_DOM_PAR){
+                    printf(" V assignmente ked je EOF alebo { \n");                    
+                    error_exit(ERR_SYNTACTIC);                        
+                    }
+
             }
 
             // End of condition case and asking for tokens
@@ -566,7 +579,8 @@ bool parse_expression(token_ptr recognition_token) {
 
 
 
-
+// Debug vypis aby som vedel ci sa az po tomto pokazilo to nieco 
+    printf("Dostal som sa az po kontrolu s $");
 
 
     //After we hit the end of Expression so we start comparing top_terminal with $ as a current token
@@ -614,6 +628,7 @@ bool parse_expression(token_ptr recognition_token) {
     else {
         // Means something is wrong with the syntax
         free(end_token);
+        printf("Uplne nakonci vsetkeho \n");       
         error_exit(ERR_SYNTACTIC);
     }
 
