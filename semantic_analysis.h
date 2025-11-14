@@ -15,13 +15,22 @@
 #include "include/scope_stack.h"
 #include <stdlib.h>
 
+
 // used to store keys of symbols that could not be verified during the synt. analysis
 typedef struct
 {
     Key *array;
-    size_t array_size;
+    unsigned array_size; // default size of the array is 20
     unsigned first_free_idx; // used for direct indexing of the array when adding new keys
 } Unresolved_Symbols_Array;
+
+/**
+ * @brief Allocates space for 20 keys and inits unresolved symbols array attributes. 
+ *        If allocation fails, function exits with ERR_INTERNAL.
+ * 
+ * @param array_ptr Pointer to the Unresolved_Symbols_Array struct.
+ */
+Unresolved_Symbols_Array *unresolved_array_init();
 
 /**
  * @brief Adds a new symbol to unresolved symbola array so their existance can be verified later.

@@ -20,11 +20,37 @@
 //**FUNCTION DEFINITIONS**//
 
 /**
+ * @brief Allocates space for 20 keys and inits unresolved symbols array attributes.
+ *
+ * @return Pointer to the allocated struct or NULL ptr if allocation fails.
+ */
+Unresolved_Symbols_Array *unresolved_array_init()
+{
+    Unresolved_Symbols_Array *new_arr = malloc(sizeof(Unresolved_Symbols_Array));
+
+    if (!new_arr) // struct allocation failed
+        return NULL;
+
+    new_arr->array_size = 20; // default size of the array
+    new_arr->first_free_idx = 0; 
+
+    new_arr->array = malloc(sizeof(Key) * new_arr->array_size);
+
+    if (!new_arr->array) // array allocation failed
+    {
+        free(new_arr);
+        return NULL;
+    }
+        
+    return new_arr;
+}
+
+/**
  * @brief Adds a new symbol to unresolved symbola array so their existance can be verified later.
  *
  * @param unresolved Pointer to an array of unresolved symbols.
  * @param key Key of the unresolved symbol.
- * 
+ *
  * @return Pointer to the unresolved symbols struct in case reallocation was needed.
  */
 Unresolved_Symbols_Array *add_unresolved_symbol(Unresolved_Symbols_Array *unresolved, Key key)
