@@ -151,7 +151,7 @@ token_ptr process_next_token(token_ptr token){
             break;
         case '?':
             token->type = Q_MARK;
-            token->value.other_value = Q_MARK_V;
+            token->value.other_value = QUESTION_MARK_V;
             break;
         case ':':
             token->type = SEMICOLON;
