@@ -7,7 +7,7 @@
  *
  * @copyright Copyright (c) 2025
  */
-
+#include <stdlib.h>
 #include "semantic_analysis.h"
 #include "include/scope_stack.h"
 #include "include/symtable.h"
@@ -16,6 +16,32 @@
 //**SEM. ONLY FUNCTION PROTOTYPES**//
 
 //**HELPER PROTOTYPES**//
+
+//**FUNCTION DEFINITIONS**//
+
+/**
+ * @brief Adds a new symbol to unresolved symbola array so their existance can be verified later.
+ *
+ * @param unresolved Pointer to an array of unresolved symbols.
+ * @param key Key of the unresolved symbol.
+ * 
+ * @return Pointer to the unresolved symbols struct in case reallocation was needed.
+ */
+Unresolved_Symbols_Array *add_unresolved_symbol(Unresolved_Symbols_Array *unresolved, Key key)
+{
+    if (!unresolved) // mainly for debugging purposes
+        error_exit(ERR_INTERNAL);
+
+    if (unresolved->first_free_idx == unresolved->array_size) // array is full and needs to be reallocated
+        unresolved = realloc(unresolved, unresolved->array_size * 2);
+
+    if (!unresolved) // realloc successes check
+        error_exit(ERR_INTERNAL);
+
+    unresolved->array[unresolved->first_free_idx] = key;
+
+    return unresolved;
+}
 
 /**
  * @brief Called by parser when variable declaration is detected. Verifies if the the passed variable was not already declared.
@@ -86,5 +112,5 @@ void verify_func_existance(Key *key, ST_Node *func_symtable)
     ST_Node *search_result = search(func_symtable, key);
 
     if (!search_result) // function not found inside the function symtable
-        return; // todo : pridat logiku pre pridanie do zoznamu nevyriesenych symbolov
+        return;         // todo : pridat logiku pre pridanie do zoznamu nevyriesenych symbolov
 }

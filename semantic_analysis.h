@@ -13,7 +13,23 @@
 
 #include "include/symtable.h"
 #include "include/scope_stack.h"
+#include <stdlib.h>
 
+// used to store keys of symbols that could not be verified during the synt. analysis
+typedef struct
+{
+    Key *array;
+    size_t array_size;
+    unsigned first_free_idx; // used for direct indexing of the array when adding new keys
+} Unresolved_Symbols_Array;
+
+/**
+ * @brief Adds a new symbol to unresolved symbola array so their existance can be verified later.
+ *
+ * @param unresolved Pointer to an array of unresolved symbols.
+ * @param key Key of the unresolved symbol.
+ */
+Unresolved_Symbols_Array *add_unresolved_symbol(Unresolved_Symbols_Array *unresolved, Key key);
 
 /**
  * @brief Called by parser when declaration is detected. Verifies if the the passed variable was not already declared.
