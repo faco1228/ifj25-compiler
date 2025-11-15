@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include "../error.h" // library with custom error handling
 
-//**HELPER FUNCTION DECLARATIONS**//
+//**HELPER FUNCTION PROTOTYPES**//
 static char *str_duplicate(char *to_duplicate);
 static void node_dispose(ST_Node *node);
 static ST_Node *find_max_node(ST_Node *node);
@@ -16,16 +16,65 @@ static void set_balance_factor(ST_Node *node);
 static int key_cmp(Key *key1, Key *key2);
 
 /**
+ * @brief Used for creating function, setter and getter keys.
+ *
+ * @param name
+ * @param args_count
+ * @param id_type Can be SETTER, GETTER or FUNCTION
+ */
+Key *create_function_key(char *name, int args_count, ID_Type id_type)
+{
+    Key *new_key = malloc(sizeof(Key));
+
+    new_key->args_count = args_count;
+    new_key->id_type = id_type;
+
+    char *name_copy = str_duplicate(name);
+
+    if (!name_copy)
+    {
+        free(new_key);
+        return NULL;
+    }
+
+    new_key->name = name_copy;
+
+    return new_key;
+}
+
+/**
+ * @brief Used for creating local and global var keys.
+ *
+ * @param name
+ */
+Key *create_variable_key(char *name)
+{
+    Key *new_key = malloc(sizeof(Key));
+
+    new_key->args_count = -1; // args count value of variables
+    new_key->id_type = VAR; 
+
+    char *name_copy = str_duplicate(name);
+
+    if (!name_copy)
+    {
+        free(new_key);
+        return NULL;
+    }
+
+    new_key->name = name_copy;
+
+    return new_key;
+}
+
+/**
  * @brief Creates a new instance of a Variable_Node and initializes it's attributes.
  *
- * @param name Name of the symbol that is stored inside the Node.
- * @param args_count Num of arguments of the current symbol. -1 for for global and local variables, non-negative int for others.
- * @param id_type Type of the currently passed identifier.
- * @param data_type Determines the data type of a variable.
+ * @param key Key of the new node. Needs to be created before using create_function_key or create_variable_key functions
  *
  * @return New Variable_Node.
  */
-ST_Node *create_node(char *name, int args_count, ID_Type id_type, Data_Type data_type)
+ST_Node *create_node(Key *key)
 {
     ST_Node *node = malloc(sizeof(ST_Node));
 
@@ -36,23 +85,18 @@ ST_Node *create_node(char *name, int args_count, ID_Type id_type, Data_Type data
     node->left = NULL;
     node->right = NULL;
 
-    // node data_type definition
-    node->data_type = data_type;
+    node->key.args_count = key->args_count;
+    node->key.id_type = key->id_type;
 
-    // copy of the primary key (name) is made
-    char *name_copy = str_duplicate(name);
+    char *name_copy = str_duplicate(key->name);
 
-    // if str_duplicate fails function returns a NULL pointer to signal ST_Node creation failure
     if (!name_copy)
     {
         free(node);
         return NULL;
     }
 
-    // node key init
     node->key.name = name_copy;
-    node->key.args_count = args_count;
-    node->key.id_type = id_type;
 
     return node;
 }
@@ -427,6 +471,9 @@ static ST_Node *find_max_node(ST_Node *node)
  */
 void node_dispose(ST_Node *node)
 {
-    free(node->key.name);
-    free(node);
+    if (node)
+    {
+        free(node->key.name);
+        free(node);
+    }
 }
