@@ -13,21 +13,22 @@
 
 #include "include/symtable.h"
 #include "include/scope_stack.h"
-#include <stdlib.h>
+#include <stdbool.h>
 
+// todo:
 
 // used to store keys of symbols that could not be verified during the synt. analysis
 typedef struct
 {
     Key *array;
-    unsigned array_size; // default size of the array is 20
+    unsigned array_size;     // default size of the array is 20
     unsigned first_free_idx; // used for direct indexing of the array when adding new keys
 } Unresolved_Symbols_Array;
 
 /**
- * @brief Allocates space for 20 keys and inits unresolved symbols array attributes. 
+ * @brief Allocates space for 20 keys and inits unresolved symbols array attributes.
  *        If allocation fails, function exits with ERR_INTERNAL.
- * 
+ *
  * @param array_ptr Pointer to the Unresolved_Symbols_Array struct.
  */
 Unresolved_Symbols_Array *unresolved_array_init();
@@ -77,5 +78,52 @@ void verify_func_redef(Key *key, ST_Node *func_symtable);
  * @param func_symtable Pointer to the symtable of all setter, getters and functions.
  */
 void verify_func_existance(Key *key, ST_Node *func_symtable);
+
+/**
+ * @brief Checks if main function with no args exists inside the programs body.
+ *
+ * @param func_symtable Pointer to the symtable of all setter, getters and functions.
+ *
+ * @return True if main exists, false otherwise.
+ */
+bool main_exists(ST_Node *func_symtable);
+
+/**
+ * @brief Checks if the divider is equal to zero. Works only if the divider is a num literal, otherwise we cannot
+ *        detect zero division. If zero division is detected error_exit() is called.
+ *
+ * @param divider Pointer towards the devider node inside AST
+ */
+void zero_division(ASTNode_ptr divider);
+
+/**
+ * @brief Checks if break keyword was used inside a loop. If not error_exit() is called.
+ *
+ * @param in_loop Signals that we are currently in a loop.
+ */
+void break_usage_check(bool in_loop);
+
+/**
+ * @brief Checks if continue keyword was used inside a loop. If not error_exit() is called.
+ *
+ * @param in_loop Signals that we are currently in a loop.
+ */
+void continue_usage_check(bool in_loop);
+
+/**
+ * @brief Checks if a bool expression is not assigned to a variable.
+ * 
+ * @param in_assignment Signals that we are currently inside assignment.
+ */
+void bool_value_assignment_check(bool in_assignment);
+
+/**
+ * @brief Verifies whether the args count inside the function call matches the function
+ *        definition inside func_symtable.
+ * 
+ * @param func_symtable Pointer to the symtable of all setter, getters and functions.
+ * @param key Pointer to a key.
+ */
+void args_count_check(ST_Node *func_symtable, Key *key);
 
 #endif
