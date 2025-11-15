@@ -15,7 +15,21 @@
 #include "include/scope_stack.h"
 #include <stdbool.h>
 
-// todo:
+// stores num encoding of different Ifj built-in function
+// these value will be used to directly index an array containg info about different built in function
+enum builtin_type 
+{
+    READ_STR,
+    READ_NUM,
+    WRITE,
+    FLOOR,
+    STR,
+    LENGTH,
+    SUBTRING,
+    STRCMP,
+    ORD,
+    CHR
+};
 
 // used to store keys of symbols that could not be verified during the synt. analysis
 typedef struct
@@ -40,6 +54,13 @@ Unresolved_Symbols_Array *unresolved_array_init();
  * @param key Key of the unresolved symbol.
  */
 Unresolved_Symbols_Array *add_unresolved_symbol(Unresolved_Symbols_Array *unresolved, Key key);
+
+/**
+ * @brief Handles clean up of the unresolved symbols array.
+ *
+ * @param unresolved Pointer to the struct of unresolved array.
+ */
+void unresolved_dispose(Unresolved_Symbols_Array *unresolved);
 
 /**
  * @brief Called by parser when declaration is detected. Verifies if the the passed variable was not already declared.
@@ -76,8 +97,9 @@ void verify_func_redef(Key *key, ST_Node *func_symtable);
  *
  * @param key Pointer to the key of the glob variable.
  * @param func_symtable Pointer to the symtable of all setter, getters and functions.
+ * @param unresolved Pointer to the unresolved array struct to store symbols which existance could not be resolved, yet.
  */
-void verify_func_existance(Key *key, ST_Node *func_symtable);
+void verify_func_existance(Key *key, ST_Node *func_symtable, Unresolved_Symbols_Array *unresolved);
 
 /**
  * @brief Checks if main function with no args exists inside the programs body.
@@ -112,7 +134,7 @@ void continue_usage_check(bool in_loop);
 
 /**
  * @brief Checks if a bool expression is not assigned to a variable.
- * 
+ *
  * @param in_assignment Signals that we are currently inside assignment.
  */
 void bool_value_assignment_check(bool in_assignment);
@@ -120,7 +142,7 @@ void bool_value_assignment_check(bool in_assignment);
 /**
  * @brief Verifies whether the args count inside the function call matches the function
  *        definition inside func_symtable.
- * 
+ *
  * @param func_symtable Pointer to the symtable of all setter, getters and functions.
  * @param key Pointer to a key.
  */

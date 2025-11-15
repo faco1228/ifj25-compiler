@@ -15,11 +15,9 @@
 #include "error.h"
 #include "ast.h"
 
-//**SEM. ONLY FUNCTION PROTOTYPES**//
-
 //**HELPER PROTOTYPES**//
 
-//**FUNCTION DEFINITIONS**//
+//**UNRESOLVED SYMBOL ARRAY FUNCTION DEFINITIONS - START**//
 
 /**
  * @brief Allocates space for 20 keys and inits unresolved symbols array attributes.
@@ -70,6 +68,23 @@ Unresolved_Symbols_Array *add_unresolved_symbol(Unresolved_Symbols_Array *unreso
 
     return unresolved;
 }
+
+/**
+ * @brief Handles clean up of the unresolved symbols array.
+ *
+ * @param unresolved Pointer to the struct of unresolved array.
+ */
+void unresolved_dispose(Unresolved_Symbols_Array *unresolved)
+{
+    free(unresolved->array);
+    unresolved->array = NULL;
+
+    free(unresolved);
+}
+
+//**UNRESOLVED SYMBOL ARRAY FUNCTION DEFINITIONS - END**//
+
+//**SEMANTIC FUNCTIONS USED BY THE PARSER - START**//
 
 /**
  * @brief Called by parser when variable declaration is detected. Verifies if the the passed variable was not already declared.
@@ -134,14 +149,20 @@ void verify_func_redef(Key *key, ST_Node *func_symtable)
  *
  * @param key Pointer to the key of the glob variable.
  * @param func_symtable Pointer to the symtable of all setter, getters and functions.
+ * @param unresolved Pointer to the unresolved array struct to store symbols which existance could not be resolved, yet.
  */
-void verify_func_existance(Key *key, ST_Node *func_symtable)
+void verify_func_existance(Key *key, ST_Node *func_symtable, Unresolved_Symbols_Array *unresolved)
 {
     ST_Node *search_result = search(func_symtable, key);
 
     if (!search_result) // function not found inside the function symtable
-        return;         // todo : pridat logiku pre pridanie do zoznamu nevyriesenych symbolov
+    {
+        // copy of the key is stored so symbol existance can be resolved later
+        add_unresolved_symbol(unresolved, *key);
+    }
 }
+
+//**SEMANTIC FUNCTIONS USED BY THE PARSER - END**//
 
 /**
  * @brief Checks if main function with no args exists inside the programs body.
