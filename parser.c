@@ -11,37 +11,66 @@
 
 #include "parser.h"
 
+#define PARSE_OK 0
+#define PARSE_ERROR ERR_SYNTACTIC
+
+// forward prototypes (internal)
+static int  parse_prolog(void);
+static int  parse_class_def(void);
+static int  parse_class_body(void);
+static int  parse_definition(void);
+static int  parse_function_def(token_ptr id);
+static int  parse_setter_def(token_ptr id);
+static int  parse_getter_def(token_ptr id);
+static int  parse_param_list(void);
+static int  parse_block(void);
+static int  parse_statement_list(void);
+static int  parse_statement_or_block(void);
+static int  parse_statement(void);
+static int  parse_var_def(void);
+static int  parse_assign_target(void);
+static int  parse_assignment_or_call(void);
+static int  parse_exp_right_side(void);
+static int  parse_arg_list(void);
+static int  parse_if_statement(void);
+static int  parse_while_statement(void);
+static int  parse_return_statement(void);
+static int  parse_for_statement(void);
+static int  parse_break_statement(void);
+static int  parse_continue_statement(void);
+
+// helper functions
+static token_ptr expect_keyword(char *keyword);
+static token_ptr expect_ident(void);
+static token_ptr expect_type(enum token_type exp_tok);
+static token_ptr look_ahead(void);
+static void consume_eols(void);
+
 /**
  * @brief Entry point of the recursive-descent parser.
  *
- * Grammar: <program> ::= <prolog> <class_def> EOF
+ * Grammar:
+ * @code
+ * <program> ::= <prolog> <class_def> EOF
+ * @endcode
  *
- * Behavior:
+ * @note
  *  - Skips leading EOLs.
  *  - Parses the prolog and the single class definition.
  *  - Requires EOF after the class.
  *
- * Side effects:
- *  - Uses tokens from scanner.
- *  - Calls scanner_cleanup() on success.
- *
- * Errors:
- *  - On any syntax error, calls error_exit(2) via syntax_error().
- *
- * Returns:
- *  - 0 on success. Never returns on syntax error.
+ * @return PARSE_OK (0) on success. On a syntax error, it calls
+ *         error_exit(ERR_SYNTACTIC) and the function does not return.
  */
 int parse_program(void){
     // edge case if multiple EOLs
     consume_eols();
 
-    // parse prolog
-    if (parse_prolog() != 0) syntax_error("Invalid prolog");
+    if (parse_prolog() != 0) error_exit(PARSE_ERROR);
 
     consume_eols();
     
-    // parse class def
-    if (parse_class_def() != 0) syntax_error("Invalid class definition");
+    if (parse_class_def() != 0) error_exit(PARSE_ERROR);
 
     consume_eols();
 
@@ -49,28 +78,29 @@ int parse_program(void){
     // expect EOF
     if (token->type != END_OF_FILE) {
         free_token(token);
-        syntax_error("Expected EOF at the end");
+        error_exit(PARSE_ERROR);
     }
     free_token(token);
 
     scanner_cleanup();
-    return 0;
+    return PARSE_OK;
 }
 
 /**
- * @brief Parse the mandatory prolog line:  import "ifj25" for Ifj EOL
+ * @brief Parse the mandatory prolog line: @c import "ifj25" for Ifj EOL
  *
- * Grammar: <prolog> ::= "import" STRING_LITERAL "for" ID EOL
- *         where STRING_LITERAL must be "ifj25" and ID must be "Ifj".
+ * Grammar:
+ * @code
+ * <prolog> ::= "import" STRING_LITERAL "for" ID EOL
+ * @endcode
+ * where STRING_LITERAL must be "ifj25" and ID must be "Ifj".
  *
- * EOL rules:
- *  - No EOL allowed inside the prolog; the entire prolog must be on one line.
+ * @note
+ *  - EOLs are currently tolerated after @c import and @c for
+ *    (according to project discussion), but never directly after "ifj25"
+ *    before @c for.
  *
- * Errors:
- *  - Missing/invalid keyword, string, identifier, or trailing EOL.
- *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @return PARSE_OK on success, otherwise calls error_exit(ERR_SYNTACTIC).
  */
 static int parse_prolog(void) { 
     token_ptr token;
@@ -78,41 +108,45 @@ static int parse_prolog(void) {
     // check for expected "import"
     token = get_token();
     if (token->type != KEY_WORD || strcmp(token->value.str_value, "import") != 0) {
-        if (token) free_token(token);
-        syntax_error("Expected keyword 'import' in prolog");
+        free_token(token);
+        error_exit(PARSE_ERROR);
     }
     free_token(token);
 
-    // check for expected sting_literal
+    consume_eols();
+    
+    // check for expected string_literal
     token = get_token();
     if (token->type != ONE_L_STRING && token->type != MUL_L_STRING) {
-        if (token) free_token(token);
-        syntax_error("Expected string literal after 'import' in prolog");
+        free_token(token);
+        error_exit(PARSE_ERROR);
     }
     // check for expected "ifj25"
     if (strcmp(token->value.str_value, "ifj25") != 0) {
         free_token(token);
-        syntax_error("Expected string literal - \"ifj25\" in prolog");
+        error_exit(PARSE_ERROR);
     }
     free_token(token);
 
     // check for expected "for"
     token = get_token();
     if (token->type != KEY_WORD || strcmp(token->value.str_value, "for") != 0) {
-        if (token) free_token(token);
-        syntax_error("Expected 'for' in prolog");
+        free_token(token);
+        error_exit(PARSE_ERROR);
     }
     free_token(token);
+
+    consume_eols();
 
     // check for expected id, and then if id == Ifj
     token = get_token();
     if (token->type != IDENT) {
-        if (token) free_token(token);
-        syntax_error("Expected ident after 'for' in prolog");
+        free_token(token);
+        error_exit(PARSE_ERROR);
     }
     if (strcmp(token->value.str_value, "Ifj") != 0) {
         free_token(token);
-        syntax_error("Expected ident - 'Ifj'");
+        error_exit(PARSE_ERROR);
     }
     free_token(token);
 
@@ -120,24 +154,26 @@ static int parse_prolog(void) {
     token = get_token();
     if (token->type != EOL) {
         free_token(token);
-        syntax_error("Expected EOL after prolog");
+        error_exit(PARSE_ERROR);
     }
     free_token(token);
 
-    return 0;
+    return PARSE_OK;
 }
 
 /**
- * @brief Parse the single required class: class Program { EOL <class_body> } (EOL)*
+ * @brief Parse the single required class definition.
  *
- * Grammar: <class_def> ::= "class" "Program" "{" EOL <class_body> "}" (EOL)*
+ * Grammar:
+ * @code
+ * <class_def> ::= "class" "Program" "{" EOL <class_body> "}" (EOL)*
+ * @endcode
  *
- * EOL rules:
- *  - Exactly one EOL immediately after '{'.
- *  - Any number of trailing EOLs after '}'.
+ * @note
+ *  - Exactly one EOL is required after '{'.
+ *  - Any number of trailing EOLs is allowed after '}'.
  *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @return PARSE_OK on success, otherwise volá error_exit(ERR_SYNTACTIC).
  */
 static int parse_class_def(void) {
     token_ptr token;
@@ -150,7 +186,7 @@ static int parse_class_def(void) {
     token = expect_ident();
     if (strcmp(token->value.str_value, "Program") != 0) {
         free_token(token);
-        syntax_error("Expected class name 'Program'");
+        error_exit(PARSE_ERROR);
     }
     free_token(token);
 
@@ -170,21 +206,22 @@ static int parse_class_def(void) {
     // optional multiple EOLs
     consume_eols();
 
-    return 0;
+    return PARSE_OK;
 }
 
 /**
  * @brief Parse the body of the Program class.
  *
- * Grammar: <class_body> ::= ( "static" <definition> )*
+ * Grammar:
+ * @code
+ * <class_body> ::= ( "static" <definition> )*
+ * @endcode
  *
- * Behavior:
- *  - Tolerates blank lines between definitions.
+ * @note
+ *  - Tolerates empty lines (EOLs) between definitions.
  *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @return PARSE_OK on success.
  */
-
 static int parse_class_body(void) {
     while (1) {
         consume_eols();
@@ -199,21 +236,24 @@ static int parse_class_body(void) {
         break;
     }
 
-    return 0;
+    return PARSE_OK;
 }
 
 /**
  * @brief Parse a static member definition: function, setter, or getter.
  *
- * Grammar: <definition> ::= <function_def> | <setter_def> | <getter_def>
+ * Grammar:
+ * @code
+ * <definition> ::= <function_def> | <setter_def> | <getter_def>
+ * @endcode
  *
- * Decision:
- *   - Lookahead '('  → function_def
- *   - Lookahead '='  → setter_def
- *   - Otherwise      → getter_def
+ * @note
+ *  - Distinguishes definitions by lookahead after the identifier:
+ *      - '('  → function_def
+ *      - '='  → setter_def
+ *      - else → getter_def
  *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @return PARSE_OK on success.
  */
 static int parse_definition(void) {
     // saving next two tokens, for id and then token ahead, to decide which function
@@ -230,19 +270,22 @@ static int parse_definition(void) {
     }
     free_token(token);
 
-    return 0;
+    return PARSE_OK;
 }
 
 /**
  * @brief Parse a static function definition.
  *
- * Grammar: <function_def> ::= "static" ID "(" <param_list> ")" <block> EOL
+ * Grammar:
+ * @code
+ * <function_def> ::= "static" ID "(" <param_list> ")" <block> EOL
+ * @endcode
  *
- * EOL rules:
- *  - EOLs are allowed right after '('.
+ * @note
+ *  - EOLs are allowed immediately after '('.
  *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @param id Identifier token of the function (already read by caller).
+ * @return PARSE_OK on success.
  */
 static int parse_function_def(token_ptr id) {
     token_ptr token;
@@ -261,19 +304,22 @@ static int parse_function_def(token_ptr id) {
     token = expect_type(EOL);
     free_token(token);
 
-    return 0;
+    return PARSE_OK;
 }
 
 /**
  * @brief Parse a static setter definition.
  *
- * Grammar: <setter_def> ::= "static" ID "=" "(" ID ")" <block> EOL
+ * Grammar:
+ * @code
+ * <setter_def> ::= "static" ID "=" "(" ID ")" <block> EOL
+ * @endcode
  *
- * EOL rules:
- *  - EOLs are allowed right after '=' and '('.
+ * @note
+ *  - EOLs are allowed immediately after '=' and '('.
  *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @param id Identifier token of the setter (already read by caller).
+ * @return PARSE_OK on success, otherwise volá error_exit(ERR_SYNTACTIC).
  */
 static int parse_setter_def(token_ptr id) {
     token_ptr token;
@@ -281,7 +327,7 @@ static int parse_setter_def(token_ptr id) {
     token = expect_type(OPERATOR);
     if (token->value.other_value != EQUAL_SIGN_V) {
         free_token(token);
-        syntax_error("Expected '=' for setter");
+        error_exit(PARSE_ERROR);
     }
     free_token(token);
 
@@ -302,16 +348,19 @@ static int parse_setter_def(token_ptr id) {
     token = expect_type(EOL);
     free_token(token);
 
-    return 0;
+    return PARSE_OK;
 }
 
 /**
  * @brief Parse a static getter definition.
  *
- * Grammar: <getter_def> ::= "static" ID <block> EOL
+ * Grammar:
+ * @code
+ * <getter_def> ::= "static" ID <block> EOL
+ * @endcode
  *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @param id Identifier token of the getter (already read by caller).
+ * @return PARSE_OK on success.
  */
 static int parse_getter_def(token_ptr id) {
     token_ptr token;
@@ -321,19 +370,21 @@ static int parse_getter_def(token_ptr id) {
     token = expect_type(EOL);
     free_token(token);
 
-    return 0;
+    return PARSE_OK;
 }
 
 /**
  * @brief Parse a comma-separated parameter list.
  *
- * Grammar: <param_list> ::= ε | ID ( "," ID )*
+ * Grammar:
+ * @code
+ * <param_list> ::= ε | ID ( "," ID )*
+ * @endcode
  *
- * EOL rules:
- *  - EOLs allowed after each comma.
+ * @note
+ *  - EOLs are allowed after each comma.
  *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @return PARSE_OK on success.
  */
 static int parse_param_list(void) {
     token_ptr token_ahead;
@@ -341,7 +392,7 @@ static int parse_param_list(void) {
 
     //if function has no parameters
     if (token_ahead->type == RIGHT_PAR) {
-        return 0;
+        return PARSE_OK;
     }
 
     // next token should be id - of the parameter
@@ -363,19 +414,21 @@ static int parse_param_list(void) {
         break;
     }
 
-    return 0;
+    return PARSE_OK;
 }
 
 /**
  * @brief Parse a block delimited by braces.
  *
- * Grammar: <block> ::= "{" EOL <statement_list> "}"
+ * Grammar:
+ * @code
+ * <block> ::= "{" EOL <statement_list> "}"
+ * @endcode
  *
- * EOL rules:
- *  - Exactly one EOL required immediately after "{".
+ * @note
+ *  - Exactly one EOL is required immediately after '{'.
  *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @return PARSE_OK on success.
  */
 static int parse_block(void) {
     token_ptr token;
@@ -391,17 +444,19 @@ static int parse_block(void) {
     token = expect_type(RIGHT_DOM_PAR);
     free_token(token);
 
-    return 0;
+    return PARSE_OK;
 }
 
 /**
  * @brief Parse a sequence of statements and/or nested blocks.
  *
- * Grammar: <statement_list> ::= ( <statement_or_block> )*
- *         Stop at '}' or EOF.
+ * Grammar:
+ * @code
+ * <statement_list> ::= ( <statement_or_block> )*
+ * @endcode
+ * Parsing stops at '}' or EOF.
  *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @return PARSE_OK on success.
  */
 static int parse_statement_list(void) {
     while (1) {
@@ -413,16 +468,18 @@ static int parse_statement_list(void) {
         parse_statement_or_block();
     }
 
-    return 0;
+    return PARSE_OK;
 }
-
+ 
 /**
- * @brief Decide between a nested <block> and a regular <statement>.
+ * @brief Decide between a nested block and a regular statement.
  *
- * Grammar: <statement_or_block> ::= <block> | <statement>
+ * Grammar:
+ * @code
+ * <statement_or_block> ::= <block> | <statement>
+ * @endcode
  *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @return PARSE_OK on success.
  */
 static int parse_statement_or_block(void) {
     token_ptr token_ahead;
@@ -434,29 +491,32 @@ static int parse_statement_or_block(void) {
         parse_statement();
     }
 
-    return 0;
+    return PARSE_OK;
 }
 
 /**
- * @brief Parse a single statement terminated by EOL, or an empty line.
+ * @brief Parse a single statement or an empty line (EOL).
  *
- * Grammar: <statement> ::= <var_def> EOL
- *                        | <assignment_or_call> EOL
- *                        | <ifj_call_stmt> EOL
- *                        | <if_stmt> EOL
- *                        | <while_stmt> EOL
- *                        | <return_stmt> EOL
- *                        | <for_stmt> EOL
- *                        | <break_stmt> EOL
- *                        | <continue_stmt> EOL
- *                        | EOL
+ * Grammar:
+ * @code
+ * <statement> ::= <var_def> EOL
+ *               | <assignment_or_call> EOL
+ *               | <ifj_call_stmt> EOL
+ *               | <if_stmt> EOL
+ *               | <while_stmt> EOL
+ *               | <return_stmt> EOL
+ *               | <for_stmt> EOL
+ *               | <break_stmt> EOL
+ *               | <continue_stmt> EOL
+ *               | EOL
+ * @endcode
  *
- * Notes:
- *  - Stand-alone user calls (ID '(' … ')') are not accepted as statements here
- *    unless you extend the grammar. Built-ins via Ifj.* are supported.
+ * @note
+ *  - Stand-alone user function calls (ID '(' ... ')') as statements
+ *    are not supported at this time; built-in calls are handled by the
+ *    @c Ifj.* branch.
  *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @return PARSE_OK on success, otherwise calls error_exit(ERR_SYNTACTIC).
  */
 static int parse_statement(void) {
     token_ptr token_ahead, token;
@@ -464,10 +524,6 @@ static int parse_statement(void) {
 
     if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "var") == 0) {
         parse_var_def();
-        token = expect_type(EOL);
-        free_token(token);
-    } else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "Ifj") == 0) {
-        parse_ifj_call_statement();
         token = expect_type(EOL);
         free_token(token);
     } else if (token_ahead->type == IDENT || token_ahead->type == GLOB_VAR) {
@@ -504,22 +560,24 @@ static int parse_statement(void) {
     } else {
         token = get_token();
         free_token(token);
-        syntax_error("Unexpected token in statement");
+        error_exit(PARSE_ERROR);
     }
 
-    return 0;
+    return PARSE_OK;
 }
 
 /**
  * @brief Parse a variable definition.
  *
- * Grammar: <var_def> ::= "var" ID
+ * Grammar:
+ * @code
+ * <var_def> ::= "var" ID
+ * @endcode
  *
- * Termination:
- *   - The caller (parse_statement) reads the trailing EOL.
+ * @note
+ *  - Trailing EOL is consumed by @c parse_statement().
  *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @return PARSE_OK on success.
  */
 static int parse_var_def(void) {
     token_ptr token;
@@ -530,16 +588,18 @@ static int parse_var_def(void) {
     token = expect_ident();
     free_token(token);
     
-    return 0;
+    return PARSE_OK;
 }
 
 /**
  * @brief Parse the left-hand side of an assignment.
  *
- * Grammar: <assign_target> ::= ID | GLOBAL_ID
+ * Grammar:
+ * @code
+ * <assign_target> ::= ID | GLOBAL_ID
+ * @endcode
  *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @return PARSE_OK on success, otherwise calls error_exit(ERR_SYNTACTIC).
  */
 static int parse_assign_target(void) {
     token_ptr token_ahead, token;
@@ -548,34 +608,35 @@ static int parse_assign_target(void) {
     if (token_ahead->type == IDENT) {
         token = expect_ident();
         free_token(token);
-        return 0;
+        return PARSE_OK;
     } else if (token_ahead->type == GLOB_VAR) {
         token = expect_type(GLOB_VAR);
         free_token(token);
-        return 0;
+        return PARSE_OK;
     } else {
         token = get_token();
         free_token(token);
-        syntax_error("Expected assigment target Ident or Global_Ident");
+        error_exit(PARSE_ERROR);
     }
 
-    return 0;
+    return PARSE_OK;
 }
 
 
 /**
  * @brief Parse an assignment statement.
  *
- * Grammar: <assignment_or_call> ::= <assign_target> "=" <rhs>
+ * Grammar:
+ * @code
+ * <assignment_or_call> ::= <assign_target> "=" <rhs>
+ * @endcode
  *
- * EOL rules:
- *  - EOLs allowed immediately after '='.
+ * @note
+ *  - EOLs are allowed immediately after '='.
+ *  - The expression on the right-hand side is processed by the PSA
+ *    (OPERATORS, FUNEXP).
  *
- * Expressions:
- *  - <rhs> is delegated to the PSA expression parser (OPERATORS, FUNEXP).
- *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @return PARSE_OK on success.
  */
 static int parse_assignment_or_call(void) {
     parse_assign_target();
@@ -585,103 +646,59 @@ static int parse_assignment_or_call(void) {
 
     if (token->value.other_value != EQUAL_SIGN_V) {
         free_token(token);
-        syntax_error("Expected '=' in assigment");
+        error_exit(PARSE_ERROR);
     }
     free_token(token);
 
     consume_eols();
 
     // TODO parse RIGHT HAND SIDE or expression
-    // Precedencna analyza
-    parse_rhs();
+    // PSA
+    parse_exp_right_side();
 
-    return 0;
+    return PARSE_OK;
 }
 
 /**
- * @brief Parse a built-in call as a stand-alone statement.
+ * @brief Parse the right-hand side of an assignment (expression stub).
  *
- * Grammar: <ifj_call_stmt> ::= "Ifj" "." (EOL)* ID "(" (EOL)* <arg_list> (EOL)* ")"
- *
- * EOL rules:
- *  - No EOL between "Ifj" and ".".
- *  - EOLs are allowed after '.' and '(' and after commas in arguments.
- *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
- */
-static int parse_ifj_call_statement(void) {
-    token_ptr token;
-
-    // check for 'Ifj'
-    token = expect_keyword("Ifj");
-    free_token(token);
-
-    // check for '.'
-    token = expect_type(DOT);
-    free_token(token);
-
-    // eol possible
-    consume_eols();
-
-    token = expect_ident();
-    free_token(token);
-
-    // '('
-    token = expect_type(LEFT_PAR);
-    free_token(token);
-
-    consume_eols();
-    parse_arg_list();
-
-    token = expect_type(RIGHT_PAR);
-    free_token(token);
-
-    return 0;
-}
-
-
-/**
- * @brief Parse the right-hand side of an assignment.
- *
- * Grammar (handled by PSA): <rhs> ::= <expression> | ID "(" <arg_list> ")" | "Ifj" "." ID "(" <arg_list> ")" | ID
- *
- * Role:
- *  - This function is a hook into the PSA (precedence/syntax analyzer for expressions).
+ * @note
+ *  - This is a hook into the PSA (precedence syntax analyzer).
  *  - Must support OPERATORS and FUNEXP once PSA is integrated.
  *
- * Returns:
- *  - 0 for now (stub); later PSA should signal errors via syntax_error().
+ * @return PARSE_OK for now (stub). PSA will signal syntax errors
+ *         via error_exit(ERR_SYNTACTIC).
  */
-static int parse_rhs(void) {
+static int parse_exp_right_side(void) {
     /* If we want special treatment for IFJ builtins, check here (IFJ_ID token not defined separately in header;
        if you will treat certain keywords as IFJ builtin, check KEY_WORD + value.str_value). For now, call PSA. */
     
     // TODO
     // parse_expression(); PSA
-    return 0;
+    return PARSE_OK;
 }
 
 /**
  * @brief Parse a comma-separated argument list for function calls.
  *
- * Grammar: <arg_list> ::= ε | <expression> ( "," <expression> )*
+ * Grammar:
+ * @code
+ * <arg_list> ::= ε | <expression> ( "," <expression> )*
+ * @endcode
  *
- * EOL rules:
- *  - EOLs allowed after each comma and after the opening '(' (handled by caller).
+ * @note
+ *  - EOLs are allowed after each comma and after the opening '('
+ *    (the latter is handled by the caller).
+ *  - Each <expression> will be parsed by PSA.
  *
- * Role:
- *  - Delegates each <expression> to PSA.
- *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @return PARSE_OK on success.
  */
 static int parse_arg_list(void) {
     token_ptr token_ahead;
     token_ahead = look_ahead();
 
     if (token_ahead->type == RIGHT_PAR) {
-        return 0;
+        return PARSE_OK;
     }
 
     // TODO
@@ -700,23 +717,24 @@ static int parse_arg_list(void) {
         // parse_expression(); PSA
     }
 
-    return 0;
+    return PARSE_OK;
 }
 
 /**
- * @brief Parse an if-statement with an else-branch.
+ * @brief Parse an @c if statement with an @c else branch.
  *
- * Grammar: <if_stmt> ::= "if" "(" (EOL)* <expression> ")" <block> "else" <block>
+ * Grammar:
+ * @code
+ * <if_stmt> ::= "if" "(" (EOL)* <expression> ")" <block> "else" <block>
+ * @endcode
  *
- * EOL rules:
- *  - EOLs allowed immediately after '('.
- *  - No EOL allowed between ')' and the following block, nor between the then-block and 'else'.
+ * @note
+ *  - EOLs are allowed immediately after '('.
+ *  - No EOL allowed between ')' and the following block,
+ *    nor between the then-block and 'else'.
+ *  - Condition expression is parsed by PSA.
  *
- * Role:
- *  - The condition expression is parsed by PSA.
- *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @return PARSE_OK on success.
  */
 static int parse_if_statement(void) {
     token_ptr token;
@@ -741,23 +759,23 @@ static int parse_if_statement(void) {
 
     parse_block();
 
-    return 0;
+    return PARSE_OK;
 }
 
 /**
- * @brief Parse a while-loop.
+ * @brief Parse a @c while loop.
  *
- * Grammar: <while_stmt> ::= "while" "(" (EOL)* <expression> ")" <block>
+ * Grammar:
+ * @code
+ * <while_stmt> ::= "while" "(" (EOL)* <expression> ")" <block>
+ * @endcode
  *
- * EOL rules:
- *  - EOLs allowed immediately after '('.
+ * @note
+ *  - EOLs are allowed immediately after '('.
  *  - No EOL allowed between ')' and the block.
+ *  - Condition expression is parsed by PSA.
  *
- * Role:
- *  - The condition expression is parsed by PSA.
- *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @return PARSE_OK on success.
  */
 static int parse_while_statement(void) {
     token_ptr token;
@@ -777,22 +795,22 @@ static int parse_while_statement(void) {
 
     parse_block();
 
-    return 0;
+    return PARSE_OK;
 }
 
 /**
- * @brief Parse a return statement with an optional expression.
+ * @brief Parse a @c return statement with an optional expression.
  *
- * Grammar: <return_stmt> ::= "return" | "return" <expression>
+ * Grammar:
+ * @code
+ * <return_stmt> ::= "return" | "return" <expression>
+ * @endcode
  *
- * Role:
+ * @note
  *  - Optional expression is parsed by PSA.
+ *  - Trailing EOL is consumed by @c parse_statement().
  *
- * Termination:
- *  - The caller (parse_statement) reads the trailing EOL.
- *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @return PARSE_OK on success.
  */
 static int parse_return_statement(void) {
     token_ptr token;
@@ -803,24 +821,23 @@ static int parse_return_statement(void) {
     // TODO
     // parse_expression(); PSA
 
-    return 0;
+    return PARSE_OK;
 }
 
 /**
- * @brief Parse a for-loop with an identifier iterator and a range/expression.
+ * @brief Parse a @c for loop with an identifier iterator and a range/expression.
  *
- * Grammar: <for_stmt> ::= "for" "(" (EOL)* ID "in" <expression> ")" <block>
+ * Grammar:
+ * @code
+ * <for_stmt> ::= "for" "(" (EOL)* ID "in" <expression> ")" <block>
+ * @endcode
  *
- * EOL rules:
- *  - EOLs allowed immediately after '('.
+ * @note
+ *  - EOLs are allowed immediately after '('.
  *  - No EOL allowed between ')' and the block.
+ *  - Range form (a..b / a...b) is validated later in the semantic phase.
  *
- * Semantics:
- *  - The range form (e.g., a..b or a...b) is validated at semantic stage
- *    to ensure exactly one range operator.
- *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @return PARSE_OK on success.
  */
 static int parse_for_statement(void) {
     token_ptr token;
@@ -846,19 +863,21 @@ static int parse_for_statement(void) {
 
     parse_block();
 
-    return 0;
+    return PARSE_OK;
 }
 
 /**
- * @brief Parse the 'break' statement.
+ * @brief Parse the @c break statement.
  *
- * Grammar: <break_stmt> ::= "break"
+ * Grammar:
+ * @code
+ * <break_stmt> ::= "break"
+ * @endcode
  *
- * Semantics:
- *  - Valid only inside loops; enforced later (semantic pass).
+ * @note
+ *  - Semantic check (allowed only inside loops) is done later.
  *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @return PARSE_OK on success.
  */
 static int parse_break_statement(void) {
     token_ptr token;
@@ -866,19 +885,21 @@ static int parse_break_statement(void) {
     token = expect_keyword("break");
     free_token(token);
 
-    return 0;
+    return PARSE_OK;
 }
 
 /**
- * @brief Parse the 'continue' statement.
+ * @brief Parse the @c continue statement.
  *
- * Grammar: <continue_stmt> ::= "continue"
+ * Grammar:
+ * @code
+ * <continue_stmt> ::= "continue"
+ * @endcode
  *
- * Semantics:
- *  - Valid only inside loops; enforced later (semantic pass).
+ * @note
+ *  - Semantic check (allowed only inside loops) is done later.
  *
- * Returns:
- *  - 0 on success; otherwise calls syntax_error().
+ * @return PARSE_OK on success.
  */
 static int parse_continue_statement(void) {
     token_ptr token;
@@ -886,24 +907,21 @@ static int parse_continue_statement(void) {
     token = expect_keyword("continue");
     free_token(token);
 
-    return 0;
+    return PARSE_OK;
 }
 
 
-/* Helper functions */
+// helper functions
 
 
 /**
  * @brief Read and return a required keyword token.
  *
- * Preconditions:
- *  - Next token must be KEY_WORD with matching text.
+ * @param keyword Expected keyword text.
  *
- * Errors:
- *  - On mismatch, calls syntax_error().
- *
- * Ownership:
- *  - Returns an owned token_ptr; caller must free_token().
+ * @pre Next token must be of type KEY_WORD with matching @p keyword.
+ * @return Token pointer owned by the caller (must call free_token()).
+ * @note On mismatch calls error_exit(ERR_SYNTACTIC).
  */
 static token_ptr expect_keyword(char *keyword) {
     token_ptr token = get_token();
@@ -911,12 +929,12 @@ static token_ptr expect_keyword(char *keyword) {
     // checking if is keyword
     if (token->type != KEY_WORD) {
         free_token(token);
-        syntax_error("Expected keyword");
+        error_exit(PARSE_ERROR);
     }
     // checking expected keyword
     if (strcmp(token->value.str_value, keyword) != 0) {
         free_token(token);
-        syntax_error("Unexpected keyword");
+        error_exit(PARSE_ERROR);
     }
 
     return token;
@@ -925,21 +943,16 @@ static token_ptr expect_keyword(char *keyword) {
 /**
  * @brief Read and return a required identifier token.
  *
- * Preconditions:
- *  - Next token must be IDENT.
- *
- * Errors:
- *  - On mismatch, calls syntax_error().
- *
- * Ownership:
- *  - Returns an owned token_ptr; caller must free_token().
+ * @pre Next token must be of type IDENT.
+ * @return Token pointer owned by the caller (must call free_token()).
+ * @note On mismatch calls error_exit(ERR_SYNTACTIC).
  */
 static token_ptr expect_ident(void) {
     token_ptr token = get_token();
 
     if (token->type != IDENT) {
         free_token(token);
-        syntax_error("Expected identifier");
+        error_exit(PARSE_ERROR);
     }
     return token;
 }
@@ -947,21 +960,18 @@ static token_ptr expect_ident(void) {
 /**
  * @brief Read and return a token of the required type.
  *
- * Preconditions:
- *  - Next token's type must match 'exp_tok'.
+ * @param exp_tok Expected token type.
  *
- * Errors:
- *  - On mismatch, calls syntax_error().
- *
- * Ownership:
- *  - Returns an owned token_ptr; caller must free_token().
+ * @pre Next token's type must match @p exp_tok.
+ * @return Token pointer owned by the caller (must call free_token()).
+ * @note On mismatch calls error_exit(ERR_SYNTACTIC).
  */
 static token_ptr expect_type(enum token_type exp_tok) {
     token_ptr token = get_token();
 
     if (token->type != exp_tok) {
         free_token(token);
-        syntax_error("Unexpected token type");
+        error_exit(PARSE_ERROR);
     }
     return token;
 }
@@ -969,14 +979,11 @@ static token_ptr expect_type(enum token_type exp_tok) {
 /**
  * @brief One-token lookahead: fetch the next token and push it back.
  *
- * Behavior:
- *  - Calls get_token() then push_token() with the same instance.
+ * @note
+ *  - The returned token must NOT be freed by the caller.
+ *  - The same instance will be returned again by @c get_token().
  *
- * Ownership:
- *  - Do NOT free the returned pointer. The token will be returned again by get_token().
- *
- * Returns:
- *  - Peeked token pointer.
+ * @return Pointer to the peeked token.
  */
 static token_ptr look_ahead(void) {
     token_ptr token = get_token();
@@ -985,31 +992,11 @@ static token_ptr look_ahead(void) {
 }
 
 /**
- * @brief Report a syntax error and terminate the program.
- *
- * Side effects:
- *  - Prints "Parser error: <msg>" to stderr.
- *  - Calls error_exit(2).
- *
- * Note:
- *  - Does not return.
- */
-static void syntax_error(char *msg) {
-    fprintf(stderr, "Parser error: %s\n", msg);
-    error_exit(2);
-}
-
-/**
  * @brief Consume a maximal sequence of EOL tokens as soft whitespace.
  *
- * Where to use:
- *  - After '(' in if/while/for and calls.
- *  - After ',' in parameter/argument lists.
- *  - After operators, including '='.
- *  - After '.' in "Ifj . ID" (never before '.').
- *
- * Ownership:
- *  - Internally reads and frees EOL tokens.
+ * @note
+ *  - Typical usage: after '(', after ',', and after operators like '=' or '.'.
+ *  - Internally reads and frees all contiguous EOL tokens.
  */
 static void consume_eols(void) {
     while (1) {

@@ -15,27 +15,24 @@
 #include "scanner.h"
 #include "error.h"
 #include <stdio.h>
+#include <string.h>
 
 
 /**
- * @brief Entry point of the recursive-descent parser.
+ * @brief Parse the entire IFJ25 program using the scanner.
  *
- * Grammar: <program> ::= <prolog> <class_def> EOF
+ * Grammar:
+ * @code
+ * <program> ::= <prolog> <class_def> EOF
+ * @endcode
  *
- * Behavior:
- *  - Skips leading EOLs.
- *  - Parses the prolog and the single class definition.
- *  - Requires EOF after the class.
+ * @note
+ *  - Uses tokens produced by the scanner.
+ *  - On successful parse, calls @c scanner_cleanup().
+ *  - On a syntactic error, calls @c error_exit(ERR_SYNTACTIC).
  *
- * Side effects:
- *  - Uses tokens from scanner.
- *  - Calls scanner_cleanup() on success.
- *
- * Errors:
- *  - On any syntax error, calls error_exit(2) via syntax_error().
- *
- * Returns:
- *  - 0 on success. Never returns on syntax error.
+ * @return 0 (PARSE_OK) on success. On syntax error the function does not return,
+ *         because @c error_exit(ERR_SYNTACTIC) terminates the program.
  */
 int parse_program(void);
 
