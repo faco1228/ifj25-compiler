@@ -25,9 +25,10 @@ has_unary_minus = false;
 has_operator = false;
 has_rel_op = false;
 zero_divison_detected = false;
+has_comp_op = false;
 
-// loop detection flag
-in_loop = false;
+// loop detection helper
+loop_nesting_tracker = 0;
 
 //**UNRESOLVED SYMBOL ARRAY FUNCTION DEFINITIONS - START**//
 
@@ -174,8 +175,6 @@ void verify_func_existance(Key *key, ST_Node *func_symtable, Unresolved_Symbols_
     }
 }
 
-//**SEMANTIC FUNCTIONS USED BY THE PARSER - END**//
-
 /**
  * @brief Checks if main function with no args exists inside the programs body.
  *
@@ -195,9 +194,12 @@ bool main_exists(ST_Node *func_symtable)
         error_exit(ERR_INTERNAL);
 
     ST_Node *search_result = search(func_symtable, key);
+    free(key);
 
     return search_result != NULL;
 }
+
+//**SEMANTIC FUNCTIONS USED BY THE PARSER - END**//
 
 /**
  * @brief Checks if the divider is equal to zero. Works only if the divider is a num literal, otherwise we cannot
@@ -209,24 +211,13 @@ bool main_exists(ST_Node *func_symtable)
  */
 bool zero_division(ASTNode_ptr divider)
 {
-    if (divider->type == NODE_FLOAT_LIT && divider->data.literal.float_val == 0.0)
+    if (divider->type == NODE_FLOAT_LIT && divider->data.literal.data.float_val == 0.0)
         return true;
 
-    if (divider->type == NODE_INT_LIT && divider->data.literal.int_val == 0)
+    if (divider->type == NODE_INT_LIT && divider->data.literal.data.int_val == 0)
         return true;
 
     return false;
-}
-
-/**
- * @brief Checks if a bool expression is not assigned to a variable.
- *
- * @param in_assignment Signals that we are currently inside assignment.
- */
-void bool_value_assignment_check(bool in_assignment)
-{
-    if (!in_assignment)
-        error_exit(ERR_SEM_OTHER);
 }
 
 /**
@@ -277,7 +268,7 @@ bool builtin_exists(char *name)
  *
  * @return True if args count is correct, false otherwise.
  */
-bool builtin_args_count_correct(char *name, int args_count)
+bool builtin_args_count_correct(char *name, unsigned args_count)
 {
     bool args_count_correct = false;
 
@@ -292,14 +283,70 @@ bool builtin_args_count_correct(char *name, int args_count)
     return args_count_correct;
 }
 
-// todo : docu
-void set_exp_flags(ASTNode_ptr exp_root)
+/**
+ * @brief Loops through all the params inside the function call of a built-in and if a literal is found,
+ *        it's data type is verified against the defined arg types of built-in fuctions.
+ *
+ * @param name Name of the built-in function.
+ * @param args_count Num of args inside the function call.
+ */
+bool builtin_args_types_correct(ASTNode_ptr call_node, char *name, unsigned args_count)
+{
+    builtin_function_t *search_result;
+
+    for (unsigned idx = 0; idx < builtin_functions_arr_lenght; idx++) // finds the function based on a name
+    {
+        if (strcmp(name, builtin_functions[idx].name) == 0)
+        {
+            search_result = &builtin_functions[idx];
+            break;
+        }
+    }
+
+    for (unsigned idx = 0; idx < args_count; idx++) // loops through the params of the function call
+    {
+        // types only need to be checked if the current arg has any type restrictions
+        if (search_result->arg_types[idx] == ANY_TYPE)
+            continue;
+
+        if (call_node->type == NODE_STR_LIT && search_result->arg_types[idx] != STR_TYPE)
+        {
+            return false;
+        }
+        else if (call_node->type == NODE_INT_LIT || call_node->type == NODE_FLOAT_LIT)
+        {
+            if (search_result->arg_types[idx] != NUM_TYPE)
+                return false;
+        }
+    }
+
+    return true;
+}
+
+/**
+ * @brief While traversing the expression subtree, differnt expression flags are set. These flags are later used
+ *        to determine if type mismatch occurs inside an expression.
+ *        Function also handles identification of getters inside an expression.
+ *
+ * @param exp_root Root of the expression subtree.
+ * @param func_symtable Pointer to the symtable of all setter, getters and functions.
+ */
+void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable)
 {
     if (!exp_root)
         return;
 
     switch (exp_root->type) // sets different flags to true based on the current node
     {
+    case NODE_IDENTIFIER:
+        Key *getter_key = create_function_key(exp_root->data.identifier.name, 0, GETTER); // key needs to be created
+        ST_Node *search_result = search(func_symtable, getter_key);
+
+        if (search_result) // id inside the exp is identified as a getter
+            exp_root->data.identifier.id_type = GETTER;
+
+        free(getter_key);
+        break;
     case NODE_STR_LIT:
         has_string_lit = true;
         break;
@@ -316,8 +363,20 @@ void set_exp_flags(ASTNode_ptr exp_root)
         if (exp_root->data.binary_operator.op_type == OP_DIV || exp_root->data.binary_operator.op_type == OP_MINUS)
             has_minus_or_slash = true;
 
-        if (exp_root->data.binary_operator.op_type == OP_EQ || exp_root->data.binary_operator.op_type == OP_NEQ || exp_root->data.binary_operator.op_type == OP_LT || exp_root->data.binary_operator.op_type == OP_LTE || exp_root->data.binary_operator.op_type == OP_GT || exp_root->data.binary_operator.op_type == OP_GTE || exp_root->data.binary_operator.op_type == OP_IS)
+        if (exp_root->data.binary_operator.op_type == OP_EQ ||
+            exp_root->data.binary_operator.op_type == OP_NEQ ||
+            exp_root->data.binary_operator.op_type == OP_LT ||
+            exp_root->data.binary_operator.op_type == OP_LTE ||
+            exp_root->data.binary_operator.op_type == OP_GT ||
+            exp_root->data.binary_operator.op_type == OP_GTE ||
+            exp_root->data.binary_operator.op_type == OP_IS)
             has_rel_op = true;
+
+        if (exp_root->data.binary_operator.op_type == OP_LT ||
+            exp_root->data.binary_operator.op_type == OP_LTE ||
+            exp_root->data.binary_operator.op_type == OP_GT ||
+            exp_root->data.binary_operator.op_type == OP_GTE)
+            has_comp_op = true;
 
         if (exp_root->data.binary_operator.op_type == OP_DIV && zero_division(exp_root->children[1]))
             zero_divison_detected = true;
@@ -335,7 +394,12 @@ void set_exp_flags(ASTNode_ptr exp_root)
     set_allowed_op_types(exp_root->children[1]); // handle right subtree
 }
 
-// todo : docu
+/**
+ * @brief Checks values of relevant combinations of expression flags and determines if type mismatch occured.
+ *        If certain flag combinations are detected, a restriction code can be assigned to different expression nodes.
+ *
+ * @param exp_root Root of the expression subtree.
+ */
 bool eval_exp_flags(ASTNode_ptr exp_root)
 {
     if (!has_rel_op)
@@ -348,15 +412,20 @@ bool eval_exp_flags(ASTNode_ptr exp_root)
         else if (has_null_lit && has_operator) // null literal inside
             return false;
 
-        // handle prediction of exp operand restriction
+        // handle prediction of exp operand restrictions
         if (has_minus_or_slash || has_unary_minus)
             // these operands cannot be used with strings
             exp_root->data.exp_statement.restriction = ONLY_NUM;
         else if (has_operator && has_only_plus_op && has_string_lit)
-            // when string literal is present here, only concat is allowed
+            // when string literal is present here, + operator can only be used as concat
             exp_root->data.exp_statement.restriction = ONLY_STR;
         else // could not predict any restrictions
             exp_root->data.exp_statement.restriction = UNDETERMINED;
+    }
+    else // has rel operators
+    {
+        if (has_string_lit && has_comp_op) // comparison operators cannot be used with string values
+            return false;
     }
 
     return true;
@@ -367,18 +436,28 @@ bool eval_exp_flags(ASTNode_ptr exp_root)
  *
  * @param root Pointer to the root node of AST.
  * @param node_to_handle Helper pointer that will be used in recursive calls.
+ * @param func_symtable Pointer to function symtable that will be used inside args_count_check() for user defined functions.
  */
-void semantic_analysis(ASTNode_ptr root, ASTNode_ptr node_to_hanle)
+void semantic_analysis(ASTNode_ptr root, ASTNode_ptr node_to_handle, ST_Node *func_symtable)
 {
-    if (!node_to_hanle->child_count)
+    if (!node_to_handle->child_count)
         return;
 
-    switch (node_to_hanle->type)
+    switch (node_to_handle->type)
     {
-    case NODE_EXPR_STMNT:
-        set_exp_flags(node_to_hanle);
+    case NODE_ASSIGN:
+        Key *setter_key = create_function_key(node_to_handle->data.identifier.name, 1, SETTER); // key needs to be created
+        ST_Node *search_result = search(func_symtable, setter_key);
 
-        if (!eval_exp_flags(node_to_hanle))
+        if (search_result) // id inside the exp is identified as a setter
+            node_to_handle->data.identifier.id_type = SETTER;
+
+        free(setter_key);
+
+    case NODE_EXPR_STMNT:
+        set_exp_flags(node_to_handle);
+
+        if (!eval_exp_flags(node_to_handle))
         {
             ast_free(root);
             error_exit(ERR_SEM_TYPE_MISMATCH);
@@ -393,25 +472,62 @@ void semantic_analysis(ASTNode_ptr root, ASTNode_ptr node_to_hanle)
 
     case NODE_FOR:
     case NODE_WHILE:
-        in_loop = true; // in_loop flag needs to be set everytime we find a loop node
+        loop_nesting_tracker++; // gets incremented each time a loop is entered
         break;
 
-    case NODE_BREAK:
+    case NODE_BREAK: // break and continue keyword usage check
     case NODE_CONTINUE:
-        if (!in_loop) // break or continue keyword used outside a loop
+        if (loop_nesting_tracker == 0) // break or continue keyword used outside of a loop
+        {
+            ast_free(root);
             error_exit(ERR_SEM_OTHER);
+        }
+
+    case NODE_CALL:
+        if (node_to_handle->data.function_call.is_builtin) // function called is a Ifj built-in function
+        {
+            // get important info
+            char *name = node_to_handle->data.function_call.name;
+            unsigned args_count = node_to_handle->data.function_call.param_count;
+
+            if (!builtin_exists(name)) // incorrect built-in ident used
+            {
+                ast_free(root);
+                error_exit(ERR_SEM_UNDEFINED);
+            }
+
+            if (!builtin_args_count_correct(name, args_count))
+            {
+                ast_free(root);
+                error_exit(ERR_SEM_ARG_COUNT);
+            }
+
+            if (!builtin_args_types_correct(node_to_handle, name, args_count))
+            {
+                ast_free(root);
+                error_exit(ERR_SEM_TYPE_MISMATCH);
+            }
+        }
+        else // not a built-in function
+        {
+            // creates a key to search the func_symtable
+            Key *key = create_function_key(node_to_handle->data.function_call.name,
+                                           node_to_handle->data.function_call.param_count,
+                                           FUNCTION);
+
+            if (!args_count_check(func_symtable, key))
+            {
+                ast_free(root);
+                error_exit(ERR_SEM_ARG_COUNT);
+            }
+        }
 
     default:
         break;
     }
 
-    for (unsigned idx = 0; idx < node_to_hanle->child_count; idx++)
-    {
-        semantic_analysis(root, node_to_hanle->children[idx]);
-    }
+    // todo : pridat na toto miesto resetovanie flagov
 
-    return;
+    for (unsigned idx = 0; idx < node_to_handle->child_count; idx++)
+        semantic_analysis(root, node_to_handle->children[idx], func_symtable);
 }
-
-// todo : pridat funkciu pre validaciu typov argumentov ak sa v agrumentoch funkcie budu nachadzat nejake literaly
-// argumenty, ktore nie su literaly skipnem a ostatne rovno type checknem

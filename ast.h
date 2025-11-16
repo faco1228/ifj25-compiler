@@ -50,11 +50,12 @@ typedef enum
 } function_type;
 
 // data types for expression
-typedef enum {
+typedef enum
+{
     TYPE_UNKNOWN,
     TYPE_NUM,
     TYPE_STRING,
-    TYPE_BOOL 
+    TYPE_BOOL
 } ValueType;
 
 // Data type representing different types of AST nodes
@@ -101,13 +102,14 @@ typedef struct ASTNode
 
     // used with other node types
     ASTNode_ptr *children; // pole ukazatelov na children nodes
-    size_t child_count;        // pocet prvkov pola pre lahsi priamy pristup
+    size_t child_count;    // pocet prvkov pola pre lahsi priamy pristup
 
     // different data one node can store
     union
     {
         // IDENT, VAR_DECL
-        struct { // bool is_initialized
+        struct
+        { // bool is_initialized
             char *name;
             ID_Type id_type;
         } identifier;
@@ -121,15 +123,17 @@ typedef struct ASTNode
             ASTNode_ptr body;
         } function_def;
 
-        // CALL
-        struct {
-            char *name; // fun() or Ifj.write()
+        // CALL - keep as is
+        struct
+        {
+            char *name;           // fun() or Ifj.write()
             unsigned param_count; // num of args
-            bool is_builtin; // true for IFj.*
+            bool is_builtin;      // true for IFj.*
         } function_call;
 
         // ASSIGN
-        struct {
+        struct
+        {
             ASTNode_ptr lhs; // typicky NODE_IDENTIFIER
             ASTNode_ptr rhs; // expression
         } assign;
@@ -157,8 +161,9 @@ typedef struct ASTNode
             ASTNode_ptr block_else; // NODE_BLOCK or NULL
         } if_statement;
 
-        // WHILE 
-        struct {
+        // WHILE
+        struct
+        {
             ASTNode_ptr condition;
             ASTNode_ptr body; // NODE_BLOCK
         } while_statement;
@@ -178,9 +183,11 @@ typedef struct ASTNode
         } ret;
 
         // EXPRESION statement;
-        struct { // 0-left 1-right
-            ASTNode_ptr exp; 
+        struct
+        { // 0-left 1-right
+            ASTNode_ptr exp;
             ValueType result_type;
+            exp_restriction_t restriction;
         } exp_statement;
 
         // RANGE
@@ -200,14 +207,17 @@ typedef struct ASTNode
         } ternary;
 
         // LITERAL
-        union { // prerobit na union
-            long long int int_val;
-            long double float_val;
-            char *str_value;
+        struct
+        {
+            union
+            { // prerobit na union
+                long long int int_val;
+                long double float_val;
+                char *str_value;
+            } data;
         } literal;
 
     } data;
-
 };
 
 // Data type representing AST root
@@ -251,5 +261,3 @@ ASTNode_ptr ast_create_int(long long int val);
 ASTNode_ptr ast_create_float(long double val);
 ASTNode_ptr ast_create_str(const char *string);
 ASTNode_ptr ast_create_null(void);
-
-

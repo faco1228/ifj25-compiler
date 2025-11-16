@@ -59,11 +59,12 @@ extern bool has_unary_minus;
 extern bool has_operator;
 extern bool has_only_plus_op; // expression contains only + operators
 extern bool has_rel_op;
+extern bool has_comp_op; // contains >, <, >=, <=
 extern bool zero_divison_detected;
 
-// flags to determine if we are in a cycle
-// used when verifying correct usage of break and continue keywords
-extern bool in_loop;
+// when equal to zero we can determine we are not in a loop, otherwise we are
+// this is used when checking that break and continue keywords are used only inside loops
+extern unsigned loop_nesting_tracker;
 
 // used to store keys of symbols that could not be verified during the synt. analysis
 typedef struct
@@ -157,27 +158,6 @@ bool main_exists(ST_Node *func_symtable);
 bool zero_division(ASTNode_ptr divider);
 
 /**
- * @brief Checks if break keyword was used inside a loop. If not error_exit() is called.
- *
- * @param in_loop Signals that we are currently in a loop.
- */
-void break_usage_check(bool in_loop);
-
-/**
- * @brief Checks if continue keyword was used inside a loop. If not error_exit() is called.
- *
- * @param in_loop Signals that we are currently in a loop.
- */
-void continue_usage_check(bool in_loop);
-
-/**
- * @brief Checks if a bool expression is not assigned to a variable.
- *
- * @param in_assignment Signals that we are currently inside assignment.
- */
-void bool_value_assignment_check(bool in_assignment);
-
-/**
  * @brief Verifies whether the args count inside the function call matches the function
  *        definition inside func_symtable.
  *
@@ -189,23 +169,41 @@ void bool_value_assignment_check(bool in_assignment);
 bool args_count_check(ST_Node *func_symtable, Key *key);
 
 /**
- * @brief Verifies that a builtin function was called with a correct num of arguments.
- *
- * @param name Name of the built in function
- * @param args_count Number of passed arguments inside the function call.
- */
-bool builtin_args_count_check(char *name, int args_count);
-
-/**
  * @brief Verifies that a built-in function exists and that it was called with the correct num of arguments.
  *
- * @param name Name of the built in function
- * @param args_count Number of passed arguments inside the function call.
+ * @param name Name of the built in function.
+ *
+ * @return True if a built-in with this name exists, false otherwise.
  */
-bool validate_builtin(char *name, int args_count);
+bool builtin_exists(char *name);
 
 /**
- * @brief
+ * @brief Verifies that a built-in function was called with the correct num of arguments.
+ *
+ * @param name Name of the built-in function.
+ * @param args_count Number of passed arguments inside the function call of a built-in function.
+ *
+ * @return True if args count is correct, false otherwise.
  */
+bool builtin_args_count_correct(char *name, unsigned args_count);
+
+/**
+ * @brief Loops through all the params inside the function call of a built-in and if a literal is found,
+ *        it's data type is verified against the defined arg types of built-in fuctions.
+ *
+ * @param name Name of the built-in function.
+ * @param args_count Num of args inside the function call.
+ */
+bool builtin_args_types_correct(ASTNode_ptr call_node, char *name, unsigned args_count);
+
+/**
+ * @brief While traversing the expression subtree, differnt expression flags are set. These flags are later used
+ *        to determine if type mismatch occurs inside an expression.
+ *        Function also handles identification of getters inside an expression.
+ *
+ * @param exp_root Root of the expression subtree.
+ * @param func_symtable Pointer to the symtable of all setter, getters and functions.
+ */
+void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable);
 
 #endif
