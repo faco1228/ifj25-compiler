@@ -33,6 +33,21 @@ loop_nesting_tracker = 0;
 //**UNRESOLVED SYMBOL ARRAY FUNCTION DEFINITIONS - START**//
 
 /**
+ * @brief Resets all semantic flags to their default values.
+ */
+void reset_flags()
+{
+    has_only_plus_op = true;
+    has_string_lit = false;
+    has_minus_or_slash = false;
+    has_null_lit = false;
+    has_unary_minus = false;
+    has_operator = false;
+    has_rel_op = false;
+    zero_divison_detected = false;
+    has_comp_op = false;
+}
+/**
  * @brief Allocates space for 20 keys and inits unresolved symbols array attributes.
  *
  * @return Pointer to the allocated struct or NULL ptr if allocation fails.
@@ -526,7 +541,7 @@ void semantic_analysis(ASTNode_ptr root, ASTNode_ptr node_to_handle, ST_Node *fu
         break;
     }
 
-    // todo : pridat na toto miesto resetovanie flagov
+    reset_flags();
 
     for (unsigned idx = 0; idx < node_to_handle->child_count; idx++)
         semantic_analysis(root, node_to_handle->children[idx], func_symtable);

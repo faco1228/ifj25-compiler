@@ -75,6 +75,10 @@ typedef struct
 } Unresolved_Symbols_Array;
 
 /**
+ * @brief Resets all semantic flags to their default values.
+ */
+void reset_flags();
+/**
  * @brief Allocates space for 20 keys and inits unresolved symbols array attributes.
  *        If allocation fails, function exits with ERR_INTERNAL.
  *
