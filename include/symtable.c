@@ -4,9 +4,8 @@
 #include <stdbool.h>
 #include "../error.h" // library with custom error handling
 
-//**HELPER FUNCTION DECLARATIONS**//
+//**HELPER FUNCTION PROTOTYPES**//
 static char *str_duplicate(char *to_duplicate);
-static bool store_data(ST_Node *node, void *data, Data_Type data_type);
 static void node_dispose(ST_Node *node);
 static ST_Node *find_max_node(ST_Node *node);
 static ST_Node *left_rotation(ST_Node *root_ptr);
@@ -17,19 +16,65 @@ static void set_balance_factor(ST_Node *node);
 static int key_cmp(Key *key1, Key *key2);
 
 /**
+ * @brief Used for creating function, setter and getter keys.
+ *
+ * @param name
+ * @param args_count
+ * @param id_type Can be SETTER, GETTER or FUNCTION
+ */
+Key *create_function_key(char *name, int args_count, ID_Type id_type)
+{
+    Key *new_key = malloc(sizeof(Key));
+
+    new_key->args_count = args_count;
+    new_key->id_type = id_type;
+
+    char *name_copy = str_duplicate(name);
+
+    if (!name_copy)
+    {
+        free(new_key);
+        return NULL;
+    }
+
+    new_key->name = name_copy;
+
+    return new_key;
+}
+
+/**
+ * @brief Used for creating local and global var keys.
+ *
+ * @param name
+ */
+Key *create_variable_key(char *name)
+{
+    Key *new_key = malloc(sizeof(Key));
+
+    new_key->args_count = -1; // args count value of variables
+    new_key->id_type = VAR; 
+
+    char *name_copy = str_duplicate(name);
+
+    if (!name_copy)
+    {
+        free(new_key);
+        return NULL;
+    }
+
+    new_key->name = name_copy;
+
+    return new_key;
+}
+
+/**
  * @brief Creates a new instance of a Variable_Node and initializes it's attributes.
  *
- * @param name Name of the symbol that is stored inside the Node.
- * @param args_count Num of arguments of the current symbol. -1 for for global and local variables, non-negative int for others.
- * @param id_type Type of the currently passed identifier.
- * @param data Pointer to data of unknown type.
- * @param data_type Helps to determine what datatype is going to be stored inside the Node.
+ * @param key Key of the new node. Needs to be created before using create_function_key or create_variable_key functions
  *
  * @return New Variable_Node.
- *
- * @note Data can store nums, strings or function args depending on the type of symbol.
  */
-ST_Node *create_node(char *name, int args_count, ID_Type id_type, void *data, Data_Type data_type)
+ST_Node *create_node(Key *key)
 {
     ST_Node *node = malloc(sizeof(ST_Node));
 
@@ -40,28 +85,18 @@ ST_Node *create_node(char *name, int args_count, ID_Type id_type, void *data, Da
     node->left = NULL;
     node->right = NULL;
 
-    // copy of the primary key (name) is made
-    char *name_copy = str_duplicate(name);
+    node->key.args_count = key->args_count;
+    node->key.id_type = key->id_type;
 
-    // if str_duplicate fails function returns a NULL pointer to signal ST_Node creation failure
+    char *name_copy = str_duplicate(key->name);
+
     if (!name_copy)
     {
         free(node);
         return NULL;
     }
 
-    // node key struct init
     node->key.name = name_copy;
-    node->key.args_count = args_count;
-    node->key.id_type = id_type;
-
-    // determines what type of data to store and stores it inside the node
-    if (!store_data(node, data, data_type))
-    {
-        node_dispose(node);
-        return NULL;
-        // success of create_node can be determined outside of the function, so error_exit() is not called here
-    }
 
     return node;
 }
@@ -93,7 +128,7 @@ ST_Node *insert_node(ST_Node *root_ptr, ST_Node *to_insert)
 
         else // attempt to add already existing symbol made
             error_exit(ERR_SEM_REDEFINITION);
-        // NOTE: If you encounter this error when calling Insert, you have probably
+        // NOTE: If you encounter this error after calling insert, you have probably
         // forgotten to call search() before trying to insert new symbol
     }
 
@@ -153,11 +188,6 @@ ST_Node *remove_node(ST_Node *root_ptr, Key *key)
 
             root_ptr->key.args_count = max_node->key.args_count;
             root_ptr->key.id_type = max_node->key.id_type;
-
-            // data is copied from the terminal node
-            if (!store_data(root_ptr, &max_node->data, max_node->data_type))
-                // has to be exited because there is no way to know that removal failed based on the return value of remove_node
-                error_exit(ERR_INTERNAL);
 
             // max node is removed
             root_ptr->left = remove_node(root_ptr->left, &max_node->key);
@@ -222,7 +252,7 @@ ST_Node *search(ST_Node *root_ptr, Key *key)
  *
  * @param root_ptr Root of a tree to dispose.
  */
-static void dispose_tree(ST_Node *root_ptr)
+void dispose_tree(ST_Node *root_ptr)
 {
     if (!root_ptr)
         return;
@@ -419,46 +449,6 @@ static char *str_duplicate(char *to_duplicate)
 }
 
 /**
- * @brief Handles explicit typing and stores data inside the ST_Node.
- *
- * @param node Pointer to a ST_Node that will store the data.
- * @param data Pointer to data of unknown data type.
- * @param data_type Helps to determine what type of data is going to be stored inside the ST_Node.
- *
- * @return False if storing the data fails.
- */
-static bool store_data(ST_Node *node, void *data, Data_Type data_type)
-{
-    node->data_type = data_type;
-
-    switch (data_type)
-    {
-    case INT:
-        node->data.int_value = *(int *)data;
-        break;
-
-    case FLOAT:
-        node->data.float_value = *(float *)data;
-        break;
-
-    case STRING:
-        // copy of the string is made
-        char *copy = str_duplicate((char *)data);
-
-        // if str_duplicate fails function returns a NULL pointer to signal ST_Node creation failure
-        if (!copy)
-            return false;
-
-        node->data.string_value = copy; // data inside the node points to the adress of the copy
-        break;
-    default:
-        break;
-    }
-
-    return true;
-}
-
-/**
  * @brief Finds the most right ST_Node of the left subtree.
  *
  * @param root_ptr Root node of the subtree in which we want to find the min ST_Node.
@@ -481,12 +471,9 @@ static ST_Node *find_max_node(ST_Node *node)
  */
 void node_dispose(ST_Node *node)
 {
-    free(node->key.name);
-
-    if (node->data_type == STRING && node->data.string_value)
+    if (node)
     {
-        free(node->data.string_value);
+        free(node->key.name);
+        free(node);
     }
-
-    free(node);
 }

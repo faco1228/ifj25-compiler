@@ -8,21 +8,15 @@
 #ifndef SYMTABLE_H
 #define SYMTABLE_H
 
-// Purpose of Data_Type code is to determine what information about the symbol should stored
-typedef enum Data_Types
-{
-    INT,
-    FLOAT,
-    STRING
-} Data_Type;
+// defining the ST_Node data type
+typedef struct ST_Node ST_Node;
 
 typedef enum ID_Types
 {
     FUNCTION,
     SETTER,
     GETTER,
-    GLOBAL_VAR,
-    LOCAL_VAR
+    VAR // no need to differentiate between local and global vars, because they will be stored inside different symtables at all times
 } ID_Type;
 
 // composite key to describe identifiers
@@ -33,35 +27,45 @@ typedef struct
     ID_Type id_type; // used to differentiate between function, setter, getters, etc. which share the same name, tertiary key
 } Key;
 
-typedef struct
+struct ST_Node
 {
-    Key key;             // contains infromation about the id that will help to differentiate between ids with the same name
-    Data_Type data_type; // helps identifying what kind of data is stored inside the node
-    union                // used to store different types of data inside the node
-    {
-        int int_value;
-        float float_value;
-        char *string_value;
-    } data;
+    Key key;             // contains information about the id that will help to differentiate between ids with the same name
     int balance_factor; // used to determine the balance of the Node's subtree
     ST_Node *left;      // left child pointer
     ST_Node *right;     // right child pointer
-} ST_Node;
+};
+
+//**FUNCTION FOR CREATING KEYS**//
+
+/**
+ * @brief Used for creating function, setter and getter keys.
+ * 
+ * @param name
+ * @param args_count 
+ * @param id_type Can be SETTER, GETTER or FUNCTION
+ * 
+ * @return Pointer to a new key.
+ */
+Key *create_function_key(char *name, int args_count, ID_Type id_type);
+
+/**
+ * @brief Used for creating local and global var keys.
+ *
+ * @param name
+ * 
+ * @return Pointer to a new key.
+ */
+Key *create_variable_key(char *name);
+
 
 /**
  * @brief Creates a new instance of a Variable_Node and initializes it's attributes.
  *
- * @param name Name of the symbol that is stored inside the Node.
- * @param args_count Num of arguments of the current symbol. -1 for for global and local variables, non-negative int for others.
- * @param id_type Type of the currently passed identifier.
- * @param data Pointer to data of unknown type.
- * @param data_type Helps to determine what datatypeis going to be stored inside the Node.
+ * @param key Key of the new node. Needs to be created before using create_function_key or create_variable_key functions
  *
  * @return New Variable_Node.
- *
- * @note Data can store nums, strings or function args depending on the type of symbol.
  */
-ST_Node *create_node(char *name, int args_count, ID_Type id_type, void *data, Data_Type data_type);
+ST_Node *create_node(Key *key);
 
 /**
  * @brief Inserts a new ST_Node.

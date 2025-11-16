@@ -151,7 +151,7 @@ token_ptr process_next_token(token_ptr token){
             break;
         case '?':
             token->type = Q_MARK;
-            token->value.other_value = Q_MARK_V;
+            token->value.other_value = QUESTION_MARK_V;
             break;
         case ':':
             token->type = SEMICOLON;
@@ -253,6 +253,16 @@ void process_ident(token_ptr token){
         }
     }
 
+    //Checks whether string isn't null value
+    if (strcmp("null", token->value.str_value) == 0){
+        token->type = NULL_LIT;
+        token->value.other_value = NULL_V;
+
+        free(token->value.str_value);
+
+        return;
+    }
+    
     //When the token isn't KW but it's global variable
     if (token->value.str_value[0] == '_' && token->value.str_value[1] == '_'){
         token->type = GLOB_VAR;
