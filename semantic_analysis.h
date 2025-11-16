@@ -15,21 +15,55 @@
 #include "include/scope_stack.h"
 #include <stdbool.h>
 
-// stores num encoding of different Ifj built-in function
-// these value will be used to directly index an array containg info about different built in function
-enum builtin_type 
+// enum of number codes for all possible data types
+enum data_types
 {
-    READ_STR,
-    READ_NUM,
-    WRITE,
-    FLOOR,
-    STR,
-    LENGTH,
-    SUBTRING,
-    STRCMP,
-    ORD,
-    CHR
+    NUM_TYPE,
+    STR_TYPE,
+    NULL_TYPE,
+    ANY_TYPE,
+    UNDEFINED,
 };
+
+// stores info about a specific built-in fuction
+typedef struct Builtin_Function
+{
+    char *name;
+    int args_count;
+    enum data_types return_types[2]; // all built in functions have maximum of 2 return types
+    enum data_types arg_types[3];    // order of the data types inside the array is the same as the order of args inside the function head
+
+} builtin_function_t;
+
+#define builtin_functions_arr_lenght 10
+
+// an array containing all built in functions
+extern builtin_function_t builtin_functions[builtin_functions_arr_lenght] =
+    {
+        {"read_str", 0, {STR_TYPE, NULL_TYPE}, {}},
+        {"read_num", 0, {NUM_TYPE, NULL_TYPE}, {}},
+        {"write", 1, {NULL_TYPE, UNDEFINED}, {ANY_TYPE}},
+        {"floor", 1, {NUM_TYPE, UNDEFINED}, {NUM_TYPE}},
+        {"str", 1, {STR_TYPE, UNDEFINED}, {ANY_TYPE}},
+        {"length", 1, {NUM_TYPE, UNDEFINED}, {STR_TYPE}},
+        {"substring", 3, {STR_TYPE, NULL_TYPE}, {STR_TYPE, NUM_TYPE, NUM_TYPE}},
+        {"strcmp", 2, {NUM_TYPE, UNDEFINED}, {STR_TYPE, STR_TYPE}},
+        {"ord", 2, {NUM_TYPE, UNDEFINED}, {STR_TYPE, NUM_TYPE}},
+        {"chr", 1, {STR_TYPE, UNDEFINED}, {NUM_TYPE}}};
+
+// flags signaling that things significant to type prediction are present in an expression
+extern bool has_string_lit;
+extern bool has_minus_or_slash; // expression contains
+extern bool has_null_lit;
+extern bool has_unary_minus;
+extern bool has_operator;
+extern bool has_only_plus_op; // expression contains only + operators
+extern bool has_rel_op;
+extern bool zero_divison_detected;
+
+// flags to determine if we are in a cycle
+// used when verifying correct usage of break and continue keywords
+extern bool in_loop;
 
 // used to store keys of symbols that could not be verified during the synt. analysis
 typedef struct
@@ -110,13 +144,17 @@ void verify_func_existance(Key *key, ST_Node *func_symtable, Unresolved_Symbols_
  */
 bool main_exists(ST_Node *func_symtable);
 
+//! po tieto funkcie su tie, ktore samo zavola este v parser
+
 /**
  * @brief Checks if the divider is equal to zero. Works only if the divider is a num literal, otherwise we cannot
  *        detect zero division. If zero division is detected error_exit() is called.
  *
  * @param divider Pointer towards the devider node inside AST
+ *
+ * @return True if zero division detected, false otherwise.
  */
-void zero_division(ASTNode_ptr divider);
+bool zero_division(ASTNode_ptr divider);
 
 /**
  * @brief Checks if break keyword was used inside a loop. If not error_exit() is called.
@@ -144,8 +182,30 @@ void bool_value_assignment_check(bool in_assignment);
  *        definition inside func_symtable.
  *
  * @param func_symtable Pointer to the symtable of all setter, getters and functions.
- * @param key Pointer to a key.
+ * @param key Pointer to a key containing function info.
+ *
+ * @return True if args count is correct, return false otherwise.
  */
-void args_count_check(ST_Node *func_symtable, Key *key);
+bool args_count_check(ST_Node *func_symtable, Key *key);
+
+/**
+ * @brief Verifies that a builtin function was called with a correct num of arguments.
+ *
+ * @param name Name of the built in function
+ * @param args_count Number of passed arguments inside the function call.
+ */
+bool builtin_args_count_check(char *name, int args_count);
+
+/**
+ * @brief Verifies that a built-in function exists and that it was called with the correct num of arguments.
+ *
+ * @param name Name of the built in function
+ * @param args_count Number of passed arguments inside the function call.
+ */
+bool validate_builtin(char *name, int args_count);
+
+/**
+ * @brief
+ */
 
 #endif

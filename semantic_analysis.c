@@ -9,13 +9,25 @@
  */
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 #include "semantic_analysis.h"
 #include "include/scope_stack.h"
 #include "include/symtable.h"
 #include "error.h"
 #include "ast.h"
 
-//**HELPER PROTOTYPES**//
+// expression flags
+has_only_plus_op = true;
+has_string_lit = false;
+has_minus_or_slash = false;
+has_null_lit = false;
+has_unary_minus = false;
+has_operator = false;
+has_rel_op = false;
+zero_divison_detected = false;
+
+// loop detection flag
+in_loop = false;
 
 //**UNRESOLVED SYMBOL ARRAY FUNCTION DEFINITIONS - START**//
 
@@ -177,12 +189,12 @@ bool main_exists(ST_Node *func_symtable)
         error_exit(ERR_INTERNAL);
 
     // key init to search for main with no args
-    Key key;
-    key.name = "main";
-    key.args_count = 0;
-    key.id_type = FUNCTION;
+    Key *key = create_function_key("main", 0, FUNCTION);
 
-    ST_Node *search_result = search(func_symtable, &key);
+    if (!key)
+        error_exit(ERR_INTERNAL);
+
+    ST_Node *search_result = search(func_symtable, key);
 
     return search_result != NULL;
 }
@@ -192,36 +204,18 @@ bool main_exists(ST_Node *func_symtable)
  *        detect zero division. If zero division is detected error_exit() is called.
  *
  * @param divider Pointer towards the devider node inside AST
+ *
+ * @return True if zero division detected, false otherwise.
  */
-void zero_division(ASTNode_ptr divider)
+bool zero_division(ASTNode_ptr divider)
 {
     if (divider->type == NODE_FLOAT_LIT && divider->data.literal.float_val == 0.0)
-        error_exit(ERR_SEM_OTHER);
+        return true;
 
     if (divider->type == NODE_INT_LIT && divider->data.literal.int_val == 0)
-        error_exit(ERR_SEM_OTHER);
-}
+        return true;
 
-/**
- * @brief Checks if break keyword was used inside a loop. If not error_exit() is called.
- *
- * @param in_loop Signals that we are currently in a loop.
- */
-void break_usage_check(bool in_loop)
-{
-    if (!in_loop)
-        error_exit(ERR_SEM_OTHER);
-}
-
-/**
- * @brief Checks if continue keyword was used inside a loop. If not error_exit() is called.
- *
- * @param in_loop Signals that we are currently in a loop.
- */
-void continue_usage_check(bool in_loop)
-{
-    if (!in_loop)
-        error_exit(ERR_SEM_OTHER);
+    return false;
 }
 
 /**
@@ -241,8 +235,10 @@ void bool_value_assignment_check(bool in_assignment)
  *
  * @param func_symtable Pointer to the symtable of all setter, getters and functions.
  * @param key Pointer to a key containing function info.
+ *
+ * @return True if args count is correct, return false otherwise.
  */
-void args_count_check(ST_Node *func_symtable, Key *key)
+bool args_count_check(ST_Node *func_symtable, Key *key)
 {
     // looks through function symtable to look for a function with a matching key
     ST_Node *search_result = search(func_symtable, key);
@@ -250,5 +246,172 @@ void args_count_check(ST_Node *func_symtable, Key *key)
     // at this point of compilation we know that no undefined functions can exist
     // so we can determine that if no function was found, it is only because of a wrong arg count
     if (!search_result)
-        error_exit(ERR_SEM_ARG_COUNT);
+        return false;
+
+    return true;
 }
+
+/**
+ * @brief Verifies that a built-in function exists and that it was called with the correct num of arguments.
+ *
+ * @param name Name of the built in function.
+ *
+ * @return True if a built-in with this name exists, false otherwise.
+ */
+bool builtin_exists(char *name)
+{
+    for (unsigned idx = 0; idx < builtin_functions_arr_lenght; idx++) // looks for a built in function with this name
+    {
+        if (strcmp(name, builtin_functions[idx].name) == 0)
+            return true;
+    }
+
+    return false;
+}
+
+/**
+ * @brief Verifies that a built-in function was called with the correct num of arguments.
+ *
+ * @param name Name of the built-in function.
+ * @param args_count Number of passed arguments inside the function call of a built-in function.
+ *
+ * @return True if args count is correct, false otherwise.
+ */
+bool builtin_args_count_correct(char *name, int args_count)
+{
+    bool args_count_correct = false;
+
+    for (unsigned idx = 0; idx < builtin_functions_arr_lenght; idx++) // looks for a built in function with this name
+    {
+        if (strcmp(name, builtin_functions[idx].name) == 0)
+        {
+            args_count_correct = builtin_functions[idx].args_count == args_count;
+        }
+    }
+
+    return args_count_correct;
+}
+
+// todo : docu
+void set_exp_flags(ASTNode_ptr exp_root)
+{
+    if (!exp_root)
+        return;
+
+    switch (exp_root->type) // sets different flags to true based on the current node
+    {
+    case NODE_STR_LIT:
+        has_string_lit = true;
+        break;
+    case NODE_UNARY_OP:
+        has_unary_minus = true;
+        has_operator = true;
+        break;
+    case NODE_BINARY_OP:
+        has_operator = true;
+
+        if (exp_root->data.binary_operator.op_type != OP_PLUS)
+            has_only_plus_op = false;
+
+        if (exp_root->data.binary_operator.op_type == OP_DIV || exp_root->data.binary_operator.op_type == OP_MINUS)
+            has_minus_or_slash = true;
+
+        if (exp_root->data.binary_operator.op_type == OP_EQ || exp_root->data.binary_operator.op_type == OP_NEQ || exp_root->data.binary_operator.op_type == OP_LT || exp_root->data.binary_operator.op_type == OP_LTE || exp_root->data.binary_operator.op_type == OP_GT || exp_root->data.binary_operator.op_type == OP_GTE || exp_root->data.binary_operator.op_type == OP_IS)
+            has_rel_op = true;
+
+        if (exp_root->data.binary_operator.op_type == OP_DIV && zero_division(exp_root->children[1]))
+            zero_divison_detected = true;
+
+        break;
+    case NODE_NULL_LIT:
+        has_null_lit = true;
+        break;
+    default:
+        break;
+    }
+
+    // we agreed on a convention that children[0] is the left child and children[1] the right child inside the exp subtree
+    set_allowed_op_types(exp_root->children[0]); // handle left subtree
+    set_allowed_op_types(exp_root->children[1]); // handle right subtree
+}
+
+// todo : docu
+bool eval_exp_flags(ASTNode_ptr exp_root)
+{
+    if (!has_rel_op)
+    {
+        // handle error flag combinations
+        if (has_string_lit && has_minus_or_slash) // minus and division operators cannot be used with strings
+            return false;
+        else if (has_unary_minus && has_string_lit)
+            return false;
+        else if (has_null_lit && has_operator) // null literal inside
+            return false;
+
+        // handle prediction of exp operand restriction
+        if (has_minus_or_slash || has_unary_minus)
+            // these operands cannot be used with strings
+            exp_root->data.exp_statement.restriction = ONLY_NUM;
+        else if (has_operator && has_only_plus_op && has_string_lit)
+            // when string literal is present here, only concat is allowed
+            exp_root->data.exp_statement.restriction = ONLY_STR;
+        else // could not predict any restrictions
+            exp_root->data.exp_statement.restriction = UNDETERMINED;
+    }
+
+    return true;
+}
+
+/**
+ * @brief Traverses the tree and calls semantic functions based on the current node type.
+ *
+ * @param root Pointer to the root node of AST.
+ * @param node_to_handle Helper pointer that will be used in recursive calls.
+ */
+void semantic_analysis(ASTNode_ptr root, ASTNode_ptr node_to_hanle)
+{
+    if (!node_to_hanle->child_count)
+        return;
+
+    switch (node_to_hanle->type)
+    {
+    case NODE_EXPR_STMNT:
+        set_exp_flags(node_to_hanle);
+
+        if (!eval_exp_flags(node_to_hanle))
+        {
+            ast_free(root);
+            error_exit(ERR_SEM_TYPE_MISMATCH);
+        }
+
+        if (zero_divison_detected)
+        {
+            ast_free(root);
+            error_exit(ERR_SEM_OTHER);
+        }
+        break;
+
+    case NODE_FOR:
+    case NODE_WHILE:
+        in_loop = true; // in_loop flag needs to be set everytime we find a loop node
+        break;
+
+    case NODE_BREAK:
+    case NODE_CONTINUE:
+        if (!in_loop) // break or continue keyword used outside a loop
+            error_exit(ERR_SEM_OTHER);
+
+    default:
+        break;
+    }
+
+    for (unsigned idx = 0; idx < node_to_hanle->child_count; idx++)
+    {
+        semantic_analysis(root, node_to_hanle->children[idx]);
+    }
+
+    return;
+}
+
+// todo : pridat funkciu pre validaciu typov argumentov ak sa v agrumentoch funkcie budu nachadzat nejake literaly
+// argumenty, ktore nie su literaly skipnem a ostatne rovno type checknem

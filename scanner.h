@@ -1,4 +1,4 @@
-d/**
+/**
  * @file scanner.h
  * @author xracekm00
  * @brief Header file for lexical analyzer - scanner

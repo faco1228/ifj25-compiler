@@ -1,12 +1,12 @@
 /**
  * @file ast.h
  * @author Samuel Facka (xfackas00)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2025-11-10
- * 
+ *
  * @copyright Copyright (c) 2025
- * 
+ *
  */
 
 #ifndef AST_H
@@ -17,9 +17,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+typedef enum
+{
+    ONLY_NUM,
+    ONLY_STR,
+    UNDETERMINED
+} exp_restriction_t;
 
 // Data type representing values of logical and aritmetical operators
-typedef enum {
+typedef enum
+{
     OP_PLUS,
     OP_MINUS,
     OP_MUL,
@@ -34,14 +41,16 @@ typedef enum {
 } operator_types;
 
 // Data type for function/getter/setter
-typedef enum {
+typedef enum
+{
     FUN_F,
     FUN_G,
     FUN_S
 } function_type;
 
 // Data type representing different types of AST nodes
-typedef enum {
+typedef enum
+{
     // Basic program structure and declarations
     NODE_PROGRAM,
     NODE_FUNCTION_DEF,
@@ -57,7 +66,7 @@ typedef enum {
     NODE_BREAK,
     NODE_CONTINUE,
     NODE_EXPR_STMNT,
-    
+
     // Expressions
     NODE_IDENTIFIER,
     NODE_BINARY_OP,
@@ -65,7 +74,7 @@ typedef enum {
     NODE_CALL,
     NODE_TERNARY,
     NODE_RANGE,
-    
+
     // Literals
     NODE_INT_LIT,
     NODE_FLOAT_LIT,
@@ -76,9 +85,9 @@ typedef enum {
 // Forward declaration and pointer alias for the ASTNode structure
 typedef struct ASTNode ASTNode, *ASTNode_ptr;
 
-
 // Data type representing AST node
-typedef struct ASTNode {
+typedef struct ASTNode
+{
     NodeType type;
 
     // used with other node types
@@ -89,16 +98,18 @@ typedef struct ASTNode {
     // int line, col;
     // OPTIONAL for debuging and error output
 
-
     // different data one node can store
-    union {
+    union
+    {
         // IDENT, VAR_DECL
-        struct {
+        struct
+        {
             char *name;
         } identifier;
 
         // FUNCTION_DEF
-        struct {
+        struct
+        {
             char *name;
             unsigned arg_count;
             function_type type;
@@ -106,77 +117,91 @@ typedef struct ASTNode {
         } function_def;
 
         // CALL
-        struct {
+        struct
+        {
             char *name; // fun() or Ifj.write()
             unsigned param_count;
             bool is_builtin;
         } function_call;
 
         // ASSIGN
-        struct {
+        struct
+        {
             ASTNode_ptr lhs;
             ASTNode_ptr rhs;
         } assign;
 
         // BINARY operation
-        struct {
+        struct
+        {
             ASTNode_ptr lhs;
             ASTNode_ptr rhs;
             operator_types op_type;
         } binary_operator;
 
         // UNARY operation
-        struct {
+        struct
+        {
             ASTNode_ptr expres;
             operator_types op_type;
         } unary_operator;
 
-        // IF 
-        struct {
+        // IF
+        struct
+        {
             ASTNode_ptr condition;
             ASTNode_ptr block_then;
             ASTNode_ptr block_else;
         } if_statement;
 
-        // WHILE 
-        struct {
+        // WHILE
+        struct
+        {
             ASTNode_ptr cond;
             ASTNode_ptr body;
         } while_statement;
 
         // FOR
-        struct {
+        struct
+        {
             char *name_iter;
             ASTNode_ptr expr_iter;
             ASTNode_ptr body;
         } for_statement;
 
         // RETURN
-        struct {
+        struct
+        {
             ASTNode_ptr value;
         } ret;
 
         // EXPRESION statement;
-        struct {
+        struct
+        {
             ASTNode_ptr exp;
+            exp_restriction_t restriction;
+
         } exp_statement;
 
         // RANGE
-        struct {
+        struct
+        {
             ASTNode_ptr start;
             ASTNode_ptr stop;
             bool included; // true: a...b; false: a..b
         } range;
 
         // TERNARY
-        struct {
+        struct
+        {
             ASTNode_ptr condition;
             ASTNode_ptr block_then;
             ASTNode_ptr block_else;
         } ternary;
 
         // LITERAL
-        struct {
+        struct
+        {
             long long int int_val;
             long double float_val;
             char *str_value;
@@ -187,10 +212,10 @@ typedef struct ASTNode {
 } ASTNode, *ASTNode_ptr;
 
 // Data type representing AST root
-typedef struct {
+typedef struct
+{
     ASTNode_ptr root;
 } ASTree;
-
 
 ////////// functions declarations //////////
 
@@ -227,6 +252,5 @@ ASTNode_ptr ast_create_int(long long int val);
 ASTNode_ptr ast_create_float(long double val);
 ASTNode_ptr ast_create_str(const char *string);
 ASTNode_ptr ast_create_null();
-
 
 #endif
