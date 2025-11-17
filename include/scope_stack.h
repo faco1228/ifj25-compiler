@@ -73,11 +73,12 @@ bool scope_stack_full(Scope_Stack *scope_stack);
 /**
  * @brief Looks through all the symtables that are currently on stack and tries to find a specific symbol.
  * @param scope_stack Pointer to a scope_stack.
+ * @param glob_var_symtable Pointer to a symtable of global variables.
  * @param key Key of a symbol we look for.
- * 
+ *
  * @return True if symbol was found, false otherwise.
  */
-ST_Node *scope_stack_lookup(Scope_Stack *scope_stack, Key *key);
+ST_Node *scope_stack_var_lookup(Scope_Stack *scope_stack, Key *key);
 
 /**
  * @brief Returns an adress of a Symtable that is currently on top of the stack.

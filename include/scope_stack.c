@@ -12,10 +12,6 @@
  */
 void scope_stack_init(Scope_Stack *scope_stack)
 {
-    // Null pointer to Scope_Stack passed
-    if (!scope_stack)
-        error_exit(ERR_INTERNAL);
-
     scope_stack->symtable_array = malloc(sizeof(ST_Node *) * DEFAULT_SCOPE_STACK_SIZE);
 
     if (!scope_stack->symtable_array)
@@ -40,7 +36,7 @@ void scope_stack_dispose(Scope_Stack *scope_stack)
     {
         if (scope_stack->symtable_array[idx])
         {
-            Dispose_Tree(scope_stack->symtable_array[idx]);
+            dispose_tree(scope_stack->symtable_array[idx]);
         }
     }
 
@@ -55,7 +51,7 @@ void scope_stack_dispose(Scope_Stack *scope_stack)
  * @param root_ptr Pointer to the root of a new symtable.
  * @param scope_stack Pointer to Scope_Stack.
  */
-void Scope_Stack_Push(Scope_Stack *scope_stack, ST_Node *root_ptr)
+void scope_stack_push(Scope_Stack *scope_stack, ST_Node *root_ptr)
 {
     // when trying to push to a full Stack, its size is increased before pushing
     if (scope_stack_full(scope_stack))
@@ -90,7 +86,7 @@ void scope_stack_pop(Scope_Stack *scope_stack)
     if (scope_stack_empty(scope_stack)) // cannot pop from an empty stack, nothing happens
         return;
 
-    Dispose_Tree(scope_stack_top(scope_stack)); // tree is freed before popping
+    dispose_tree(scope_stack_top(scope_stack)); // tree is freed before popping
 
     scope_stack->stack_top_index--;
 }
@@ -120,27 +116,29 @@ bool scope_stack_full(Scope_Stack *scope_stack)
 }
 
 /**
- * @brief Looks through all the symtables that are currently on stack and tries to find a symbol that was used inside some frame.
+ * @brief Looks through all the symtables that are currently on stack and tries to find a specific symbol.
  * @param scope_stack Pointer to a scope_stack.
+ * @param glob_var_symtable Pointer to a symtable of global variables.
  * @param key Key of a symbol we look for.
- * 
- * @return Pointer to a symbol.
+ *
+ * @return True if symbol was found, false otherwise.
  */
-ST_Node *scope_stack_lookup(Scope_Stack *scope_stack, Key *key)
+ST_Node *scope_stack_var_lookup(Scope_Stack *scope_stack, Key *key)
 {
     if (scope_stack_empty(scope_stack))
         return NULL;
+
+    ST_Node *symbol;
     
-    for (int idx = scope_stack->stack_top_index; idx >= 0; idx--) // loop through the stack all the way to global frame
+    for (int idx = scope_stack->stack_top_index; idx >= 0; idx--) // check the whole scope stack for var
     {
-        ST_Node *symbol = Search(scope_stack->symtable_array[idx], key); 
+        symbol = search(scope_stack->symtable_array[idx], key); 
 
         if (symbol)
             return symbol;
     }
 
-    return NULL; // symbol not found
-    
+    return NULL; // local var not found
 }
 
 /**
