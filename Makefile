@@ -18,8 +18,8 @@ LDFLAGS =  -fsanitize=address  # -lm Keby sme nahodou potrebovali matematicku kn
 
 all: compiler
 
-compiler: scanner.o error.o lex_funs.o ast.o semantic_analysis.o stack.o parser_expression.o parser.o scope_stack.o symtable.o main.o
-	$(CC) $(CFLAGS) scanner.o error.o lex_funs.o ast.o semantic_analysis.o stack.o parser_expression.o parser.o scope_stack.o symtable.o main.o -o compiler $(LDFLAGS)
+compiler: scanner.o error.o lex_funs.o ast.o semantic_analysis.o  parser.o scope_stack.o symtable.o main.o #stack.o parser_expression.o
+	$(CC) $(CFLAGS) scanner.o error.o lex_funs.o ast.o semantic_analysis.o parser.o scope_stack.o symtable.o main.o -o compiler $(LDFLAGS) #stack.o parser_expression.o
 
 scanner.o: scanner.c scanner.h error.h lex_funs.h
 	$(CC) $(CFLAGS) -c scanner.c
@@ -36,11 +36,11 @@ ast.o: ast.c ast.h scanner.h error.h
 semantic_analysis.o: semantic_analysis.c semantic_analysis.h scope_stack.h symtable.h error.h ast.h
 	$(CC) $(CFLAGS) -c semantic_analysis.c
 
-stack.o: stack.c stack.h
-	$(CC) $(CFLAGS) -c stack.c
+#stack.o: stack.c stack.h
+#	$(CC) $(CFLAGS) -c stack.c
 
-parser_expression.o: parser_expression.c parser_expression.h scanner.h stack.h error.h
-	$(CC) $(CFLAGS) -c parser_expression.c
+#parser_expression.o: parser_expression.c parser_expression.h scanner.h stack.h error.h
+#	$(CC) $(CFLAGS) -c parser_expression.c
 
 parser.o: parser.c parser.h scope_stack.h symtable.h semantic_analysis.h
 	$(CC) $(CFLAGS) -c parser.c

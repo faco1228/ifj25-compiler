@@ -16,19 +16,33 @@
 #include "error.h"
 #include "ast.h"
 
+// an array containing all built in functions
+builtin_function_t builtin_functions[builtin_functions_arr_lenght] =
+    {
+        {"read_str", 0, {STR_TYPE, NULL_TYPE}, {UNDEFINED}},
+        {"read_num", 0, {NUM_TYPE, NULL_TYPE}, {UNDEFINED}},
+        {"write", 1, {NULL_TYPE, UNDEFINED}, {ANY_TYPE}},
+        {"floor", 1, {NUM_TYPE, UNDEFINED}, {NUM_TYPE}},
+        {"str", 1, {STR_TYPE, UNDEFINED}, {ANY_TYPE}},
+        {"length", 1, {NUM_TYPE, UNDEFINED}, {STR_TYPE}},
+        {"substring", 3, {STR_TYPE, NULL_TYPE}, {STR_TYPE, NUM_TYPE, NUM_TYPE}},
+        {"strcmp", 2, {NUM_TYPE, UNDEFINED}, {STR_TYPE, STR_TYPE}},
+        {"ord", 2, {NUM_TYPE, UNDEFINED}, {STR_TYPE, NUM_TYPE}},
+        {"chr", 1, {STR_TYPE, UNDEFINED}, {NUM_TYPE}}};
+
 // expression flags
-has_only_plus_op = true;
-has_string_lit = false;
-has_minus_or_slash = false;
-has_null_lit = false;
-has_unary_minus = false;
-has_operator = false;
-has_rel_op = false;
-zero_divison_detected = false;
-has_comp_op = false;
+bool has_only_plus_op = true;
+bool has_string_lit = false;
+bool has_minus_or_slash = false;
+bool has_null_lit = false;
+bool has_unary_minus = false;
+bool has_operator = false;
+bool has_rel_op = false;
+bool zero_divison_detected = false;
+bool has_comp_op = false;
 
 // loop detection helper
-loop_nesting_tracker = 0;
+unsigned loop_nesting_tracker = 0;
 
 /**
  * @brief Resets all semantic flags to their default values.
@@ -57,7 +71,7 @@ void reset_flags()
  */
 bool verify_var_redec(Key *key, ST_Node *symtable)
 {
-    ST_Node *search_result = search(symtable, key);
+    ST_Node *search_result = st_search(symtable, key);
 
     return search_result != NULL;
 }
@@ -71,7 +85,7 @@ bool verify_var_redec(Key *key, ST_Node *symtable)
  */
 void verify_var_existence(ASTNode_ptr root, Key *key, Scope_Stack *scope_stack)
 {
-    ST_Node *search_result = scope_stack_lookup(scope_stack, key);
+    ST_Node *search_result = scope_stack_var_lookup(scope_stack, key);
 
     if (!search_result)
     {
@@ -90,7 +104,7 @@ void verify_var_existence(ASTNode_ptr root, Key *key, Scope_Stack *scope_stack)
  */
 void verify_func_redef(Key *key, ST_Node *func_symtable)
 {
-    ST_Node *search_result = search(func_symtable, key);
+    ST_Node *search_result = st_search(func_symtable, key);
 
     if (search_result) // function found inside the function symtable
         error_exit(ERR_SEM_REDEFINITION);
@@ -114,7 +128,7 @@ bool main_exists(ST_Node *func_symtable)
     if (!key)
         error_exit(ERR_INTERNAL);
 
-    ST_Node *search_result = search(func_symtable, key);
+    ST_Node *search_result = st_search(func_symtable, key);
     free(key);
 
     return search_result != NULL;
@@ -209,7 +223,7 @@ void handle_function_call(ASTNode_ptr root, ASTNode_ptr call_node, ST_Node *func
             error_exit(ERR_SEM_ARG_COUNT);
         }
 
-        if (!builtin_args_types_correct(call_node, name, args_count))
+        if (!builtin_args_check(root, call_node, name, args_count, scope_stack, func_symtable))
         {
             ast_free(root);
             error_exit(ERR_SEM_TYPE_MISMATCH);
@@ -294,7 +308,7 @@ bool builtin_args_count_correct(char *name, unsigned args_count)
 bool builtin_args_check(ASTNode_ptr root, ASTNode_ptr call_node, char *name, unsigned args_count,
                         Scope_Stack *scope_stack, ST_Node *func_symtable)
 {
-    builtin_function_t *search_result;
+    builtin_function_t *search_result = NULL;
 
     for (unsigned idx = 0; idx < builtin_functions_arr_lenght; idx++) // finds the function based on a name
     {
@@ -325,7 +339,7 @@ bool builtin_args_check(ASTNode_ptr root, ASTNode_ptr call_node, char *name, uns
 
         if (current_param->type == NODE_STR_LIT && search_result->arg_types[idx] != STR_TYPE)
             return false;
-        else if ((current_param == NODE_INT_LIT || current_param == NODE_FLOAT_LIT) && search_result->arg_types[idx] != NUM_TYPE)
+        else if ((current_param->type == NODE_INT_LIT || current_param->type == NODE_FLOAT_LIT) && search_result->arg_types[idx] != NUM_TYPE)
             return false;
     }
 
@@ -348,9 +362,10 @@ void exp_analysis(ASTNode_ptr root, ASTNode_ptr exp_root, ST_Node *func_symtable
     switch (exp_root->type) // sets different flags to true based on the current node
     {
     case NODE_IDENTIFIER:
+    {
         // when ident is found inside an expression we verify whether it is a getter which will later help during code gen
         Key *key = st_create_function_key(exp_root->data.identifier.name, 0, GETTER);
-        ST_Node *search_result = search(func_symtable, key);
+        ST_Node *search_result = st_search(func_symtable, key);
 
         if (search_result) // if a getter is found, ident is assigned the GETTER id_type
         {
@@ -364,6 +379,8 @@ void exp_analysis(ASTNode_ptr root, ASTNode_ptr exp_root, ST_Node *func_symtable
         verify_var_existence(root, key, scope_stack);
 
         break;
+    }
+
     case NODE_STR_LIT:
         has_string_lit = true;
         break;
@@ -470,7 +487,7 @@ void semantic_analysis(ASTNode_ptr root, ASTNode_ptr node_to_handle, ST_Node *fu
     switch (node_to_handle->type)
     {
     case NODE_ASSIGN: // when assignment node is found, we need to verify whether the assignment target is not a setter
-
+    {
         // first we try to find a setter with idents name
         Key *setter_key = st_create_function_key(node_to_handle->data.identifier.name, 1, SETTER);
         ST_Node *search_result = st_search(func_symtable, setter_key);
@@ -480,7 +497,10 @@ void semantic_analysis(ASTNode_ptr root, ASTNode_ptr node_to_handle, ST_Node *fu
 
         free(setter_key);
         break;
+    }
+
     case NODE_VAR_DECL:
+    {
         Key *key = st_create_variable_key(node_to_handle->data.identifier.name);
         ST_Node *current_scope = scope_stack_top(scope_stack);
 
@@ -493,19 +513,24 @@ void semantic_analysis(ASTNode_ptr root, ASTNode_ptr node_to_handle, ST_Node *fu
         else // new local var needs to be added to current_scope
         {
             ST_Node *new_node = st_create_node(key);
-            ST_Node *current_scope = st_insert_node(current_scope, new_node);
+            current_scope = st_insert_node(current_scope, new_node);
         }
         break;
+    }
 
     case NODE_BLOCK:
+    {
         ST_Node *new_scope = NULL; // creates new empty scope
         scope_stack_push(scope_stack, new_scope);
         break;
+    }
 
     case NODE_IDENTIFIER: // can only be a local or global var, because function nodes have a separate node type
+    {
         Key *var_key = st_create_variable_key(node_to_handle->data.identifier.name);
         verify_var_existence(root, var_key, scope_stack);
         break;
+    }
 
     case NODE_EXPR_STMNT:
         exp_analysis(root, node_to_handle, func_symtable, scope_stack);
@@ -533,11 +558,15 @@ void semantic_analysis(ASTNode_ptr root, ASTNode_ptr node_to_handle, ST_Node *fu
 
     case NODE_BREAK: // break and continue keyword usage check
     case NODE_CONTINUE:
+    {
         if (loop_nesting_tracker == 0) // break or continue keyword used outside of a loop
         {
             ast_free(root);
             error_exit(ERR_SEM_OTHER);
         }
+
+        break;
+    }
 
     case NODE_CALL:
         handle_function_call(root, node_to_handle, func_symtable, scope_stack);
