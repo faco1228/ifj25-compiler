@@ -48,7 +48,7 @@ void scope_stack_dispose(Scope_Stack *scope_stack)
     {
         if (scope_stack->symtable_array[idx])
         {
-            dispose_tree(scope_stack->symtable_array[idx]);
+            st_dispose_tree(scope_stack->symtable_array[idx]);
         }
     }
 
@@ -98,7 +98,7 @@ void scope_stack_pop(Scope_Stack *scope_stack)
     if (scope_stack_empty(scope_stack)) // cannot pop from an empty stack, nothing happens
         return;
 
-    dispose_tree(scope_stack_top(scope_stack)); // tree is freed before popping
+    st_dispose_tree(scope_stack_top(scope_stack)); // tree is freed before popping
 
     scope_stack->stack_top_index--;
 }
@@ -144,7 +144,7 @@ ST_Node *scope_stack_var_lookup(Scope_Stack *scope_stack, Key *key)
     
     for (int idx = scope_stack->stack_top_index; idx >= 0; idx--) // check the whole scope stack for var
     {
-        symbol = search(scope_stack->symtable_array[idx], key); 
+        symbol = st_search(scope_stack->symtable_array[idx], key); 
 
         if (symbol)
             return symbol;
