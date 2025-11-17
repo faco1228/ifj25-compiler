@@ -148,7 +148,7 @@ void precedence_reduce_func(Stack *stack) {
 
         // Save token and pop from stack WITHOUT freeing the token
         items[count++] = top;
-        stack_pop_no_free(stack);  // ✅ Don't free token yet - we need it
+        stack_pop_no_free(stack);  //  Don't free token yet - we need it
     }
 
     // Reverse the order of popped items for easier pattern matching
@@ -216,7 +216,7 @@ void precedence_reduce_func(Stack *stack) {
     // Push the nonterminal E back onto stack
     stack_push(stack, newE);
     
-    // ✅ NOW free the tokens that were reduced
+    //  NOW free the tokens that were reduced
     // Don't free nonterminals (they will be used in further reductions)
     for (int i = 0; i < count; i++) {
         if (items[i]->type != NONTERMINAL_E) {
