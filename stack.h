@@ -54,4 +54,6 @@ void stack_set_top_terminal_pointer (Stack *s ,StackItem *item);
 
 void stack_push_after (Stack *s, token_ptr token );
 
+
+void stack_pop_no_free(Stack *s);
 #endif 

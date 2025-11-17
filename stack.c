@@ -103,7 +103,33 @@ void stack_push_after(Stack *s, token_ptr token) {
 }
 
 
+void stack_pop_no_free(Stack *s) {
+    if (stack_is_empty(s)) return;
 
+    StackItem *tmp = s->head;
+    StackItem *prev = NULL;
+    
+    // Find last item
+    while (tmp->next != NULL) {
+        prev = tmp;
+        tmp = tmp->next;
+    }
+    
+    // Update pointers
+    if (prev) {
+        prev->next = NULL;
+        s->top = prev; 
+    } else {
+        s->head = NULL;
+        s->top = NULL;
+    }
+    
+    //  DON'T free token - we still need it in items[]
+    // if (tmp->token) free_token(tmp->token);
+    
+    free(tmp);  // Only free the StackItem structure
+    s->stack_size--;
+}
 
 
 
