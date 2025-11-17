@@ -1,9 +1,9 @@
 /**
  * @file lex_funs.h
  * @author xracekm00
- * @brief Header file for lexical analyzer's functions
+ * @brief Header file for lexical analyzers functions
  * @version 0.4
- * @date 2025-10-30
+ * @date 2025-11-17
  * 
  * @copyright Copyright (c) 2025
  */
@@ -31,29 +31,29 @@
 
 //********************************* Function prototypes *********************************//
 
-token_ptr process_next_token(token_ptr);
+token_ptr process_next_token(token_ptr token);
 
-void process_ident(token_ptr);
+void process_ident(token_ptr token);
 
-void process_slash(token_ptr);
+void process_slash(token_ptr token);
 
-bool check_equal(token_ptr, int);
+bool check_equal(token_ptr token, int operator);
 
-void process_str_lit(token_ptr);
+void process_str_lit(token_ptr token);
 
-void process_escape_sequence(token_ptr, unsigned *);
+void process_escape_sequence(token_ptr token, unsigned *index);
 
-void process_hex_escape(token_ptr, unsigned *);
+void process_hex_escape(token_ptr token, unsigned *index);
 
-void process_mul_l_str(token_ptr);
+void process_mul_l_str(token_ptr token);
 
-void process_dots(token_ptr);
+void process_dots(token_ptr token);
 
-void process_number(token_ptr, int);
+void process_number(token_ptr token, int first_char);
 
-void process_float(token_ptr, char*, unsigned*);
+void process_float(token_ptr token, char *buffer, unsigned *buf_index);
 
-void process_exp(token_ptr, char*, unsigned*);
+void process_exp(token_ptr token, char *buffer, unsigned *buf_index);
 
 void store_pending_eof();
 

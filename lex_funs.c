@@ -3,7 +3,7 @@
  * @author xracekm00
  * @brief Contains functions for partial token processing
  * @version 0.4
- * @date 2025-10-30
+ * @date 2025-11-17
  * 
  * @copyright Copyright (c) 2025
  */
@@ -36,7 +36,7 @@ token_ptr process_next_token(token_ptr token){
         //When the WS is '\n'
         if (character == '\n') {
             token->type = END_OF_LINE;
-            token->value.other_value = EOL;
+            token->value.other_value = EOL_V;
             return token;
         }
 
@@ -47,7 +47,7 @@ token_ptr process_next_token(token_ptr token){
     //When end of file was reached
     if (character == EOF){
         token->type = END_OF_FILE;
-        token->value.other_value = EOF;
+        token->value.other_value = EOF_V;
         return token;
     }
     else if (isalpha(character) || (character == '_')){
@@ -78,7 +78,7 @@ token_ptr process_next_token(token_ptr token){
         switch (character){
         case EOF:
             token->type = END_OF_FILE;
-            token->value.other_value = EOF;
+            token->value.other_value = EOF_V;
             return token;
         case '+':
             token->type = OPERATOR;
@@ -142,7 +142,7 @@ token_ptr process_next_token(token_ptr token){
             break;
         case '\n':
             token->type = END_OF_FILE;
-            token->value.other_value = EOL;
+            token->value.other_value = EOL_V;
             break;
         case '"':
             //This function processes both oneline and multiline string literals
@@ -151,7 +151,7 @@ token_ptr process_next_token(token_ptr token){
             break;
         case '?':
             token->type = Q_MARK;
-            token->value.other_value = QUESTION_MARK_V;
+            token->value.other_value = Q_MARK_V;
             break;
         case ':':
             token->type = SEMICOLON;
@@ -201,6 +201,8 @@ token_ptr process_next_token(token_ptr token){
 
 /**
  * @brief Processes identifier or keyword token
+ * 
+ * @note  I had to amend this function so it detects null as token of type NULL_LIT
  * 
  * @param token to be filled
  */
@@ -299,11 +301,11 @@ void process_slash(token_ptr token){
         //Sets token's atributes
         if (next == EOF){
             token->type = END_OF_FILE;
-            token->value.other_value = EOF; 
+            token->value.other_value = EOF_V; 
         }
         else{
             token->type = END_OF_LINE;
-            token->value.other_value = EOL;
+            token->value.other_value = EOL_V;
         }
     }
     //Scenario: multiline line comment
@@ -1079,7 +1081,7 @@ void store_pending_eof() {
 
     //Sets tokens attributes
     pending_token->type = END_OF_FILE;
-    pending_token->value.other_value = EOF;
+    pending_token->value.other_value = EOF_V;
 
     //Updates global variable
     eof_reached = true;
