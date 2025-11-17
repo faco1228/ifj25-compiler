@@ -15,12 +15,13 @@ bool stack_is_empty(Stack *s) {
 }
 
 void stack_push(Stack *s, token_ptr token) {
-
+    // Create a new item
     StackItem *new_item = malloc(sizeof(StackItem));
     if (!new_item) error_exit(ERR_INTERNAL);
-
+    // Set our new item 
     new_item->token = token;
     new_item->next = NULL;
+
     // if its the first item
     if (s->head == NULL) {
         s->head = new_item;
@@ -81,7 +82,7 @@ void stack_set_top_terminal_pointer(Stack *s, StackItem *item) {
     s->top_terminal = item;
 }
 
-// pushes marker after the last terminal 
+// pushes marker '<' after the last terminal 
 void stack_push_after(Stack *s, token_ptr token) {
     // if there is no terminal in the stack then it pushes it on the top of the stack
     if (!s->top_terminal) {
