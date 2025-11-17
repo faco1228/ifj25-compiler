@@ -3,7 +3,7 @@
  * @author xracekm00
  * @brief Header file for lexical analyzer - scanner
  * @version 0.4
- * @date 2025-10-30
+ * @date 2025-11-17
  * 
  * @copyright Copyright (c) 2025
  */
@@ -30,13 +30,13 @@ enum token_type {
 //Enum defining different values a token's attribute other_value can obtain
 //Note: Token type END_OF_FILE uses value EOF - It's not included in enum because it's built in constant
 enum other_value_type {
-    EOL, //EOF is (built in)
+    EOL_V, EOF_V, NULL_V,
     PLUS_V, MINUS_V, SLASH_V, STAR_V, EQUAL_SIGN_V, 
     LEFT_PAR_V, RIGHT_PAR_V, LEFT_DOM_PAR_V, RIGHT_DOM_PAR_V, 
-    QUESTION_MARK_V, EXC_MARK_V, SEMICOLON_V, COMMA_V,
+    Q_MARK_V, EXC_MARK_V, SEMICOLON_V, COMMA_V,
     LESS_THAN_V, GREATER_THAN_V, LESS_OR_EQ_THAN_V, GREATER_OR_EQ_THAN_V,
     LOGICAL_EQUAL_V, LOGICAL_NOT_EQUAL_V,
-    DOT_V, DOUBLE_DOT_V, TRIPLE_DOT_V, NULL_V
+    DOT_V, DOUBLE_DOT_V, TRIPLE_DOT_V
 };
 
 //Each token can store one of these types of data
@@ -75,11 +75,11 @@ extern token_ptr pending_token;
 
 //********************************* Function prototypes *********************************//
 
-void push_token(token_ptr);
+void push_token(token_ptr token);
 
 token_ptr get_token();
 
-void free_token(token_ptr);
+void free_token(token_ptr token);
 
 void scanner_cleanup();
 

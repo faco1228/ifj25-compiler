@@ -1,8 +1,18 @@
+/**
+ * @file symtable.c
+ * @author xmezeim00
+ * @brief Implementation of symtable using AVL binary tree.
+ * @version 0.1
+ * @date 2025-11-17
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
 #include "symtable.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include "../error.h" // library with custom error handling
+#include "error.h" // library with custom error handling
 
 //**HELPER FUNCTION PROTOTYPES**//
 static char *str_duplicate(char *to_duplicate);
@@ -22,7 +32,7 @@ static int key_cmp(Key *key1, Key *key2);
  * @param args_count
  * @param id_type Can be SETTER, GETTER or FUNCTION
  */
-Key *create_function_key(char *name, int args_count, ID_Type id_type)
+Key *st_create_function_key(char *name, int args_count, ID_Type id_type)
 {
     Key *new_key = malloc(sizeof(Key));
 
@@ -47,7 +57,7 @@ Key *create_function_key(char *name, int args_count, ID_Type id_type)
  *
  * @param name
  */
-Key *create_variable_key(char *name)
+Key *st_create_variable_key(char *name)
 {
     Key *new_key = malloc(sizeof(Key));
 
@@ -74,7 +84,7 @@ Key *create_variable_key(char *name)
  *
  * @return New Variable_Node.
  */
-ST_Node *create_node(Key *key)
+ST_Node *st_create_node(Key *key)
 {
     ST_Node *node = malloc(sizeof(ST_Node));
 
@@ -107,9 +117,9 @@ ST_Node *create_node(Key *key)
  * @param root_ptr Pointer to the root ST_Node of a symtable.
  * @param to_insert Pointer to a node we want to insert.
  *
- * @return Pointer to the root of the (possibly rebalanced) subtree.
+ * @return Pointer to the root of the symtable.
  */
-ST_Node *insert_node(ST_Node *root_ptr, ST_Node *to_insert)
+ST_Node *st_insert_node(ST_Node *root_ptr, ST_Node *to_insert)
 {
     if (!root_ptr) // new node is created when NULL is detected
     {
@@ -148,7 +158,7 @@ ST_Node *insert_node(ST_Node *root_ptr, ST_Node *to_insert)
  * @return Pointer to the (possibly new) root of the subtree after removal,
  *         or NULL if the subtree becomes empty or removal fails.
  */
-ST_Node *remove_node(ST_Node *root_ptr, Key *key)
+ST_Node *st_remove_node(ST_Node *root_ptr, Key *key)
 {
     if (!root_ptr)
     {
@@ -226,7 +236,7 @@ ST_Node *remove_node(ST_Node *root_ptr, Key *key)
  *
  * @return Pointer to a ST_Node or NULL if no ST_Node with corresponding key was found.
  */
-ST_Node *search(ST_Node *root_ptr, Key *key)
+ST_Node *st_search(ST_Node *root_ptr, Key *key)
 {
     if (!root_ptr) // ST_Node not found
     {
@@ -252,7 +262,7 @@ ST_Node *search(ST_Node *root_ptr, Key *key)
  *
  * @param root_ptr Root of a tree to dispose.
  */
-void dispose_tree(ST_Node *root_ptr)
+void st_dispose_tree(ST_Node *root_ptr)
 {
     if (!root_ptr)
         return;

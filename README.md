@@ -1,3 +1,3 @@
-IFJ projekt
+# IFJ projekt
 
-Compiler pre Wren-like jazyk v jazyku C
+## Compiler pre Wren-like jazyk v jazyku C

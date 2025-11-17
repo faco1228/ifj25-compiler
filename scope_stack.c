@@ -1,6 +1,18 @@
+/**
+ * @file scope_stack.c
+ * @author xmezeim00
+ * @brief Implements Stack and its helper functions to manage working with variable
+ * scopes according to the memory model of the IFJcode25 programming language.
+ * 
+ * @version 0.1
+ * @date 2025-11-17
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
 #include "scope_stack.h"
 #include "symtable.h"
-#include "../error.h"
+#include "error.h"
 #include <stdlib.h>
 
 #define DEFAULT_SCOPE_STACK_SIZE 10
@@ -12,10 +24,6 @@
  */
 void scope_stack_init(Scope_Stack *scope_stack)
 {
-    // Null pointer to Scope_Stack passed
-    if (!scope_stack)
-        error_exit(ERR_INTERNAL);
-
     scope_stack->symtable_array = malloc(sizeof(ST_Node *) * DEFAULT_SCOPE_STACK_SIZE);
 
     if (!scope_stack->symtable_array)
@@ -120,27 +128,29 @@ bool scope_stack_full(Scope_Stack *scope_stack)
 }
 
 /**
- * @brief Looks through all the symtables that are currently on stack and tries to find a symbol that was used inside some frame.
+ * @brief Looks through all the symtables that are currently on stack and tries to find a specific symbol.
  * @param scope_stack Pointer to a scope_stack.
+ * @param glob_var_symtable Pointer to a symtable of global variables.
  * @param key Key of a symbol we look for.
- * 
- * @return Pointer to a symbol.
+ *
+ * @return True if symbol was found, false otherwise.
  */
-ST_Node *scope_stack_lookup(Scope_Stack *scope_stack, Key *key)
+ST_Node *scope_stack_var_lookup(Scope_Stack *scope_stack, Key *key)
 {
     if (scope_stack_empty(scope_stack))
         return NULL;
+
+    ST_Node *symbol;
     
-    for (int idx = scope_stack->stack_top_index; idx >= 0; idx--) // loop through the stack all the way to global frame
+    for (int idx = scope_stack->stack_top_index; idx >= 0; idx--) // check the whole scope stack for var
     {
-        ST_Node *symbol = search(scope_stack->symtable_array[idx], key); 
+        symbol = search(scope_stack->symtable_array[idx], key); 
 
         if (symbol)
             return symbol;
     }
 
-    return NULL; // symbol not found
-    
+    return NULL; // local var not found
 }
 
 /**

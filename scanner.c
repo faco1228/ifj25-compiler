@@ -1,9 +1,9 @@
 /**
  * @file scanner.c
  * @author xracekm00
- * @brief Contains scanner's backbone as well as functions for parser's use
+ * @brief Contains scanners backbone as well as functions for parsers use
  * @version 0.4
- * @date 2025-10-30
+ * @date 2025-11-17
  * 
  * @copyright Copyright (c) 2025
  */
@@ -16,6 +16,7 @@
 #include <stdlib.h>
 
 // Initializing global array of keywords
+// NOTE: NULL at the end is just a breakpoint
 const char *key_words_arr[] = {
     "class", "if", "else", "is", "return", "var", "while", "Ifj",
     "static", "true", "false", "Num", "String", "Null", "Break", "Continue", 
