@@ -11,8 +11,8 @@
 #include <stdbool.h>
 #include <string.h>
 #include "semantic_analysis.h"
-#include "include/scope_stack.h"
-#include "include/symtable.h"
+#include "scope_stack.h"
+#include "symtable.h"
 #include "error.h"
 #include "ast.h"
 

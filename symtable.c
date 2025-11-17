@@ -1,8 +1,18 @@
+/**
+ * @file symtable.c
+ * @author xmezeim00
+ * @brief Implementation of symtable using AVL binary tree.
+ * @version 0.1
+ * @date 2025-11-17
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
 #include "symtable.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include "../error.h" // library with custom error handling
+#include "error.h" // library with custom error handling
 
 //**HELPER FUNCTION PROTOTYPES**//
 static char *str_duplicate(char *to_duplicate);

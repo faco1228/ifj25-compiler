@@ -1,6 +1,18 @@
+/**
+ * @file scope_stack.c
+ * @author xmezeim00
+ * @brief Implements Stack and its helper functions to manage working with variable
+ * scopes according to the memory model of the IFJcode25 programming language.
+ * 
+ * @version 0.1
+ * @date 2025-11-17
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
 #include "scope_stack.h"
 #include "symtable.h"
-#include "../error.h"
+#include "error.h"
 #include <stdlib.h>
 
 #define DEFAULT_SCOPE_STACK_SIZE 10

@@ -11,8 +11,8 @@
 #ifndef SEMANTIC_ANALYSIS_H
 #define SEMANTIC_ANALYSIS_H
 
-#include "include/symtable.h"
-#include "include/scope_stack.h"
+#include "symtable.h"
+#include "scope_stack.h"
 #include <stdbool.h>
 
 // enum of number codes for all possible data types
