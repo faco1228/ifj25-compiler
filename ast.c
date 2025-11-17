@@ -114,7 +114,7 @@ void ast_free(ASTNode_ptr node) {
         free(node->data.for_statement.name_iter);
     }
     else if (type == NODE_STR_LIT) {
-        free(node->data.literal.str_value);
+        free(node->data.literal.data.str_value);
     }
     else if (type == NODE_CALL) {
         free(node->data.function_call.name);
@@ -155,6 +155,7 @@ ASTNode_ptr ast_create_var_dec(const char *name) {
     ASTNode_ptr new_node = ast_create(NODE_VAR_DECL);
 
     new_node->data.identifier.name = ast_strcpy(name);
+    new_node->data.identifier.id_type = VAR; // todo ID_UNDEFINED ??
 
     return new_node;
 }
@@ -218,6 +219,7 @@ ASTNode_ptr ast_create_exp_statement(ASTNode_ptr exp) {
 
     new_node->data.exp_statement.exp = exp;
     new_node->data.exp_statement.result_type = TYPE_UNKNOWN;
+    new_node->data.exp_statement.restriction = UNDETERMINED;
 
     return new_node;
 }
@@ -226,6 +228,7 @@ ASTNode_ptr ast_create_ident(const char *name) {
     ASTNode_ptr new_node = ast_create(NODE_IDENTIFIER);
 
     new_node->data.identifier.name = ast_strcpy(name);
+    new_node->data.identifier.id_type = VAR; // todo ID_UNDEFINED ??
 
     return new_node;
 }
@@ -285,7 +288,7 @@ ASTNode_ptr ast_create_range(ASTNode_ptr l, ASTNode_ptr r, bool inclusive) {
 ASTNode_ptr ast_create_int(long long int val) {
     ASTNode_ptr new_node = ast_create(NODE_INT_LIT);
 
-    new_node->data.literal.int_val = val;
+    new_node->data.literal.data.int_val = val;
 
     return new_node;
 }
@@ -293,7 +296,7 @@ ASTNode_ptr ast_create_int(long long int val) {
 ASTNode_ptr ast_create_float(long double val) {
     ASTNode_ptr new_node = ast_create(NODE_FLOAT_LIT);
 
-    new_node->data.literal.float_val = val;
+    new_node->data.literal.data.float_val = val;
 
     return new_node;
 }
@@ -301,7 +304,7 @@ ASTNode_ptr ast_create_float(long double val) {
 ASTNode_ptr ast_create_str(const char *string) {
     ASTNode_ptr new_node = ast_create(NODE_STR_LIT);
 
-    new_node->data.literal.str_value = ast_strcpy(string);
+    new_node->data.literal.data.str_value = ast_strcpy(string);
 
     return new_node;
 }

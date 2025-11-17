@@ -14,6 +14,7 @@
 
 #include "scanner.h"
 #include "error.h"
+#include "ast.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -34,6 +35,6 @@
  * @return 0 (PARSE_OK) on success. On syntax error the function does not return,
  *         because @c error_exit(ERR_SYNTACTIC) terminates the program.
  */
-int parse_program(void);
+ASTNode_ptr parse_program(ST_Node *func_symtable, ST_Node *glob_var_symtable);
 
 #endif

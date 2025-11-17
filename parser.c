@@ -1,43 +1,46 @@
 /**
  * @file parser.c
  * @author Samuel Facka (xfackas00)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2025-10-26
- * 
+ *
  * @copyright Copyright (c) 2025
- * 
+ *
  */
 
 #include "parser.h"
+#include "include/scope_stack.h"
+#include "include/symtable.h"
+#include "semantic_analysis.h"
 
 #define PARSE_OK 0
 #define PARSE_ERROR ERR_SYNTACTIC
 
 // forward prototypes (internal)
-static int  parse_prolog(void);
-static int  parse_class_def(void);
-static int  parse_class_body(void);
-static int  parse_definition(void);
-static int  parse_function_def(token_ptr id);
-static int  parse_setter_def(token_ptr id);
-static int  parse_getter_def(token_ptr id);
-static int  parse_param_list(void);
-static int  parse_block(void);
-static int  parse_statement_list(void);
-static int  parse_statement_or_block(void);
-static int  parse_statement(void);
-static int  parse_var_def(void);
-static int  parse_assign_target(void);
-static int  parse_assignment_or_call(void);
-static int  parse_exp_right_side(void);
-static int  parse_arg_list(void);
-static int  parse_if_statement(void);
-static int  parse_while_statement(void);
-static int  parse_return_statement(void);
-static int  parse_for_statement(void);
-static int  parse_break_statement(void);
-static int  parse_continue_statement(void);
+static int parse_prolog(void);
+static int parse_class_def(ASTNode_ptr program, ST_Node *func_symtable, ST_Node *glob_var_symtable);
+static int parse_class_body(ASTNode_ptr program, ST_Node *func_symtable, ST_Node *glob_var_symtable);
+static ASTNode_ptr parse_definition(ST_Node *func_symtable, ST_Node *glob_var_symtable);
+static ASTNode_ptr parse_function_def(token_ptr id, ST_Node *func_symtable, ST_Node *glob_var_symtable);
+static ASTNode_ptr parse_setter_def(token_ptr id, ST_Node *func_symtable, ST_Node *glob_var_symtable);
+static ASTNode_ptr parse_getter_def(token_ptr id, ST_Node *func_symtable, ST_Node *glob_var_symtable);
+static int parse_param_list(unsigned *arg_count);
+static ASTNode_ptr parse_block(ST_Node *glob_var_symtable);
+static int parse_statement_list(ASTNode_ptr block, ST_Node *glob_var_symtable);
+static int parse_statement_or_block(void); // uz nieje potrebne ???
+static ASTNode_ptr parse_statement(ST_Node *glob_var_symtable);
+static ASTNode_ptr parse_var_def(void);
+static ASTNode_ptr parse_assign_target(ST_Node *glob_var_symtable);
+static ASTNode_ptr parse_assignment_or_call(ST_Node *glob_var_symtable);
+static ASTNode_ptr parse_exp_rhs(void);
+// static ASTNode_ptr parse_arg_list(void);
+static ASTNode_ptr parse_if_statement(ST_Node *glob_var_symtable);
+static ASTNode_ptr parse_while_statement(ST_Node *glob_var_symtable);
+static ASTNode_ptr parse_return_statement(void);
+static ASTNode_ptr parse_for_statement(ST_Node *glob_var_symtable);
+static ASTNode_ptr parse_break_statement(void);
+static ASTNode_ptr parse_continue_statement(void);
 
 // helper functions
 static token_ptr expect_keyword(char *keyword);
@@ -62,28 +65,35 @@ static void consume_eols(void);
  * @return PARSE_OK (0) on success. On a syntax error, it calls
  *         error_exit(ERR_SYNTACTIC) and the function does not return.
  */
-int parse_program(void){
+ASTNode_ptr parse_program(ST_Node *func_symtable, ST_Node *glob_var_symtable)
+{
     // edge case if multiple EOLs
     consume_eols();
 
-    if (parse_prolog() != 0) error_exit(PARSE_ERROR);
+    if (parse_prolog() != 0)
+        error_exit(PARSE_ERROR);
 
     consume_eols();
-    
-    if (parse_class_def() != 0) error_exit(PARSE_ERROR);
+
+    // ast root
+    ASTNode_ptr program = ast_create_program();
+
+    if (parse_class_def(program, func_symtable, glob_var_symtable) != 0)
+        error_exit(PARSE_ERROR);
 
     consume_eols();
 
     token_ptr token = get_token();
     // expect EOF
-    if (token->type != END_OF_FILE) {
+    if (token->type != END_OF_FILE)
+    {
         free_token(token);
         error_exit(PARSE_ERROR);
     }
     free_token(token);
 
     scanner_cleanup();
-    return PARSE_OK;
+    return program;
 }
 
 /**
@@ -102,27 +112,31 @@ int parse_program(void){
  *
  * @return PARSE_OK on success, otherwise calls error_exit(ERR_SYNTACTIC).
  */
-static int parse_prolog(void) { 
+static int parse_prolog(void)
+{
     token_ptr token;
 
     // check for expected "import"
     token = get_token();
-    if (token->type != KEY_WORD || strcmp(token->value.str_value, "import") != 0) {
+    if (token->type != IDENT || strcmp(token->value.str_value, "import") != 0)
+    {
         free_token(token);
         error_exit(PARSE_ERROR);
     }
     free_token(token);
 
     consume_eols();
-    
+
     // check for expected string_literal
     token = get_token();
-    if (token->type != ONE_L_STRING && token->type != MUL_L_STRING) {
+    if (token->type != ONE_L_STRING && token->type != MUL_L_STRING)
+    {
         free_token(token);
         error_exit(PARSE_ERROR);
     }
     // check for expected "ifj25"
-    if (strcmp(token->value.str_value, "ifj25") != 0) {
+    if (strcmp(token->value.str_value, "ifj25") != 0)
+    {
         free_token(token);
         error_exit(PARSE_ERROR);
     }
@@ -130,7 +144,8 @@ static int parse_prolog(void) {
 
     // check for expected "for"
     token = get_token();
-    if (token->type != KEY_WORD || strcmp(token->value.str_value, "for") != 0) {
+    if (token->type != IDENT || strcmp(token->value.str_value, "for") != 0)
+    {
         free_token(token);
         error_exit(PARSE_ERROR);
     }
@@ -140,11 +155,13 @@ static int parse_prolog(void) {
 
     // check for expected id, and then if id == Ifj
     token = get_token();
-    if (token->type != IDENT) {
+    if (token->type != KEY_WORD)
+    {
         free_token(token);
         error_exit(PARSE_ERROR);
     }
-    if (strcmp(token->value.str_value, "Ifj") != 0) {
+    if (strcmp(token->value.str_value, "Ifj") != 0)
+    {
         free_token(token);
         error_exit(PARSE_ERROR);
     }
@@ -152,7 +169,8 @@ static int parse_prolog(void) {
 
     // check for expected EOL
     token = get_token();
-    if (token->type != EOL) {
+    if (token->type != EOL)
+    {
         free_token(token);
         error_exit(PARSE_ERROR);
     }
@@ -175,7 +193,8 @@ static int parse_prolog(void) {
  *
  * @return PARSE_OK on success, otherwise volá error_exit(ERR_SYNTACTIC).
  */
-static int parse_class_def(void) {
+static int parse_class_def(ASTNode_ptr program, ST_Node *func_symtable, ST_Node *glob_var_symtable)
+{
     token_ptr token;
 
     // check for expected "class"
@@ -184,7 +203,8 @@ static int parse_class_def(void) {
 
     // check for expected id, id == Program
     token = expect_ident();
-    if (strcmp(token->value.str_value, "Program") != 0) {
+    if (strcmp(token->value.str_value, "Program") != 0)
+    {
         free_token(token);
         error_exit(PARSE_ERROR);
     }
@@ -197,7 +217,8 @@ static int parse_class_def(void) {
     free_token(token);
 
     // parse "inside" of class
-    parse_class_body();
+    if (parse_class_body(program, func_symtable, glob_var_symtable) != PARSE_OK)
+        error_exit(PARSE_ERROR);
 
     // check for expected right_dom_par
     token = expect_type(RIGHT_DOM_PAR);
@@ -222,15 +243,20 @@ static int parse_class_def(void) {
  *
  * @return PARSE_OK on success.
  */
-static int parse_class_body(void) {
-    while (1) {
+static int parse_class_body(ASTNode_ptr program, ST_Node *func_symtable, ST_Node *glob_var_symtable)
+{
+    while (1)
+    {
         consume_eols();
 
         token_ptr token_ahead = look_ahead();
-        if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "static") == 0) {
+        if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "static") == 0)
+        {
             token_ptr token = expect_keyword("static");
             free_token(token);
-            parse_definition();
+
+            ASTNode_ptr def = parse_definition(func_symtable, glob_var_symtable);
+            add_child(program, def);
             continue;
         }
         break;
@@ -255,22 +281,30 @@ static int parse_class_body(void) {
  *
  * @return PARSE_OK on success.
  */
-static int parse_definition(void) {
+static ASTNode_ptr parse_definition(ST_Node *func_symtable, ST_Node *glob_var_symtable)
+{
     // saving next two tokens, for id and then token ahead, to decide which function
-    token_ptr token = expect_ident();
+    token_ptr ident = expect_ident();
     // we used expect_ident (which consumed), but original code expected to pass id to parse_...
     token_ptr token_ahead = look_ahead();
 
-    if (token_ahead->type == LEFT_PAR) {
-        parse_function_def(token);
-    } else if (token_ahead->type == OPERATOR && token_ahead->value.other_value == EQUAL_SIGN_V) {
-        parse_setter_def(token);
-    } else {
-        parse_getter_def(token);
-    }
-    free_token(token);
+    ASTNode_ptr def_node = NULL;
 
-    return PARSE_OK;
+    if (token_ahead->type == LEFT_PAR)
+    {
+        def_node = parse_function_def(ident, func_symtable, glob_var_symtable);
+    }
+    else if (token_ahead->type == OPERATOR && token_ahead->value.other_value == EQUAL_SIGN_V)
+    {
+        def_node = parse_setter_def(ident, func_symtable, glob_var_symtable);
+    }
+    else
+    {
+        def_node = parse_getter_def(ident, func_symtable, glob_var_symtable);
+    }
+    free_token(ident);
+
+    return def_node;
 }
 
 /**
@@ -287,24 +321,36 @@ static int parse_definition(void) {
  * @param id Identifier token of the function (already read by caller).
  * @return PARSE_OK on success.
  */
-static int parse_function_def(token_ptr id) {
+static ASTNode_ptr parse_function_def(token_ptr id, ST_Node *func_symtable, ST_Node *glob_var_symtable)
+{
     token_ptr token;
 
     token = expect_type(LEFT_PAR);
     free_token(token);
     consume_eols();
 
-    parse_param_list();
+    unsigned arg_count = 0;
+    if (parse_param_list(&arg_count) != PARSE_OK)
+        error_exit(PARSE_ERROR);
 
     token = expect_type(RIGHT_PAR);
     free_token(token);
 
-    parse_block();
+    ASTNode_ptr body = parse_block(glob_var_symtable);
 
     token = expect_type(EOL);
     free_token(token);
 
-    return PARSE_OK;
+    ASTNode_ptr fun = ast_create_function(id->value.str_value, arg_count, FUN_F, body);
+
+    // adds new function to func symtable
+    Key *key = st_create_function_key(id->value.str_value, arg_count, FUNCTION);
+    ST_Node *new = st_create_node(key);
+    ST_Node *func_symtable = st_insert_node(func_symtable, new);
+
+    free(key);
+
+    return fun;
 }
 
 /**
@@ -321,11 +367,13 @@ static int parse_function_def(token_ptr id) {
  * @param id Identifier token of the setter (already read by caller).
  * @return PARSE_OK on success, otherwise volá error_exit(ERR_SYNTACTIC).
  */
-static int parse_setter_def(token_ptr id) {
+static ASTNode_ptr parse_setter_def(token_ptr id, ST_Node *func_symtable, ST_Node *glob_var_symtable)
+{
     token_ptr token;
 
     token = expect_type(OPERATOR);
-    if (token->value.other_value != EQUAL_SIGN_V) {
+    if (token->value.other_value != EQUAL_SIGN_V)
+    {
         free_token(token);
         error_exit(PARSE_ERROR);
     }
@@ -343,12 +391,21 @@ static int parse_setter_def(token_ptr id) {
     token = expect_type(RIGHT_PAR);
     free_token(token);
 
-    parse_block();
+    ASTNode_ptr body = parse_block(glob_var_symtable);
 
     token = expect_type(EOL);
     free_token(token);
 
-    return PARSE_OK;
+    ASTNode_ptr fun = ast_create_function(id->value.str_value, 1, FUN_S, body);
+
+    // adds new setter to func symtable
+    Key *key = st_create_function_key(id->value.str_value, 1, SETTER);
+    ST_Node *new = st_create_node(key);
+    ST_Node *func_symtable = st_insert_node(func_symtable, new);
+
+    free(key);
+
+    return fun;
 }
 
 /**
@@ -362,15 +419,25 @@ static int parse_setter_def(token_ptr id) {
  * @param id Identifier token of the getter (already read by caller).
  * @return PARSE_OK on success.
  */
-static int parse_getter_def(token_ptr id) {
+static ASTNode_ptr parse_getter_def(token_ptr id, ST_Node *func_symtable, ST_Node *glob_var_symtable)
+{
     token_ptr token;
 
-    parse_block();
+    ASTNode_ptr body = parse_block(glob_var_symtable);
 
     token = expect_type(EOL);
     free_token(token);
 
-    return PARSE_OK;
+    ASTNode_ptr fun = ast_create_function(id->value.str_value, 0, FUN_G, body);
+
+    // adds new getter to func symtable
+    Key *key = st_create_function_key(id->value.str_value, 0, GETTER);
+    ST_Node *new = st_create_node(key);
+    ST_Node *func_symtable = st_insert_node(func_symtable, new);
+
+    free(key);
+
+    return fun;
 }
 
 /**
@@ -386,29 +453,34 @@ static int parse_getter_def(token_ptr id) {
  *
  * @return PARSE_OK on success.
  */
-static int parse_param_list(void) {
-    token_ptr token_ahead;
-    token_ahead = look_ahead();
+static int parse_param_list(unsigned *arg_count)
+{
+    token_ptr token_ahead = look_ahead();
+    *arg_count = 0;
 
-    //if function has no parameters
-    if (token_ahead->type == RIGHT_PAR) {
+    // if function has no parameters
+    if (token_ahead->type == RIGHT_PAR)
+    {
         return PARSE_OK;
     }
 
     // next token should be id - of the parameter
-    token_ptr token1, token2;
-    token1 = expect_ident();
-    free_token(token1);
+    token_ptr token = expect_ident();
+    free_token(token);
+    (*arg_count)++;
 
-    while (1) {
+    while (1)
+    {
         token_ahead = look_ahead();
-        if (token_ahead->type == COMMA) {
-            token2 = expect_type(COMMA);
-            free_token(token2);
+        if (token_ahead->type == COMMA)
+        {
+            token = expect_type(COMMA);
+            free_token(token);
             consume_eols();
 
-            token1 = expect_ident();
-            free_token(token1);
+            token = expect_ident();
+            free_token(token);
+            (*arg_count)++;
             continue;
         }
         break;
@@ -430,21 +502,23 @@ static int parse_param_list(void) {
  *
  * @return PARSE_OK on success.
  */
-static int parse_block(void) {
-    token_ptr token;
-
-    token = expect_type(LEFT_DOM_PAR);
+static ASTNode_ptr parse_block(ST_Node *glob_var_symtable)
+{
+    token_ptr token = expect_type(LEFT_DOM_PAR);
     free_token(token);
 
     token = expect_type(EOL);
     free_token(token);
 
-    parse_statement_list();
+    ASTNode_ptr block = ast_create_block();
+
+    if (parse_statement_list(block, glob_var_symtable) != PARSE_OK)
+        error_exit(PARSE_ERROR);
 
     token = expect_type(RIGHT_DOM_PAR);
     free_token(token);
 
-    return PARSE_OK;
+    return block;
 }
 
 /**
@@ -452,25 +526,41 @@ static int parse_block(void) {
  *
  * Grammar:
  * @code
- * <statement_list> ::= ( <statement_or_block> )*
+ * <statement_list> ::= ( <block> | <statement> )*
+ *
  * @endcode
  * Parsing stops at '}' or EOF.
  *
  * @return PARSE_OK on success.
  */
-static int parse_statement_list(void) {
-    while (1) {
-        token_ptr token_ahead;
-        token_ahead = look_ahead();
-        if (token_ahead->type == RIGHT_DOM_PAR || token_ahead->type == END_OF_FILE) {
+static int parse_statement_list(ASTNode_ptr block, ST_Node *glob_var_symtable)
+{
+    while (1)
+    {
+        token_ptr token_ahead = look_ahead();
+        if (token_ahead->type == RIGHT_DOM_PAR || token_ahead->type == END_OF_FILE)
+        {
             break;
         }
-        parse_statement_or_block();
+
+        if (token_ahead->type == LEFT_DOM_PAR)
+        { // if nahradil parse_stmnt_or_block
+            ASTNode_ptr nested = parse_block(glob_var_symtable);
+            add_child(block, nested);
+        }
+        else
+        {
+            ASTNode_ptr stmt = parse_statement(glob_var_symtable);
+            if (stmt != NULL)
+            {
+                add_child(block, stmt);
+            }
+        }
     }
 
     return PARSE_OK;
 }
- 
+
 /**
  * @brief Decide between a nested block and a regular statement.
  *
@@ -481,18 +571,18 @@ static int parse_statement_list(void) {
  *
  * @return PARSE_OK on success.
  */
-static int parse_statement_or_block(void) {
-    token_ptr token_ahead;
-    token_ahead = look_ahead();
+// static int parse_statement_or_block(void) {
+//     token_ptr token_ahead;
+//     token_ahead = look_ahead();
 
-    if (token_ahead->type == LEFT_DOM_PAR) {
-        parse_block();
-    } else {
-        parse_statement();
-    }
+//     if (token_ahead->type == LEFT_DOM_PAR) {
+//         parse_block();
+//     } else {
+//         parse_statement();
+//     }
 
-    return PARSE_OK;
-}
+//     return PARSE_OK;
+// }
 
 /**
  * @brief Parse a single statement or an empty line (EOL).
@@ -518,52 +608,81 @@ static int parse_statement_or_block(void) {
  *
  * @return PARSE_OK on success, otherwise calls error_exit(ERR_SYNTACTIC).
  */
-static int parse_statement(void) {
-    token_ptr token_ahead, token;
-    token_ahead = look_ahead();
+static ASTNode_ptr parse_statement(ST_Node *glob_var_symtable)
+{
+    token_ptr token;
+    token_ptr token_ahead = look_ahead();
 
-    if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "var") == 0) {
-        parse_var_def();
+    if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "var") == 0)
+    {
+        ASTNode_ptr var = parse_var_def();
         token = expect_type(EOL);
         free_token(token);
-    } else if (token_ahead->type == IDENT || token_ahead->type == GLOB_VAR) {
-        parse_assignment_or_call();
+        return var;
+    }
+    else if (token_ahead->type == IDENT || token_ahead->type == GLOB_VAR)
+    {
+        ASTNode_ptr assign = parse_assignment_or_call(glob_var_symtable);
         token = expect_type(EOL);
         free_token(token);
-    } else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "if") == 0) {
-        parse_if_statement();
+        return assign;
+    }
+    else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "if") == 0)
+    {
+        ASTNode_ptr if_node = parse_if_statement(glob_var_symtable);
         token = expect_type(EOL);
         free_token(token);
-    } else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "while") == 0) {
-        parse_while_statement();
+        return if_node;
+    }
+    else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "while") == 0)
+    {
+        ASTNode_ptr while_node = parse_while_statement(glob_var_symtable);
         token = expect_type(EOL);
         free_token(token);
-    } else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "return") == 0) {
-        parse_return_statement();
+        return while_node;
+    }
+    else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "return") == 0)
+    {
+        ASTNode_ptr ret_node = parse_return_statement();
         token = expect_type(EOL);
         free_token(token);
-    } else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "for") == 0) {
-        parse_for_statement();
+        return ret_node;
+    }
+    else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "for") == 0)
+    {
+        ASTNode_ptr for_node = parse_for_statement(glob_var_symtable);
         token = expect_type(EOL);
         free_token(token);
-    } else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "break") == 0) {
-        parse_break_statement();
+        return for_node;
+    }
+    else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "break") == 0)
+    {
+        ASTNode_ptr br = parse_break_statement();
         token = expect_type(EOL);
         free_token(token);
-    } else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "continue") == 0) {
-        parse_continue_statement();
+        return br;
+    }
+    else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "continue") == 0)
+    {
+        ASTNode_ptr cont = parse_continue_statement();
         token = expect_type(EOL);
         free_token(token);
-    } else if (token_ahead->type == EOL) {
+        return cont;
+    }
+    else if (token_ahead->type == EOL)
+    {
         token = expect_type(EOL);
         free_token(token);
-    } else {
+        return NULL;
+    }
+    else
+    {
         token = get_token();
         free_token(token);
         error_exit(PARSE_ERROR);
     }
 
-    return PARSE_OK;
+    return NULL;
 }
 
 /**
@@ -577,18 +696,23 @@ static int parse_statement(void) {
  * @note
  *  - Trailing EOL is consumed by @c parse_statement().
  *
- * @return PARSE_OK on success.
+ * @return PARSE_OK on success.=
  */
-static int parse_var_def(void) {
+static ASTNode_ptr parse_var_def(void)
+{
     token_ptr token;
 
     token = expect_keyword("var");
     free_token(token);
-   
+
     token = expect_ident();
+
+    // tvorenie ast node
+    ASTNode_ptr node = ast_create_var_dec(token->value.str_value);
+
     free_token(token);
-    
-    return PARSE_OK;
+
+    return node;
 }
 
 /**
@@ -601,27 +725,46 @@ static int parse_var_def(void) {
  *
  * @return PARSE_OK on success, otherwise calls error_exit(ERR_SYNTACTIC).
  */
-static int parse_assign_target(void) {
-    token_ptr token_ahead, token;
-    token_ahead = look_ahead();
+static ASTNode_ptr parse_assign_target(ST_Node *glob_var_symtable)
+{
+    token_ptr token;
+    token_ptr token_ahead = look_ahead();
 
-    if (token_ahead->type == IDENT) {
+    if (token_ahead->type == IDENT)
+    {
         token = expect_ident();
+        ASTNode_ptr id = ast_create_ident(token->value.str_value);
         free_token(token);
-        return PARSE_OK;
-    } else if (token_ahead->type == GLOB_VAR) {
+        return id;
+    }
+    else if (token_ahead->type == GLOB_VAR)
+    {
         token = expect_type(GLOB_VAR);
+        ASTNode_ptr id = ast_create_ident(token->value.str_value);
+
+        // adds new glob variable to glob_var_symtable
+        Key *key = st_create_variable_key(token->value.str_value);
+
+        if (!st_search(glob_var_symtable, key)) // does not already exist so we can add a new one
+        {
+            ST_Node *new = st_create_node(key);
+            glob_var_symtable = st_insert_node(glob_var_symtable, new);
+        }
+
+        free(key);
+
         free_token(token);
-        return PARSE_OK;
-    } else {
+        return id;
+    }
+    else
+    {
         token = get_token();
         free_token(token);
         error_exit(PARSE_ERROR);
     }
 
-    return PARSE_OK;
+    return NULL;
 }
-
 
 /**
  * @brief Parse an assignment statement.
@@ -638,13 +781,14 @@ static int parse_assign_target(void) {
  *
  * @return PARSE_OK on success.
  */
-static int parse_assignment_or_call(void) {
-    parse_assign_target();
+static ASTNode_ptr parse_assignment_or_call(ST_Node *glob_var_symtable)
+{
+    ASTNode_ptr lhs = parse_assign_target(glob_var_symtable);
 
-    token_ptr token;
-    token = expect_type(OPERATOR);
+    token_ptr token = expect_type(OPERATOR);
 
-    if (token->value.other_value != EQUAL_SIGN_V) {
+    if (token->value.other_value != EQUAL_SIGN_V)
+    {
         free_token(token);
         error_exit(PARSE_ERROR);
     }
@@ -652,11 +796,9 @@ static int parse_assignment_or_call(void) {
 
     consume_eols();
 
-    // TODO parse RIGHT HAND SIDE or expression
-    // PSA
-    parse_exp_right_side();
+    ASTNode_ptr rhs = parse_exp_rhs();
 
-    return PARSE_OK;
+    return ast_create_assignment(lhs, rhs);
 }
 
 /**
@@ -669,13 +811,14 @@ static int parse_assignment_or_call(void) {
  * @return PARSE_OK for now (stub). PSA will signal syntax errors
  *         via error_exit(ERR_SYNTACTIC).
  */
-static int parse_exp_right_side(void) {
-    /* If we want special treatment for IFJ builtins, check here (IFJ_ID token not defined separately in header;
-       if you will treat certain keywords as IFJ builtin, check KEY_WORD + value.str_value). For now, call PSA. */
-    
-    // TODO
-    // parse_expression(); PSA
-    return PARSE_OK;
+static ASTNode_ptr parse_exp_rhs(void)
+{
+    // psa_parse_expression() alebo aka funkcia bude vytvarat psa
+    ASTNode_ptr expr = psa_parse_expression();
+    if (expr == NULL)
+        error_exit(PARSE_ERROR);
+
+    return expr;
 }
 
 /**
@@ -693,32 +836,32 @@ static int parse_exp_right_side(void) {
  *
  * @return PARSE_OK on success.
  */
-static int parse_arg_list(void) {
-    token_ptr token_ahead;
-    token_ahead = look_ahead();
+// static int parse_arg_list(void) {
+//     token_ptr token_ahead;
+//     token_ahead = look_ahead();
 
-    if (token_ahead->type == RIGHT_PAR) {
-        return PARSE_OK;
-    }
+//     if (token_ahead->type == RIGHT_PAR) {
+//         return PARSE_OK;
+//     }
 
-    // TODO
-    // parse_expression(); PSA
+//     // TODO
+//     // parse_expression(); PSA
 
-    while (1) {
-        token_ahead = look_ahead();
-        if (token_ahead->type != COMMA) break;
+//     while (1) {
+//         token_ahead = look_ahead();
+//         if (token_ahead->type != COMMA) break;
 
-        token_ptr token;
-        token = expect_type(COMMA);
-        free_token(token);
+//         token_ptr token;
+//         token = expect_type(COMMA);
+//         free_token(token);
 
-        consume_eols();
-        // TODO
-        // parse_expression(); PSA
-    }
+//         consume_eols();
+//         // TODO
+//         // parse_expression(); PSA
+//     }
 
-    return PARSE_OK;
-}
+//     return PARSE_OK;
+// }
 
 /**
  * @brief Parse an @c if statement with an @c else branch.
@@ -736,7 +879,8 @@ static int parse_arg_list(void) {
  *
  * @return PARSE_OK on success.
  */
-static int parse_if_statement(void) {
+static ASTNode_ptr parse_if_statement(ST_Node *glob_var_symtable)
+{
     token_ptr token;
 
     token = expect_keyword("if");
@@ -744,22 +888,21 @@ static int parse_if_statement(void) {
 
     token = expect_type(LEFT_PAR);
     free_token(token);
-    consume_eols(); 
+    consume_eols();
 
-    // TODO
-    // parse_expression(); PSA
+    ASTNode_ptr cond = parse_exp_rhs();
 
     token = expect_type(RIGHT_PAR);
     free_token(token);
 
-    parse_block();
+    ASTNode_ptr then_block = parse_block(glob_var_symtable);
 
     token = expect_keyword("else");
     free_token(token);
 
-    parse_block();
+    ASTNode_ptr else_block = parse_block(glob_var_symtable);
 
-    return PARSE_OK;
+    return ast_create_if(cond, then_block, else_block);
 }
 
 /**
@@ -777,7 +920,8 @@ static int parse_if_statement(void) {
  *
  * @return PARSE_OK on success.
  */
-static int parse_while_statement(void) {
+static ASTNode_ptr parse_while_statement(ST_Node *glob_var_symtable)
+{
     token_ptr token;
 
     token = expect_keyword("while");
@@ -785,17 +929,16 @@ static int parse_while_statement(void) {
 
     token = expect_type(LEFT_PAR);
     free_token(token);
-    consume_eols(); 
+    consume_eols();
 
-    // TODO
-    // parse_expression(); PSA
+    ASTNode_ptr cond = parse_exp_rhs();
 
     token = expect_type(RIGHT_PAR);
     free_token(token);
 
-    parse_block();
+    ASTNode_ptr body = parse_block(glob_var_symtable);
 
-    return PARSE_OK;
+    return ast_create_while(cond, body);
 }
 
 /**
@@ -812,16 +955,14 @@ static int parse_while_statement(void) {
  *
  * @return PARSE_OK on success.
  */
-static int parse_return_statement(void) {
-    token_ptr token;
-
-    token = expect_keyword("return");
+static ASTNode_ptr parse_return_statement(void)
+{
+    token_ptr token = expect_keyword("return");
     free_token(token);
 
-    // TODO
-    // parse_expression(); PSA
+    ASTNode_ptr value = parse_exp_rhs();
 
-    return PARSE_OK;
+    return ast_create_return(value);
 }
 
 /**
@@ -839,7 +980,8 @@ static int parse_return_statement(void) {
  *
  * @return PARSE_OK on success.
  */
-static int parse_for_statement(void) {
+static ASTNode_ptr parse_for_statement(ST_Node *glob_var_symtable)
+{
     token_ptr token;
 
     token = expect_keyword("for");
@@ -847,23 +989,26 @@ static int parse_for_statement(void) {
 
     token = expect_type(LEFT_PAR);
     free_token(token);
-    consume_eols(); 
+    consume_eols();
 
-    token = expect_ident();
-    free_token(token);
+    token_ptr id_token = expect_ident();
+    char *iter_name = id_token->value.str_value;
 
     token = expect_keyword("in");
     free_token(token);
 
-    // TODO
-    // parse_expression(); PSA
+    ASTNode_ptr iter_expr = parse_exp_rhs();
+
+    // if (iter_expr->type != NODE_RANGE)
 
     token = expect_type(RIGHT_PAR);
     free_token(token);
 
-    parse_block();
+    ASTNode_ptr body = parse_block(glob_var_symtable);
 
-    return PARSE_OK;
+    ASTNode_ptr node = ast_create_for(iter_name, iter_expr, body);
+    free_token(id_token);
+    return node;
 }
 
 /**
@@ -879,13 +1024,12 @@ static int parse_for_statement(void) {
  *
  * @return PARSE_OK on success.
  */
-static int parse_break_statement(void) {
-    token_ptr token;
-
-    token = expect_keyword("break");
+static ASTNode_ptr parse_break_statement(void)
+{
+    token_ptr token = expect_keyword("break");
     free_token(token);
 
-    return PARSE_OK;
+    return ast_create_break();
 }
 
 /**
@@ -901,18 +1045,15 @@ static int parse_break_statement(void) {
  *
  * @return PARSE_OK on success.
  */
-static int parse_continue_statement(void) {
-    token_ptr token;
-
-    token = expect_keyword("continue");
+static ASTNode_ptr parse_continue_statement(void)
+{
+    token_ptr token = expect_keyword("continue");
     free_token(token);
 
-    return PARSE_OK;
+    return ast_create_continue();
 }
 
-
 // helper functions
-
 
 /**
  * @brief Read and return a required keyword token.
@@ -923,16 +1064,19 @@ static int parse_continue_statement(void) {
  * @return Token pointer owned by the caller (must call free_token()).
  * @note On mismatch calls error_exit(ERR_SYNTACTIC).
  */
-static token_ptr expect_keyword(char *keyword) {
+static token_ptr expect_keyword(char *keyword)
+{
     token_ptr token = get_token();
 
     // checking if is keyword
-    if (token->type != KEY_WORD) {
+    if (token->type != KEY_WORD)
+    {
         free_token(token);
         error_exit(PARSE_ERROR);
     }
     // checking expected keyword
-    if (strcmp(token->value.str_value, keyword) != 0) {
+    if (strcmp(token->value.str_value, keyword) != 0)
+    {
         free_token(token);
         error_exit(PARSE_ERROR);
     }
@@ -947,10 +1091,12 @@ static token_ptr expect_keyword(char *keyword) {
  * @return Token pointer owned by the caller (must call free_token()).
  * @note On mismatch calls error_exit(ERR_SYNTACTIC).
  */
-static token_ptr expect_ident(void) {
+static token_ptr expect_ident(void)
+{
     token_ptr token = get_token();
 
-    if (token->type != IDENT) {
+    if (token->type != IDENT)
+    {
         free_token(token);
         error_exit(PARSE_ERROR);
     }
@@ -966,10 +1112,12 @@ static token_ptr expect_ident(void) {
  * @return Token pointer owned by the caller (must call free_token()).
  * @note On mismatch calls error_exit(ERR_SYNTACTIC).
  */
-static token_ptr expect_type(enum token_type exp_tok) {
+static token_ptr expect_type(enum token_type exp_tok)
+{
     token_ptr token = get_token();
 
-    if (token->type != exp_tok) {
+    if (token->type != exp_tok)
+    {
         free_token(token);
         error_exit(PARSE_ERROR);
     }
@@ -985,7 +1133,8 @@ static token_ptr expect_type(enum token_type exp_tok) {
  *
  * @return Pointer to the peeked token.
  */
-static token_ptr look_ahead(void) {
+static token_ptr look_ahead(void)
+{
     token_ptr token = get_token();
     push_token(token);
     return token;
@@ -998,11 +1147,14 @@ static token_ptr look_ahead(void) {
  *  - Typical usage: after '(', after ',', and after operators like '=' or '.'.
  *  - Internally reads and frees all contiguous EOL tokens.
  */
-static void consume_eols(void) {
-    while (1) {
+static void consume_eols(void)
+{
+    while (1)
+    {
         token_ptr token;
         token = look_ahead();
-        if (token->type == EOL) {
+        if (token->type == EOL)
+        {
             token = expect_type(EOL);
             free_token(token);
             continue;
