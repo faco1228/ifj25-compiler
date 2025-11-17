@@ -170,29 +170,29 @@ PROGRAM
 */
 
 // Prototype of traversal function
-void generate_code(ASTNode *n)
-{
-    if (!n)
-        return;
+// void generate_code(ASTNode *n)
+// {
+//     if (!n)
+//         return;
 
-    switch (n->type)
-    {
-    case NODE_ASSIGN:
-        generate_code(n->right);
-        printf("POPS %s\n", n->left->data.identifier.name);
-        break;
-    case NODE_BINARY_OP:
-        generate_code(n->left);
-        generate_code(n->right);
-        if (strcmp(n->data.binary.op, "+") == 0)
-            printf("ADD\n");
-        break;
-    case NODE_CALL:
-        for (size_t i = 0; i < n->child_count; i++)
-            generate_code(n->children[i]);
-        printf("CALL %s\n", n->data.call.func_name);
-        break;
-    default:
-        break;
-    }
-}
+//     switch (n->type)
+//     {
+//     case NODE_ASSIGN:
+//         generate_code(n->right);
+//         printf("POPS %s\n", n->left->data.identifier.name);
+//         break;
+//     case NODE_BINARY_OP:
+//         generate_code(n->left);
+//         generate_code(n->right);
+//         // if (strcmp(n->data.binary.op, "+") == 0)
+//             // printf("ADD\n");
+//         break;
+//     case NODE_CALL:
+//         for (size_t i = 0; i < n->child_count; i++)
+//             generate_code(n->children[i]);
+//         // printf("CALL %s\n", n->data.call.func_name);
+//         break;
+//     default:
+//         break;
+//     }
+// }
