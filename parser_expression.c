@@ -22,14 +22,6 @@
 #endif
 
 /**
- * @brief Special token type for unary minus
- * Used internally to distinguish unary minus from binary minus
- */
-#ifndef UNARY_MINUS
-#define UNARY_MINUS 987654321
-#endif
-
-/**
  * @brief Precedence table for operators.
  * 
  * Relations: 
@@ -59,32 +51,6 @@ const precedence_relation precedence_table[OP_END+1][OP_END+1] = {
     { precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_error, precedence_reduce, precedence_error, precedence_reduce }, // i (operand)
     { precedence_shift,  precedence_shift,  precedence_shift,  precedence_shift,  precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_error, precedence_shift, precedence_finish }  // $
 };
-
-/**
- * @brief Determines if a token can precede a unary minus.
- * 
- * Unary minus can appear after:
- * - Operators (binary operators)
- * - Left parenthesis
- * - End of file marker ($) - start of expression
- * 
- * @param token Token to check
- * @return true if unary minus can follow this token
- */
-bool can_precede_unary_minus(token_ptr token) {
-    if (token == NULL) return true; // Start of expression
-    
-    // Unary minus can come after operators
-    if (token->type == OPERATOR) return true;
-    
-    // Unary minus can come after left parenthesis
-    if (token->type == LEFT_PAR) return true;
-    
-    // Unary minus can come at the start (after $)
-    if (token->type == END_OF_FILE) return true;
-    
-    return false;
-}
 
 /**
  * @brief Maps token types from scanner to precedence table indices.
@@ -136,6 +102,7 @@ precedence_index token_to_index(token_ptr token) {
             return OP_OPERAND;
     }
 }
+
 /**
  * @brief Performs reduction when precedence table indicates reduce action ('>').
  * 
@@ -148,7 +115,6 @@ precedence_index token_to_index(token_ptr token) {
  * Grammar rules:
  * - E → i (operand becomes expression)
  * - E → E (nonterminal - for final reductions)
- * - E → -E (unary minus)
  * - E → (E) (parenthesized expression)
  * - E → E op E (binary operation)
  * 
@@ -196,20 +162,12 @@ void precedence_reduce_func(Stack *stack) {
     // Grammar rule: E → i (single operand)
     if (count == 1 && first_stack_item->type != OPERATOR &&
         first_stack_item->type != MARKER &&
-        first_stack_item->type != NONTERMINAL_E &&
-        first_stack_item->type != UNARY_MINUS) {
+        first_stack_item->type != NONTERMINAL_E) {
         matched = true;
     }
 
     // Grammar rule: E → E (nonterminal - for final reductions)
     if (count == 1 && first_stack_item->type == NONTERMINAL_E) {
-        matched = true;
-    }
-
-    // Grammar rule: E → -E (unary minus)
-    if (count == 2 &&
-        first_stack_item->type == UNARY_MINUS &&
-        second_stack_item->type == NONTERMINAL_E) {
         matched = true;
     }
 
@@ -229,7 +187,7 @@ void precedence_reduce_func(Stack *stack) {
         // Verify the operator is a valid binary operator
         switch (second_stack_item->value.other_value) {
             case PLUS_V:              // +
-            case MINUS_V:             // - (binary)
+            case MINUS_V:             // -
             case ASTERISK_V:          // *
             case DIVISON_V:           // /
             case LESS_THAN_V:         // 
@@ -259,15 +217,11 @@ void precedence_reduce_func(Stack *stack) {
     stack_push(stack, newE);
     
     // ✅ NOW free the tokens that were reduced
-    // Don't free nonterminals or internally created unary minus (already freed elsewhere)
+    // Don't free nonterminals (they will be used in further reductions)
     for (int i = 0; i < count; i++) {
-        if (items[i]->type != NONTERMINAL_E && 
-            items[i]->type != UNARY_MINUS) {
+        if (items[i]->type != NONTERMINAL_E) {
             free_token(items[i]);
         }
-        // Note: UNARY_MINUS tokens are created by malloc in precedence_table_compare,
-        // so they should be freed. But NONTERMINAL_E tokens will be freed when
-        // they're eventually popped and reduced again.
     }
 }
 
@@ -280,9 +234,6 @@ void precedence_reduce_func(Stack *stack) {
  * - precedence_equal_reduce: Push current token without marker (for parentheses)
  * - precedence_finish: End of expression reached ($ compared with $)
  * - precedence_error: Invalid token combination
- * 
- * Special handling for unary minus: If '-' follows an operator, '(', or '$',
- * it's treated as unary and gets highest precedence.
  * 
  * @param stack Pointer to the parsing stack
  * @param current_token Current input token to process
@@ -319,31 +270,6 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     // Set pointer to top terminal for marker insertion
     if (last_terminal_item != NULL) {
         stack_set_top_terminal_pointer(stack, last_terminal_item);
-    }
-
-    // Check if current token is unary minus
-    // Unary minus: '-' that comes after operator, '(', or at start ($)
-    if (current_token->type == OPERATOR && 
-        current_token->value.other_value == MINUS_V &&
-        can_precede_unary_minus(*top_terminal)) {
-        
-        // Convert to unary minus token
-        token_ptr unary_minus = malloc(sizeof(token_t));
-        if (!unary_minus) error_exit(ERR_INTERNAL);
-        unary_minus->type = UNARY_MINUS;
-        unary_minus->value.other_value = MINUS_V;
-        
-        // Unary minus has highest precedence - always shift
-        token_ptr marker = malloc(sizeof(token_t));
-        if (!marker) error_exit(ERR_INTERNAL);
-        marker->type = MARKER;
-        marker->value.other_value = '<';
-        
-        // Insert marker and push unary minus
-        stack_push_after(stack, marker);
-        stack_push(stack, unary_minus);
-        
-        return true;
     }
 
     // Convert tokens to precedence table indices
@@ -391,15 +317,14 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
  * @brief Main expression parsing function using precedence analysis.
  * 
  * Parses expressions in different contexts (assignment, condition, return) based on
- * the recognition token. Handles operator precedence, associativity, unary minus,
- * and special cases like newlines after operators.
+ * the recognition token. Handles operator precedence, associativity, and
+ * special cases like newlines after operators.
  * 
  * Algorithm:
  * 1. Initialize stack with $ marker
  * 2. Process tokens based on context (assignment/return vs condition)
- * 3. Detect unary minus and handle it with highest precedence
- * 4. Use precedence table to shift/reduce
- * 5. After expression ends, reduce remaining items until $E is on stack
+ * 3. Use precedence table to shift/reduce
+ * 4. After expression ends, reduce remaining items until $E is on stack
  * 
  * @param recognition_token Token that indicates context (= for assignment, ( for condition, return keyword)
  * @return true if expression is syntactically valid, exits with error otherwise
@@ -616,8 +541,6 @@ bool parse_expression(token_ptr recognition_token) {
 
     return false;
 }
-
-
 
 
 // Doplniť for cyklus
