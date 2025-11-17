@@ -21,7 +21,11 @@
 
 int main()
 {
-    parse_program(); // todo : upravit parse program aby vracal AST_strom
+    ST_Node *func_symtable = NULL;
+    ST_Node *glob_var_symtable = NULL;
+
+    // syntactic analysis and creation of ast
+    ASTNode_ptr ast = parse_program(func_symtable, glob_var_symtable);
 
     // scope_stack init
     Scope_Stack *scope_stack = malloc(sizeof(Scope_Stack));
@@ -30,10 +34,14 @@ int main()
 
     scope_stack_init(scope_stack); // if something fails, error_exit() is called inside the function and memory is freed
 
-    ST_Node *func_symtable = NULL;
-    ST_Node *glob_var_symtable = NULL;
+    // performes semantic_analysis and generates code after every successful semantic action
+    semantic_analysis(ast, ast, func_symtable, glob_var_symtable, scope_stack);
 
-    // semantic_analysis(); // todo: doplnit ked bude parse program upraveny
+    // free all allocated structures
+    scope_stack_dispose(scope_stack);
+    ast_free(ast);
+    st_dispose_tree(func_symtable);
+    st_dispose_tree(glob_var_symtable);
 
     return COMPILATIONS_SUCCESS;
 }
