@@ -57,12 +57,14 @@ static token_ptr look_ahead(void);
  */
 ASTNode_ptr parse_program(ST_Node *func_symtable, ST_Node *glob_var_symtable)
 {
+    error_set_parser_func_symtable(func_symtable);
+    error_set_parser_glob_symtable(glob_var_symtable);
+
     // edge case if multiple EOLs
     consume_eols();
 
     if (parse_prolog() != 0)
     {
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
 
@@ -70,10 +72,10 @@ ASTNode_ptr parse_program(ST_Node *func_symtable, ST_Node *glob_var_symtable)
 
     // ast root
     ASTNode_ptr program = ast_create_program();
+    error_set_parser_ast_root(program);
 
     if (parse_class_def(program, func_symtable, glob_var_symtable) != 0)
     {
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
     consume_eols();
@@ -83,7 +85,6 @@ ASTNode_ptr parse_program(ST_Node *func_symtable, ST_Node *glob_var_symtable)
     if (token->type != END_OF_FILE)
     {
         free_token(token);
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
     free_token(token);
@@ -117,7 +118,6 @@ static int parse_prolog(void)
     if (token->type != KEY_WORD || strcmp(token->value.str_value, "import") != 0)
     {
         free_token(token);
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
     free_token(token);
@@ -129,14 +129,12 @@ static int parse_prolog(void)
     if (token->type != ONE_L_STRING && token->type != MUL_L_STRING)
     {
         free_token(token);
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
     // check for expected "ifj25"
     if (strcmp(token->value.str_value, "ifj25") != 0)
     {
         free_token(token);
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
     free_token(token);
@@ -146,7 +144,6 @@ static int parse_prolog(void)
     if (token->type != KEY_WORD || strcmp(token->value.str_value, "for") != 0)
     {
         free_token(token);
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
     free_token(token);
@@ -158,13 +155,11 @@ static int parse_prolog(void)
     if (token->type != KEY_WORD)
     {
         free_token(token);
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
     if (strcmp(token->value.str_value, "Ifj") != 0)
     {
         free_token(token);
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
     free_token(token);
@@ -174,7 +169,6 @@ static int parse_prolog(void)
     if (token->type != END_OF_LINE)
     {
         free_token(token);
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
     free_token(token);
@@ -209,7 +203,6 @@ static int parse_class_def(ASTNode_ptr program, ST_Node *func_symtable, ST_Node 
     if (strcmp(token->value.str_value, "Program") != 0)
     {
         free_token(token);
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
     free_token(token);
@@ -223,7 +216,6 @@ static int parse_class_def(ASTNode_ptr program, ST_Node *func_symtable, ST_Node 
     // parse "inside" of class
     if (parse_class_body(program, func_symtable, glob_var_symtable) != PARSE_OK)
     {
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
 
@@ -340,7 +332,6 @@ static ASTNode_ptr parse_function_def(token_ptr id, ST_Node *func_symtable, ST_N
     unsigned arg_count = 0;
     if (parse_param_list(&arg_count) != PARSE_OK)
     {
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
 
@@ -386,7 +377,6 @@ static ASTNode_ptr parse_setter_def(token_ptr id, ST_Node *func_symtable, ST_Nod
     if (token->value.other_value != EQUAL_SIGN_V)
     {
         free_token(token);
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
     free_token(token);
@@ -526,7 +516,6 @@ static ASTNode_ptr parse_block(ST_Node *glob_var_symtable)
 
     if (parse_statement_list(block, glob_var_symtable) != PARSE_OK)
     {
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
 
@@ -694,7 +683,6 @@ static ASTNode_ptr parse_statement(ST_Node *glob_var_symtable)
     {
         token = get_token();
         free_token(token);
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
 
@@ -776,7 +764,6 @@ static ASTNode_ptr parse_assign_target(ST_Node *glob_var_symtable)
     {
         token = get_token();
         free_token(token);
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
 
@@ -807,7 +794,6 @@ static ASTNode_ptr parse_assignment_or_call(ST_Node *glob_var_symtable)
     if (token->value.other_value != EQUAL_SIGN_V)
     {
         free_token(token);
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
     consume_eols();
@@ -833,7 +819,6 @@ static ASTNode_ptr parse_exp_rhs(token_ptr token)
 {
     ASTNode_ptr expr = parse_expression(token); 
     if (expr == NULL){
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
 
@@ -1049,14 +1034,12 @@ static token_ptr expect_keyword(char *keyword)
     if (token->type != KEY_WORD)
     {
         free_token(token);
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
     // checking expected keyword
     if (strcmp(token->value.str_value, keyword) != 0)
     {
         free_token(token);
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
 
@@ -1077,7 +1060,6 @@ static token_ptr expect_ident(void)
     if (token->type != IDENT)
     {
         free_token(token);
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
     return token;
@@ -1115,7 +1097,6 @@ token_ptr expect_type(enum token_type exp_tok)
     if (token->type != exp_tok)
     {
         free_token(token);
-        scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
     return token;

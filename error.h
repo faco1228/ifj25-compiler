@@ -42,4 +42,14 @@ void warnings(int warning, const char *format, ...);
  */
 void error_exit(int error);
 
+/**
+ * @brief Register parser/PSA resources for automatic cleanup on error.
+ * 
+ * Tieto funkcie si bude volať parser (alebo main pred volaním parsera)
+ * a `error_exit` ich pri chybe uvoľní.
+ */
+void error_set_parser_ast_root(void *ast_root);
+void error_set_parser_func_symtable(void *func_symtable);
+void error_set_parser_glob_symtable(void *glob_var_symtable);
+
 #endif

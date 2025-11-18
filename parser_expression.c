@@ -330,7 +330,6 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     if (top_token == NULL){
         stack_free(stack);
         free_token(current_token);
-        scanner_cleanup();
         error_exit(ERR_SYNTACTIC); // Stack should never be empty during parsing
     }
 
@@ -352,7 +351,6 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     if(*top_terminal == NULL){
         stack_free(stack);
         free_token(current_token);     
-        scanner_cleanup();   
         error_exit(ERR_SYNTACTIC);
     }
     
@@ -365,8 +363,7 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     precedence_index top_index = token_to_index(*top_terminal);
     if (top_index == OP_UNRECOGNISED){
         stack_free(stack);
-        free_token(current_token);    
-        scanner_cleanup();    
+        free_token(current_token);        
         error_exit(ERR_SYNTACTIC);
     }
     
@@ -374,7 +371,6 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     if (curr_index == OP_UNRECOGNISED){
         stack_free(stack);
         free_token(current_token);        
-        scanner_cleanup();
         error_exit(ERR_SYNTACTIC);
     }
     
@@ -389,7 +385,6 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
             if (!marker) {
                 stack_free(stack);
                 free_token(current_token);
-                scanner_cleanup();
                 error_exit(ERR_INTERNAL);
             }
             marker->type = MARKER; // Special internal token type
@@ -417,7 +412,6 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
             // Invalid token combination according to precedence table
             stack_free(stack);
             free_token(current_token);
-            scanner_cleanup();
             error_exit(ERR_SYNTACTIC);
     }
     return true;
@@ -451,7 +445,6 @@ ASTNode_ptr parse_expression(token_ptr recognition_token) {
         free_token(recognition_token);
         // we dont have to call stack free since this stack is initialized localy and not allocated on heap
         // stack_free(stack);
-        scanner_cleanup();
         error_exit(ERR_INTERNAL);
     }
 
@@ -502,7 +495,6 @@ ASTNode_ptr parse_expression(token_ptr recognition_token) {
                                 stack_free(&stack);
                                 free_token(current_token);
                                 free_token(recognition_token);        
-                                scanner_cleanup();
                                 error_exit(ERR_SYNTACTIC);
                             }
                         }
@@ -552,7 +544,6 @@ ASTNode_ptr parse_expression(token_ptr recognition_token) {
     token_ptr end_token = malloc(sizeof(token_t));
     if (!end_token)
     {
-        scanner_cleanup();
         error_exit(ERR_INTERNAL);
     }
         
@@ -609,7 +600,6 @@ ASTNode_ptr parse_expression(token_ptr recognition_token) {
         // Error: stack not in expected final state
         free(end_token);
         stack_free(&stack);
-        scanner_cleanup();
         error_exit(ERR_SYNTACTIC);
     }
 
