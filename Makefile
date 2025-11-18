@@ -10,7 +10,7 @@
 
 CC = gcc
 CFLAGS = -g -std=c11 -pedantic -Wall -Wextra #-O2 -fsanitize=address
-LDFLAGS =  -fsanitize=address  # -lm Keby sme nahodou potrebovali matematicku kniznicu
+LDFLAGS =  #-fsanitize=address  # -lm Keby sme nahodou potrebovali matematicku kniznicu
 
 # Pomocka
 # target: dependencies
@@ -56,7 +56,7 @@ main.o: compiler_main.c parser.h semantic_analysis.h scope_stack.h symtable.h
 
 # od tadialto nizsie to pred odovzdanim treba zakomentovat pre istotu
 run: compiler
-	./compiler < test.txt || echo "Compiler exited with code $$?"
+	valgrind --leak-check=full --show-leak-kinds=all ./compiler < test.txt || echo "Compiler exited with code $$?"
 
 clean:
 	rm -f *.o compiler

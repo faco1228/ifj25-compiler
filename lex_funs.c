@@ -103,7 +103,6 @@ token_ptr process_next_token(token_ptr token){
             process_slash(token);
 
             return token;
-            break;
         case '=':
             //Has to peak one character ahead to determine whether the operator isn't ==
             if (check_equal(token, character)){}
@@ -139,7 +138,6 @@ token_ptr process_next_token(token_ptr token){
             process_dots(token);
 
             return token;
-            break;
         case '\n':
             token->type = END_OF_FILE;
             token->value.other_value = EOL_V;
@@ -964,15 +962,13 @@ void process_number(token_ptr token, int first_char){
     }
 
     // Checks whetherr the index is in valid range
-    if (index >= MAX_DIGITS - 1){
+    if (index >= MAX_DIGITS){
         //warnings(1, "numeric literal too long\n");
         free_token(token);
         free(temp_buffer);
         temp_buffer = NULL;
         error_exit(ERR_LEXICAL);
     }    
-
-    printf("Velkost temp_bufferu = %lu\n", strlen(temp_buffer));
 
     //Strings have to be null terminated
     temp_buffer[index] = '\0';
