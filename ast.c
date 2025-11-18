@@ -53,57 +53,13 @@ void ast_free(ASTNode_ptr node) {
 
     NodeType type = node->type;
 
-    // free union child pointers
-    if (type == NODE_ASSIGN) {
-        ast_free(node->data.assign.lhs);
-        ast_free(node->data.assign.rhs);
-    } 
-    else if (type == NODE_IF) {
-        ast_free(node->data.if_statement.condition);
-        ast_free(node->data.if_statement.block_then);
-        ast_free(node->data.if_statement.block_else);
-    }
-    else if (type == NODE_WHILE) {
-        ast_free(node->data.while_statement.condition);
-        ast_free(node->data.while_statement.body);
-    }
-    else if (type == NODE_FOR) {
-        ast_free(node->data.for_statement.expr_iter);
-        ast_free(node->data.for_statement.body);
-    }
-    else if (type == NODE_RETURN) {
-        ast_free(node->data.ret.value);
-    }
-    else if (type == NODE_EXPR_STMNT) {
-        ast_free(node->data.exp_statement.exp);
-    }
-    else if (type == NODE_BINARY_OP) {
-        ast_free(node->data.binary_operator.lhs);
-        ast_free(node->data.binary_operator.rhs);
-    } 
-    else if (type == NODE_UNARY_OP) {
-        ast_free(node->data.unary_operator.expres);
-    }
-    else if (type == NODE_RANGE) {
-        ast_free(node->data.range.start);
-        ast_free(node->data.range.stop);
-    }
-    else if (type == NODE_TERNARY) {
-        ast_free(node->data.ternary.condition);
-        ast_free(node->data.ternary.expr_then);
-        ast_free(node->data.ternary.expr_else);
-    }
-    else if (type == NODE_FUNCTION_DEF) {
-        ast_free(node->data.function_def.body);
-    }
-
-    // free all chilren[]
+    // free every child
     for (size_t i = 0; i < node->child_count; i++) {
         ast_free(node->children[i]);
     }
     free(node->children);
 
-    // free strings stored in union
+    // free allocated strings
     if (type == NODE_IDENTIFIER || type == NODE_VAR_DECL) {
         free(node->data.identifier.name);
     }
@@ -120,15 +76,9 @@ void ast_free(ASTNode_ptr node) {
         free(node->data.function_call.name);
     }
 
+    // free the node
     free(node);
 }
-
-
-// implementation oif walk-through functions
-
-// void ast_walk(ASTNode_ptr root) {
-
-// } 
 
 
 // implementation of builders functions
@@ -142,7 +92,8 @@ ASTNode_ptr ast_create_function(const char *name, unsigned args, function_type t
    new_node->data.function_def.name = ast_strcpy(name);
    new_node->data.function_def.arg_count = args;
    new_node->data.function_def.type = type;
-   new_node->data.function_def.body = body;
+
+   add_child(new_node, body);
 
    return new_node;
 }
@@ -163,8 +114,8 @@ ASTNode_ptr ast_create_var_dec(const char *name) {
 ASTNode_ptr ast_create_assignment(ASTNode_ptr lhs, ASTNode_ptr rhs) {
     ASTNode_ptr new_node = ast_create(NODE_ASSIGN);
 
-    new_node->data.assign.lhs = lhs;
-    new_node->data.assign.rhs = rhs;
+    add_child(new_node, lhs);
+    add_child(new_node, rhs);
 
     return new_node;
 }
@@ -172,9 +123,13 @@ ASTNode_ptr ast_create_assignment(ASTNode_ptr lhs, ASTNode_ptr rhs) {
 ASTNode_ptr ast_create_if(ASTNode_ptr cond, ASTNode_ptr b_then, ASTNode_ptr b_else) {
     ASTNode_ptr new_node = ast_create(NODE_IF);
 
-    new_node->data.if_statement.condition = cond;
-    new_node->data.if_statement.block_then = b_then;
-    new_node->data.if_statement.block_else = b_else;
+    add_child(new_node, cond);
+    add_child(new_node, b_then);
+    
+    // else blok is necesarry
+    if (b_else != NULL) {
+        add_child(new_node, b_else);
+    }
 
     return new_node;
 }
@@ -182,7 +137,9 @@ ASTNode_ptr ast_create_if(ASTNode_ptr cond, ASTNode_ptr b_then, ASTNode_ptr b_el
 ASTNode_ptr ast_create_return(ASTNode_ptr val) {
     ASTNode_ptr new_node = ast_create(NODE_RETURN);
 
-    new_node->data.ret.value = val;
+    if (val != NULL) {
+        add_child(new_node, val);
+    }
 
     return new_node;
 }
@@ -190,8 +147,8 @@ ASTNode_ptr ast_create_return(ASTNode_ptr val) {
 ASTNode_ptr ast_create_while(ASTNode_ptr cond, ASTNode_ptr body) {
     ASTNode_ptr new_node = ast_create(NODE_WHILE);
 
-    new_node->data.while_statement.condition = cond;
-    new_node->data.while_statement.body = body;
+    add_child(new_node, cond);
+    add_child(new_node, body);
 
     return new_node;
 }
@@ -200,8 +157,9 @@ ASTNode_ptr ast_create_for(const char *name, ASTNode_ptr iter, ASTNode_ptr body)
     ASTNode_ptr new_node = ast_create(NODE_FOR);
 
     new_node->data.for_statement.name_iter = ast_strcpy(name);
-    new_node->data.for_statement.expr_iter = iter;
-    new_node->data.for_statement.body = body;
+
+    add_child(new_node, iter);
+    add_child(new_node, body);
 
     return new_node;
 }
@@ -217,7 +175,8 @@ ASTNode_ptr ast_create_continue(void) {
 ASTNode_ptr ast_create_exp_statement(ASTNode_ptr exp) {
     ASTNode_ptr new_node = ast_create(NODE_EXPR_STMNT);
 
-    new_node->data.exp_statement.exp = exp;
+    add_child(new_node, exp);
+
     new_node->data.exp_statement.result_type = TYPE_UNKNOWN;
     new_node->data.exp_statement.restriction = UNDETERMINED;
 
@@ -239,8 +198,9 @@ ASTNode_ptr ast_create_ident(const char *name) {
 ASTNode_ptr ast_create_binary(ASTNode_ptr lhs, ASTNode_ptr rhs, operator_types op) {
     ASTNode_ptr new_node = ast_create(NODE_BINARY_OP);
 
-    new_node->data.binary_operator.lhs = lhs;
-    new_node->data.binary_operator.rhs = rhs;  
+    add_child(new_node, lhs);
+    add_child(new_node, rhs);
+
     new_node->data.binary_operator.op_type = op;
 
     return new_node;
@@ -250,7 +210,8 @@ ASTNode_ptr ast_create_unary(operator_types op, ASTNode_ptr exp) {
     ASTNode_ptr new_node = ast_create(NODE_UNARY_OP);
 
     new_node->data.unary_operator.op_type = op;
-    new_node->data.unary_operator.expres = exp;
+
+    add_child(new_node, exp);
 
     return new_node;
 }
@@ -268,9 +229,9 @@ ASTNode_ptr ast_create_call(const char *name, unsigned param_c, bool builtin) {
 ASTNode_ptr ast_create_ternary(ASTNode_ptr cond, ASTNode_ptr b_then, ASTNode_ptr b_else) {
     ASTNode_ptr new_node = ast_create(NODE_TERNARY);
 
-    new_node->data.ternary.condition = cond;
-    new_node->data.ternary.expr_then = b_then;
-    new_node->data.ternary.expr_else = b_else;
+    add_child(new_node, cond);
+    add_child(new_node, b_then);
+    add_child(new_node, b_else);
 
     return new_node;
 }
@@ -278,8 +239,9 @@ ASTNode_ptr ast_create_ternary(ASTNode_ptr cond, ASTNode_ptr b_then, ASTNode_ptr
 ASTNode_ptr ast_create_range(ASTNode_ptr l, ASTNode_ptr r, bool inclusive) {
     ASTNode_ptr new_node = ast_create(NODE_RANGE);
 
-    new_node->data.range.start = l;
-    new_node->data.range.stop = r;
+    add_child(new_node, l);
+    add_child(new_node, r);
+
     new_node->data.range.inclusive = inclusive;
 
     return new_node;   
