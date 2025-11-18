@@ -95,6 +95,7 @@ static operator_types map_op_to_ast(enum other_value_type op_val)
         default:
             error_exit(ERR_INTERNAL);
     }
+    return OP_ERROR;
 }
 
 
@@ -116,8 +117,8 @@ precedence_index token_to_index(token_ptr token) {
             switch (token->value.other_value) {
                 case PLUS_V:               return OP_ADD;            // +
                 case MINUS_V:              return OP_SUB;            // -
-                case STAR_V:               return OP_MULT;            // *
-                case SLASH_V:              return OP_DIVI;            // /
+                case STAR_V:               return OP_MULTIPLICATION;            // *
+                case SLASH_V:              return OP_DIVISION;            // /
                 case LESS_THAN_V:          return OP_LOWER;          // 
                 case GREATER_THAN_V:       return OP_GREATER;        // >
                 case LESS_OR_EQ_THAN_V:    return OP_LOWER_EQUAL;    // <=
@@ -254,7 +255,7 @@ void precedence_reduce_func(Stack *stack) {
             case LESS_OR_EQ_THAN_V:   // <=
             case GREATER_OR_EQ_THAN_V:// >=
             case LOGICAL_EQUAL_V:        // ==
-            case LOGICAL_NOT_EQUAL_V:    // !=
+            case LOGICAL_NOT_EQUAL_V:{    // !=
 
                 operator_types op = map_op_to_ast(second_stack_item->value.other_value);
 
@@ -264,6 +265,7 @@ void precedence_reduce_func(Stack *stack) {
                 reduced_ast = ast_create_binary(lhs, rhs, op);
                 matched = true;
                 break;
+            }
             default:
                 break;
         }
@@ -481,7 +483,7 @@ ASTNode_ptr parse_expression(token_ptr recognition_token) {
 
                         // Process current token with precedence comparison
                         bool should_advance = precedence_table_compare(&stack, current_token, &top_terminal);
-                        free(current_token); // erase ??
+                        //free(current_token); // erase ??
 
                         // If we should advance (shift or equal operation)
                         if (should_advance) {

@@ -76,8 +76,8 @@ typedef enum relation {
 typedef enum {
     OP_ADD,             // +
     OP_SUB,             // -
-    OP_MULT,             // *
-    OP_DIVI,             // /
+    OP_MULTIPLICATION,             // *
+    OP_DIVISION,             // /
     OP_LOWER,           // <
     OP_GREATER,         // >
     OP_LOWER_EQUAL,     // <=

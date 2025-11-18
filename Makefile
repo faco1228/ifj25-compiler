@@ -1,30 +1,62 @@
 # @file 	Makefile
-# @brief 	IFJ project - scanner test build
-# @version 	0.1
+# @author 	xracekm00
+# @brief 	IFJ project - compiler
+# @version 	0.7
+# @date 	2025-11-17
+# 
+# @details 	gcc (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0
+#				
+# @copyright Copyright (c) 2025
 
 CC = gcc
-CFLAGS = -g -std=c11 -pedantic -Wall -Wextra -O2 #-fsanitize=address
-LDFLAGS = #-fsanitize=address
+CFLAGS = -g -std=c11 -pedantic -Wall -Wextra #-O2 -fsanitize=address
+LDFLAGS =  -fsanitize=address  # -lm Keby sme nahodou potrebovali matematicku kniznicu
 
-all: scanner_test
+# Pomocka
+# target: dependencies
+#    activities
 
-scanner_test: scanner.o lex_funs.o error.o scanner_test.o
-	$(CC) $(CFLAGS) scanner.o lex_funs.o error.o scanner_test.o -o scanner_test $(LDFLAGS)
+all: compiler
+
+compiler: scanner.o error.o lex_funs.o ast.o semantic_analysis.o  parser.o scope_stack.o symtable.o main.o stack.o parser_expression.o
+	$(CC) $(CFLAGS) scanner.o error.o lex_funs.o ast.o semantic_analysis.o parser.o scope_stack.o symtable.o main.o stack.o parser_expression.o -o compiler $(LDFLAGS)
 
 scanner.o: scanner.c scanner.h error.h lex_funs.h
 	$(CC) $(CFLAGS) -c scanner.c
 
-lex_funs.o: lex_funs.c lex_funs.h scanner.h error.h
-	$(CC) $(CFLAGS) -c lex_funs.c
-
 error.o: error.c error.h
 	$(CC) $(CFLAGS) -c error.c
 
-scanner_test.o: scanner_test.c scanner.h
-	$(CC) $(CFLAGS) -c scanner_test.c
+lex_funs.o: lex_funs.c lex_funs.h scanner.h error.h
+	$(CC) $(CFLAGS) -c lex_funs.c
 
-run: scanner_test
-	./scanner_test < test.txt || echo "Compiler exited with code $$?"
+ast.o: ast.c ast.h scanner.h error.h
+	$(CC) $(CFLAGS) -c ast.c
+
+semantic_analysis.o: semantic_analysis.c semantic_analysis.h scope_stack.h symtable.h error.h ast.h
+	$(CC) $(CFLAGS) -c semantic_analysis.c
+
+stack.o: stack.c stack.h
+	$(CC) $(CFLAGS) -c stack.c
+
+parser_expression.o: parser_expression.c parser_expression.h scanner.h stack.h error.h
+	$(CC) $(CFLAGS) -c parser_expression.c
+
+parser.o: parser.c parser.h scope_stack.h symtable.h semantic_analysis.h
+	$(CC) $(CFLAGS) -c parser.c
+
+scope_stack.o: scope_stack.c scope_stack.h symtable.h error.h
+	$(CC) $(CFLAGS) -c scope_stack.c
+
+symtable.o: symtable.c symtable.h error.h
+	$(CC) $(CFLAGS) -c symtable.c
+
+main.o: compiler_main.c parser.h semantic_analysis.h scope_stack.h symtable.h
+	$(CC) $(CFLAGS) -c compiler_main.c -o main.o
+
+# od tadialto nizsie to pred odovzdanim treba zakomentovat pre istotu
+run: compiler
+	./compiler < test.txt || echo "Compiler exited with code $$?"
 
 clean:
-	rm -f *.o scanner_test
+	rm -f *.o compiler

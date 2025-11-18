@@ -38,7 +38,8 @@ typedef enum
     OP_LTE,
     OP_GT,
     OP_GTE,
-    OP_IS
+    OP_IS,
+    OP_ERROR
 } operator_types;
 
 // Data type for function/getter/setter
