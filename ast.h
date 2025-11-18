@@ -132,12 +132,12 @@ struct ASTNode
             bool is_builtin;      // true for IFj.*
         } function_call;
 
-        // ASSIGN
-        struct
-        {
-            // ASTNode_ptr lhs; // typicky NODE_IDENTIFIER // children
-            // ASTNode_ptr rhs; // expression // children
-        } assign;
+        // // ASSIGN
+        // struct
+        // {
+        //     // ASTNode_ptr lhs; // typicky NODE_IDENTIFIER // children
+        //     // ASTNode_ptr rhs; // expression // children
+        // } assign;
 
         // BINARY operation
         struct
@@ -155,19 +155,19 @@ struct ASTNode
         } unary_operator;
 
         // IF
-        struct
-        {
-            // ASTNode_ptr condition; // children [0]
-            // ASTNode_ptr block_then; // NODE_BLOCK // children [1]
-            // ASTNode_ptr block_else; // NODE_BLOCK or NULL // children [2]
-        } if_statement;
+        // struct
+        // {
+        //     // ASTNode_ptr condition; // children [0]
+        //     // ASTNode_ptr block_then; // NODE_BLOCK // children [1]
+        //     // ASTNode_ptr block_else; // NODE_BLOCK or NULL // children [2]
+        // } if_statement;
 
         // WHILE
-        struct
-        {
-            // ASTNode_ptr condition; // children [0]
-            // ASTNode_ptr body; // NODE_BLOCK children [1]
-        } while_statement;
+        // struct
+        // {
+        //     // ASTNode_ptr condition; // children [0]
+        //     // ASTNode_ptr body; // NODE_BLOCK children [1]
+        // } while_statement;
 
         // FOR
         struct
@@ -178,10 +178,10 @@ struct ASTNode
         } for_statement;
 
         // RETURN
-        struct
-        {
-            // ASTNode_ptr value; // children [0]
-        } ret;
+        // struct
+        // {
+        //     // ASTNode_ptr value; // children [0]
+        // } ret;
 
         // EXPRESION statement;
         struct
@@ -200,12 +200,12 @@ struct ASTNode
         } range;
 
         // TERNARY
-        struct
-        {
-            // ASTNode_ptr condition; // children [0]
-            // ASTNode_ptr expr_then; // children [1]
-            // ASTNode_ptr expr_else; // children [2]
-        } ternary;
+        // struct
+        // {
+        //     // ASTNode_ptr condition; // children [0]
+        //     // ASTNode_ptr expr_then; // children [1]
+        //     // ASTNode_ptr expr_else; // children [2]
+        // } ternary;
 
         // LITERAL
         struct

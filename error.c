@@ -45,12 +45,12 @@ static void parser_psa_cleanup(void)
     }
 
     if (g_parser_func_symtable != NULL) {
-        st_dispose(g_parser_func_symtable);
+        st_dispose_tree(g_parser_func_symtable);
         g_parser_func_symtable = NULL;
     }
 
     if (g_parser_glob_symtable != NULL) {
-        st_dispose(g_parser_glob_symtable);
+        st_dispose_tree(g_parser_glob_symtable);
         g_parser_glob_symtable = NULL;
     }
 
