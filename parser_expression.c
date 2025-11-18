@@ -1,3 +1,13 @@
+/**
+ * @file parser_expression.c
+ * @author xcillik00
+ * @brief Main for the precedence_expression 
+ * @version 0.1
+ * @date 2025-10-27
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,20 +17,7 @@
 #include "stack.h"
 #include "parser.h"
 
-/**
- * @brief Internal token type for precedence parser marker ('<')
- * This value is not from the scanner; it is only used inside the expression parser.
- */
-#ifndef MARKER
-#define MARKER 132456  // Must not collide with real token types
-#endif
 
-/**
- * @brief Nonterminal E used to represent reduced expressions on the stack
- */
-#ifndef NONTERMINAL_E 
-#define NONTERMINAL_E 123456789
-#endif
 
 /**
  * @brief Precedence table for operators.
@@ -68,17 +65,17 @@ precedence_index token_to_index(token_ptr token) {
         case OPERATOR:
             // Map specific operator values to precedence indices
             switch (token->value.other_value) {
-                case PLUS_V:              return OP_ADD;            // +
-                case MINUS_V:             return OP_SUB;            // -
-                case ASTERISK_V:          return OP_MUL;            // *
-                case DIVISON_V:           return OP_DIV;            // /
-                case LESS_THAN_V:         return OP_LOWER;          // 
-                case GREATER_THAN_V:      return OP_GREATER;        // >
-                case LESS_OR_EQ_THAN_V:   return OP_LOWER_EQUAL;    // <=
-                case GREATER_OR_EQ_THAN_V:return OP_GREATER_EQUAL;  // >=
-                case EQUAL_SIGN_V:        return OP_EQUAL;          // ==
-                case EXC_MARK_V:          return OP_NOT_EQUAL;      // !=
-                default:                  return OP_OPERAND;        // Fallback for unknown operators
+                case PLUS_V:               return OP_ADD;            // +
+                case MINUS_V:              return OP_SUB;            // -
+                case STAR_V:               return OP_MULT;            // *
+                case SLASH_V:              return OP_DIVI;            // /
+                case LESS_THAN_V:          return OP_LOWER;          // 
+                case GREATER_THAN_V:       return OP_GREATER;        // >
+                case LESS_OR_EQ_THAN_V:    return OP_LOWER_EQUAL;    // <=
+                case GREATER_OR_EQ_THAN_V: return OP_GREATER_EQUAL;  // >=
+                case LOGICAL_EQUAL_V:      return OP_EQUAL;          // ==
+                case EXC_MARK_V:           return OP_NOT_EQUAL;      // !=
+            default:                   return OP_UNRECOGNISED;       // Fallback for unknown operators
             }
 
         // Map parentheses to precedence indices
@@ -90,6 +87,7 @@ precedence_index token_to_index(token_ptr token) {
         case GLOB_VAR:
         case INT_LIT:
         case FLOAT_LIT:
+        case NULL_LIT:
         case ONE_L_STRING:
         case MUL_L_STRING:
             return OP_OPERAND;
@@ -100,7 +98,7 @@ precedence_index token_to_index(token_ptr token) {
 
         // Default case for any unrecognized token type
         default:
-            return OP_OPERAND;
+            return OP_UNRECOGNISED;
     }
 }
 
@@ -124,6 +122,7 @@ precedence_index token_to_index(token_ptr token) {
 void precedence_reduce_func(Stack *stack) {
     // Check if stack is empty (should never happen)
     if (stack_is_empty(stack)){
+        stack_free(stack);
         error_exit(ERR_SYNTACTIC);
     }
 
@@ -144,6 +143,14 @@ void precedence_reduce_func(Stack *stack) {
         
         // Sanity check: no grammar rule needs more than 5 tokens
         if (count >= 5){
+            //  NOW free the tokens that were reduced
+            // Don't free nonterminals (they will be used in further reductions)
+            for (int i = 0; i < count; i++) {
+                if (items[i]->type != NONTERMINAL_E) {
+                    free_token(items[i]);
+                }
+            }
+            stack_free(stack);
             error_exit(ERR_SYNTACTIC);
         }
 
@@ -189,13 +196,13 @@ void precedence_reduce_func(Stack *stack) {
         switch (second_stack_item->value.other_value) {
             case PLUS_V:              // +
             case MINUS_V:             // -
-            case ASTERISK_V:          // *
-            case DIVISON_V:           // /
+            case STAR_V:          // *
+            case SLASH_V:           // /
             case LESS_THAN_V:         // 
             case GREATER_THAN_V:      // >
             case LESS_OR_EQ_THAN_V:   // <=
             case GREATER_OR_EQ_THAN_V:// >=
-            case EQUAL_SIGN_V:        // ==
+            case LOGICAL_EQUAL_V:        // ==
             case EXC_MARK_V:          // !=
                 matched = true;
                 break;
@@ -206,12 +213,31 @@ void precedence_reduce_func(Stack *stack) {
 
     // If no grammar rule matched, it's a syntax error
     if (!matched){
+        //  NOW free the tokens that were reduced
+        // Don't free nonterminals (they will be used in further reductions)
+        for (int i = 0; i < count; i++) {
+            if (items[i]->type != NONTERMINAL_E) {
+                free_token(items[i]);
+            }
+        }        
+        stack_free(stack);
         error_exit(ERR_SYNTACTIC);        
     }
 
     // Create new nonterminal E to represent the reduced expression
     token_ptr newE = malloc(sizeof(token_t));
-    if (!newE) error_exit(ERR_INTERNAL);
+    if (!newE){
+        //  NOW free the tokens that were reduced
+        // Don't free nonterminals (they will be used in further reductions)
+        for (int i = 0; i < count; i++) {
+            if (items[i]->type != NONTERMINAL_E) {
+                free_token(items[i]);
+            }
+        }
+        stack_free(stack);
+        error_exit(ERR_SYNTACTIC);        
+        error_exit(ERR_INTERNAL);  
+    }
     newE->type = NONTERMINAL_E;
     
     // Push the nonterminal E back onto stack
@@ -246,6 +272,9 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     // Get the topmost item from stack
     token_ptr top_token = stack_top(stack);
     if (top_token == NULL){
+        stack_free(stack);
+        free_token(current_token);
+        scanner_cleanup();
         error_exit(ERR_SYNTACTIC); // Stack should never be empty during parsing
     }
 
@@ -265,6 +294,9 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
 
     // Top terminal should always exist (at minimum, '$' is on stack)
     if(*top_terminal == NULL){
+        stack_free(stack);
+        free_token(current_token);     
+        scanner_cleanup();   
         error_exit(ERR_SYNTACTIC);
     }
     
@@ -275,7 +307,20 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
 
     // Convert tokens to precedence table indices
     precedence_index top_index = token_to_index(*top_terminal);
+    if (top_index == OP_UNRECOGNISED){
+        stack_free(stack);
+        free_token(current_token);    
+        scanner_cleanup();    
+        error_exit(ERR_SYNTACTIC);
+    }
+    
     precedence_index curr_index = token_to_index(current_token);
+    if (curr_index == OP_UNRECOGNISED){
+        stack_free(stack);
+        free_token(current_token);        
+        scanner_cleanup();
+        error_exit(ERR_SYNTACTIC);
+    }
     
     // Look up the precedence relation in the table
     precedence_relation rel = precedence_table[top_index][curr_index];
@@ -285,7 +330,12 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
         case precedence_shift: {
             // Shift action: insert marker after top terminal, then push current token
             token_ptr marker = malloc(sizeof(token_t));
-            if (!marker) error_exit(ERR_INTERNAL);
+            if (!marker) {
+                stack_free(stack);
+                free_token(current_token);
+                scanner_cleanup();
+                error_exit(ERR_INTERNAL);
+            }
             marker->type = MARKER; // Special internal token type
             marker->value.other_value = '<';
             
@@ -309,6 +359,9 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
         case precedence_error:
         default:
             // Invalid token combination according to precedence table
+            stack_free(stack);
+            free_token(current_token);
+            scanner_cleanup();
             error_exit(ERR_SYNTACTIC);
     }
     return true;
@@ -338,8 +391,14 @@ bool parse_expression(token_ptr recognition_token) {
     
     // Push special end marker ($) onto stack as bottom marker
     token_ptr special_char = malloc(sizeof(token_t));
-    if (!special_char) 
+    if (!special_char){
+        free_token(recognition_token);
+        // we dont have to call stack free since this stack is initialized localy and not allocated on heap
+        // stack_free(stack);
+        scanner_cleanup();
         error_exit(ERR_INTERNAL);
+    }
+
     special_char->type = END_OF_FILE;
     special_char->value.other_value = '$';
     stack_push(&stack, special_char);
@@ -352,42 +411,43 @@ bool parse_expression(token_ptr recognition_token) {
     
     // Determine parsing context based on recognition token
     switch (recognition_token->type) {
+        // Return context: return expression
+        case KEY_WORD:
+            // Check if the keyword is "return"
+            if (recognition_token->value.str_value != NULL && 
+                strcmp(recognition_token->value.str_value, "return") == 0)
         case OPERATOR: 
             switch (recognition_token->value.other_value) {
                 // Assignment context: var = expression
                 case EQUAL_SIGN_V: {
+
                     // Parse assignment expression until EOL after non-operator
                     while (true) {
-                        // Skip all newlines at current position
-                        while (current_token->type == EOL) {
-                            current_token = get_token();
-                        }
-
-                        // Check for invalid early termination
-                        if (current_token->type == END_OF_FILE ||
-                            current_token->type == LEFT_DOM_PAR) {
-                            error_exit(ERR_SYNTACTIC);
-                        }
+                        printf("DEBUG: current_token type=%d\n", current_token->type);
 
                         // Process current token with precedence comparison
                         bool should_advance = precedence_table_compare(&stack, current_token, &top_terminal);
+                        free(current_token);
 
                         // If we should advance (shift or equal operation)
                         if (should_advance) {
-                            current_token = get_token();
+                            // If current_token is OPERATOR , we check if there are any EOF 
+                            // IF there are not then it does nothing 
+                            if(current_token->type == OPERATOR){
+                                consume_eols();
+                            } 
 
-                            // Special handling for EOL: check if expression continues
-                            if (current_token->type == EOL) {
-                                token_ptr peek = get_token();
-                                
-                                // If next token is not operator, expression ends
-                                if (peek->type != OPERATOR) {
-                                    push_token(peek); // Return peeked token
-                                    break; // Exit assignment parsing
-                                }
-                                
-                                // Expression continues after EOL (operator follows)
-                                push_token(peek);
+                            // reading next token
+                            current_token = get_token();
+                            precedence_index curr_index = token_to_index(current_token);
+
+                            if (curr_index == OP_UNRECOGNISED)
+                            {
+                                stack_free(&stack);
+                                free_token(current_token);
+                                free_token(recognition_token);        
+                                scanner_cleanup();
+                                error_exit(ERR_SYNTACTIC);
                             }
                         }
                     }
@@ -401,28 +461,21 @@ bool parse_expression(token_ptr recognition_token) {
         // Condition context: if (expression) or while (expression)
         case LEFT_PAR: {
             // Track parentheses to know when condition ends
-            int ifj_left_par_count = 1;  // Start with 1 (recognition token)
-            int ifj_right_par_count = 0;
+            int left_par_count = 1;  // Start with 1 (recognition token)
+            int right_par_count = 0;
 
             // Parse until parentheses are balanced
-            while (ifj_left_par_count > ifj_right_par_count) {
+            while (left_par_count > right_par_count) {
                 // Skip newlines (allowed in conditions)
-                if (current_token->type == EOL) {
-                    current_token = get_token();
-                    continue;
-                }
-
-                // Check for invalid early termination
-                if (current_token->type == END_OF_FILE ||
-                    current_token->type == LEFT_DOM_PAR) {
-                    error_exit(ERR_SYNTACTIC);
-                }
+                consume_eols();
+                
+                printf("DEBUG: current_token type=%d\n", current_token->type);
 
                 // Count parentheses to track nesting
                 if (current_token->type == LEFT_PAR)
-                    ifj_left_par_count++;
+                    left_par_count++;
                 else if (current_token->type == RIGHT_PAR)
-                    ifj_right_par_count++;
+                    right_par_count++;
 
                 // Process current token with precedence comparison
                 bool should_advance = precedence_table_compare(&stack, current_token, &top_terminal);
@@ -434,61 +487,19 @@ bool parse_expression(token_ptr recognition_token) {
             }
             break;
         }
-
-        // Return context: return expression
-        case KEY_WORD: {
-            // Check if the keyword is "return"
-            if (recognition_token->value.str_value != NULL && 
-                strcmp(recognition_token->value.str_value, "return") == 0) {
-                
-                // Parse return expression (same logic as assignment)
-                // Expression ends at EOL after non-operator
-                while (true) {
-                    // Skip all newlines at current position
-                    while (current_token->type == EOL) {
-                        current_token = get_token();
-                    }
-
-                    // Check for invalid early termination
-                    if (current_token->type == END_OF_FILE ||
-                        current_token->type == LEFT_DOM_PAR) {
-                        error_exit(ERR_SYNTACTIC);
-                    }
-
-                    // Process current token with precedence comparison
-                    bool should_advance = precedence_table_compare(&stack, current_token, &top_terminal);
-
-                    // If we should advance (shift or equal operation)
-                    if (should_advance) {
-                        current_token = get_token();
-
-                        // Special handling for EOL: check if expression continues
-                        if (current_token->type == EOL) {
-                            token_ptr peek = get_token();
-                            
-                            // If next token is not operator, expression ends
-                            if (peek->type != OPERATOR) {
-                                push_token(peek); // Return peeked token
-                                break; // Exit return expression parsing
-                            }
-                            
-                            // Expression continues after EOL (operator follows)
-                            push_token(peek);
-                        }
-                    }
-                }
-            }
-            break;
-        }
-
         default: 
             break;
     }
 
+    printf("Dostal som sa az po kontrolu s $ (Vysiel som z pytania si tokenov)");
     // After main expression parsing, create end token for final reductions
     token_ptr end_token = malloc(sizeof(token_t));
     if (!end_token)
+    {
+        scanner_cleanup();
         error_exit(ERR_INTERNAL);
+    }
+        
     end_token->type = END_OF_FILE;
     end_token->value.other_value = '$';
 
@@ -523,7 +534,7 @@ bool parse_expression(token_ptr recognition_token) {
         }
     }
 
-    // Verify final stack state: should be exactly $E (bottom marker + expression)
+    // Verify final stack state: should be exactly $E 
     if (stack.stack_size == 2 &&
         stack.head &&
         stack.head->token->type == END_OF_FILE &&
@@ -537,13 +548,11 @@ bool parse_expression(token_ptr recognition_token) {
     else {
         // Error: stack not in expected final state
         free(end_token);
+        stack_free(&stack);
+        scanner_cleanup();
         error_exit(ERR_SYNTACTIC);
     }
 
     return false;
 }
 
-
-// Doplniť for cyklus
-// Doplniť unarne minus 
-// Doplnit volanie funkcie (function call)

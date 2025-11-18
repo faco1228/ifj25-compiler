@@ -1,3 +1,15 @@
+
+/**
+ * @file stack.c
+ * @author xcillik00
+ * @brief Linked list implementation of stact for the precedence_analysis
+ * @version 0.1
+ * @date 2025-11-17
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "stack.h"

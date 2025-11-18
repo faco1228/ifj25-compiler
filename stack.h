@@ -28,8 +28,6 @@ typedef struct {
 } Stack;
 
 
-
-
 //************************************** Function prototypes **************************************//
 void stack_init(Stack *s);
 
