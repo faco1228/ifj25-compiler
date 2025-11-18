@@ -60,7 +60,8 @@ ASTNode_ptr parse_program(ST_Node *func_symtable, ST_Node *glob_var_symtable)
     // edge case if multiple EOLs
     consume_eols();
 
-    if (parse_prolog() != 0){
+    if (parse_prolog() != 0)
+    {
         scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
@@ -70,7 +71,8 @@ ASTNode_ptr parse_program(ST_Node *func_symtable, ST_Node *glob_var_symtable)
     // ast root
     ASTNode_ptr program = ast_create_program();
 
-    if (parse_class_def(program, func_symtable, glob_var_symtable) != 0){
+    if (parse_class_def(program, func_symtable, glob_var_symtable) != 0)
+    {
         scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
@@ -112,7 +114,7 @@ static int parse_prolog(void)
 
     // check for expected "import"
     token = get_token();
-    if (token->type != IDENT || strcmp(token->value.str_value, "import") != 0)
+    if (token->type != KEY_WORD || strcmp(token->value.str_value, "import") != 0)
     {
         free_token(token);
         scanner_cleanup();
@@ -141,7 +143,7 @@ static int parse_prolog(void)
 
     // check for expected "for"
     token = get_token();
-    if (token->type != IDENT || strcmp(token->value.str_value, "for") != 0)
+    if (token->type != KEY_WORD || strcmp(token->value.str_value, "for") != 0)
     {
         free_token(token);
         scanner_cleanup();
@@ -219,7 +221,8 @@ static int parse_class_def(ASTNode_ptr program, ST_Node *func_symtable, ST_Node 
     free_token(token);
 
     // parse "inside" of class
-    if (parse_class_body(program, func_symtable, glob_var_symtable) != PARSE_OK){
+    if (parse_class_body(program, func_symtable, glob_var_symtable) != PARSE_OK)
+    {
         scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
@@ -289,6 +292,7 @@ static ASTNode_ptr parse_definition(ST_Node *func_symtable, ST_Node *glob_var_sy
 {
     // saving next two tokens, for id and then token ahead, to decide which function
     token_ptr ident = expect_ident();
+
     // we used expect_ident (which consumed), but original code expected to pass id to parse_...
     token_ptr token_ahead = look_ahead();
 
@@ -334,7 +338,8 @@ static ASTNode_ptr parse_function_def(token_ptr id, ST_Node *func_symtable, ST_N
     consume_eols();
 
     unsigned arg_count = 0;
-    if (parse_param_list(&arg_count) != PARSE_OK){
+    if (parse_param_list(&arg_count) != PARSE_OK)
+    {
         scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
@@ -519,7 +524,8 @@ static ASTNode_ptr parse_block(ST_Node *glob_var_symtable)
 
     ASTNode_ptr block = ast_create_block();
 
-    if (parse_statement_list(block, glob_var_symtable) != PARSE_OK){
+    if (parse_statement_list(block, glob_var_symtable) != PARSE_OK)
+    {
         scanner_cleanup();
         error_exit(PARSE_ERROR);
     }

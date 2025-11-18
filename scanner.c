@@ -4,7 +4,7 @@
  * @brief Contains scanners backbone as well as functions for parsers use
  * @version 0.4
  * @date 2025-11-17
- * 
+ *
  * @copyright Copyright (c) 2025
  */
 
@@ -19,11 +19,10 @@
 // NOTE: NULL at the end is just a breakpoint
 const char *key_words_arr[] = {
     "class", "if", "else", "is", "return", "var", "while", "Ifj",
-    "static", "true", "false", "Num", "String", "Null", "Break", "Continue", 
-    "for", NULL
-};
+    "static", "true", "false", "Num", "String", "Null", "Break", "Continue",
+    "for", "import", NULL};
 
-//Initializing global variables
+// Initializing global variables
 bool has_been_pushed = false;
 token_ptr pushed_token = NULL;
 
@@ -32,48 +31,53 @@ token_ptr pending_token = NULL;
 
 /**
  * @brief Returns token back to scanner
- * 
+ *
  * @param token to be filled
  */
-void push_token(token_ptr token){
+void push_token(token_ptr token)
+{
     has_been_pushed = true;
     pushed_token = token;
 }
 
 /**
  * @brief Reads and decodes token from IFJ25 source code
- * 
+ *
  * @return Pointer to newly allocated token structure
  */
-token_ptr get_token(){
-    token_ptr token; //Token to be returned
+token_ptr get_token()
+{
+    token_ptr token; // Token to be returned
 
-    if ((pending_token != NULL) && eof_reached){
-        //Next token is the one that was unintentionally processed
+    if ((pending_token != NULL) && eof_reached)
+    {
+        // Next token is the one that was unintentionally processed
         token = pending_token;
 
-        //Updating gloval variables
+        // Updating gloval variables
         eof_reached = false;
         pending_token = NULL;
 
         return token;
     }
 
-    //When the token has been returned from parser
-    if (has_been_pushed &&( pushed_token != NULL)){
-        //Next token is the on that's been returned
+    // When the token has been returned from parser
+    if (has_been_pushed && (pushed_token != NULL))
+    {
+        // Next token is the on that's been returned
         token = pushed_token;
 
-        //Updating global variables
+        // Updating global variables
         has_been_pushed = false;
         pushed_token = NULL;
 
         return token;
     }
-    
-    //Allocating memory for a new token
-    if ((token = malloc(sizeof(token_t))) == NULL){
-        //warnings(99, "memory allocation failed at line: %d\n", 73);
+
+    // Allocating memory for a new token
+    if ((token = malloc(sizeof(token_t))) == NULL)
+    {
+        // warnings(99, "memory allocation failed at line: %d\n", 73);
         error_exit(ERR_INTERNAL);
     }
 
@@ -88,32 +92,36 @@ token_ptr get_token(){
 
 /**
  * @brief Frees memory allocated for token
- * 
+ *
  * @param token to be freed
  */
-void free_token(token_ptr token) {
-    //Checks parameters validity
-    if (token == NULL){
+void free_token(token_ptr token)
+{
+    // Checks parameters validity
+    if (token == NULL)
+    {
         return;
     }
-    
-    //Frees memory based on the token type
-    switch(token->type) {
-        case IDENT:
-        case GLOB_VAR:
-        case KEY_WORD:
-        case ONE_L_STRING:
-        case MUL_L_STRING:
-            if (token->value.str_value != NULL) {
-                free(token->value.str_value);
-                token->value.str_value = NULL;
-            }
-            break;
-        default:
-            break;
+
+    // Frees memory based on the token type
+    switch (token->type)
+    {
+    case IDENT:
+    case GLOB_VAR:
+    case KEY_WORD:
+    case ONE_L_STRING:
+    case MUL_L_STRING:
+        if (token->value.str_value != NULL)
+        {
+            free(token->value.str_value);
+            token->value.str_value = NULL;
+        }
+        break;
+    default:
+        break;
     }
-    
-    //Freing token structure itself
+
+    // Freing token structure itself
     free(token);
     token = NULL;
 
@@ -122,21 +130,24 @@ void free_token(token_ptr token) {
 
 /**
  * @brief After the parser is done using scanner, it need to call this function
- * 
+ *
  */
-void scanner_cleanup() {
-    //Frees memory used by global variables
-    if (pending_token != NULL) {
+void scanner_cleanup()
+{
+    // Frees memory used by global variables
+    if (pending_token != NULL)
+    {
         free(pending_token);
         pending_token = NULL;
     }
 
-    if (pushed_token != NULL) {
+    if (pushed_token != NULL)
+    {
         free(pushed_token);
         pushed_token = NULL;
     }
 
-    //Resets global variables (not necesary) but good habit
+    // Resets global variables (not necesary) but good habit
     eof_reached = false;
     has_been_pushed = false;
 
