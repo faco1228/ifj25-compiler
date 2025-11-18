@@ -51,7 +51,9 @@ union token_info{
 typedef struct token{
     enum token_type type; 
     union token_info value;
-}token_t, *token_ptr;
+    // ast pointer help pre PSA
+    void *ast;
+} token_t, *token_ptr;
                 
 //Global array of keywords
 extern const char *key_words_arr[];

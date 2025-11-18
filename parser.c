@@ -25,7 +25,7 @@ static ASTNode_ptr parse_statement(ST_Node *glob_var_symtable);
 static ASTNode_ptr parse_var_def(void);
 static ASTNode_ptr parse_assign_target(ST_Node *glob_var_symtable);
 static ASTNode_ptr parse_assignment_or_call(ST_Node *glob_var_symtable);
-static ASTNode_ptr parse_exp_rhs(void);
+static ASTNode_ptr parse_exp_rhs(token_ptr token);
 // static ASTNode_ptr parse_arg_list(void);
 static ASTNode_ptr parse_if_statement(ST_Node *glob_var_symtable);
 static ASTNode_ptr parse_while_statement(ST_Node *glob_var_symtable);
@@ -60,7 +60,8 @@ ASTNode_ptr parse_program(ST_Node *func_symtable, ST_Node *glob_var_symtable)
     // edge case if multiple EOLs
     consume_eols();
 
-    if (parse_prolog() != 0){
+    if (parse_prolog() != 0)
+    {
         scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
@@ -70,7 +71,8 @@ ASTNode_ptr parse_program(ST_Node *func_symtable, ST_Node *glob_var_symtable)
     // ast root
     ASTNode_ptr program = ast_create_program();
 
-    if (parse_class_def(program, func_symtable, glob_var_symtable) != 0){
+    if (parse_class_def(program, func_symtable, glob_var_symtable) != 0)
+    {
         scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
@@ -112,7 +114,7 @@ static int parse_prolog(void)
 
     // check for expected "import"
     token = get_token();
-    if (token->type != IDENT || strcmp(token->value.str_value, "import") != 0)
+    if (token->type != KEY_WORD || strcmp(token->value.str_value, "import") != 0)
     {
         free_token(token);
         scanner_cleanup();
@@ -141,7 +143,7 @@ static int parse_prolog(void)
 
     // check for expected "for"
     token = get_token();
-    if (token->type != IDENT || strcmp(token->value.str_value, "for") != 0)
+    if (token->type != KEY_WORD || strcmp(token->value.str_value, "for") != 0)
     {
         free_token(token);
         scanner_cleanup();
@@ -219,7 +221,8 @@ static int parse_class_def(ASTNode_ptr program, ST_Node *func_symtable, ST_Node 
     free_token(token);
 
     // parse "inside" of class
-    if (parse_class_body(program, func_symtable, glob_var_symtable) != PARSE_OK){
+    if (parse_class_body(program, func_symtable, glob_var_symtable) != PARSE_OK)
+    {
         scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
@@ -289,6 +292,7 @@ static ASTNode_ptr parse_definition(ST_Node *func_symtable, ST_Node *glob_var_sy
 {
     // saving next two tokens, for id and then token ahead, to decide which function
     token_ptr ident = expect_ident();
+
     // we used expect_ident (which consumed), but original code expected to pass id to parse_...
     token_ptr token_ahead = look_ahead();
 
@@ -334,7 +338,8 @@ static ASTNode_ptr parse_function_def(token_ptr id, ST_Node *func_symtable, ST_N
     consume_eols();
 
     unsigned arg_count = 0;
-    if (parse_param_list(&arg_count) != PARSE_OK){
+    if (parse_param_list(&arg_count) != PARSE_OK)
+    {
         scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
@@ -519,7 +524,8 @@ static ASTNode_ptr parse_block(ST_Node *glob_var_symtable)
 
     ASTNode_ptr block = ast_create_block();
 
-    if (parse_statement_list(block, glob_var_symtable) != PARSE_OK){
+    if (parse_statement_list(block, glob_var_symtable) != PARSE_OK)
+    {
         scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
@@ -804,11 +810,11 @@ static ASTNode_ptr parse_assignment_or_call(ST_Node *glob_var_symtable)
         scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
-    free_token(token);
-
     consume_eols();
-
-    ASTNode_ptr rhs = parse_exp_rhs();
+    
+    ASTNode_ptr rhs = parse_exp_rhs(token);
+    
+    free_token(token);
 
     return ast_create_assignment(lhs, rhs);
 }
@@ -823,10 +829,9 @@ static ASTNode_ptr parse_assignment_or_call(ST_Node *glob_var_symtable)
  * @return PARSE_OK for now (stub). PSA will signal syntax errors
  *         via error_exit(ERR_SYNTACTIC).
  */
-static ASTNode_ptr parse_exp_rhs(void)
+static ASTNode_ptr parse_exp_rhs(token_ptr token)
 {
-    // psa_parse_expression() alebo aka funkcia bude vytvarat psa
-    ASTNode_ptr expr = NULL; // zatial iba null
+    ASTNode_ptr expr = parse_expression(token); 
     if (expr == NULL){
         scanner_cleanup();
         error_exit(PARSE_ERROR);
@@ -859,10 +864,10 @@ static ASTNode_ptr parse_if_statement(ST_Node *glob_var_symtable)
     free_token(token);
 
     token = expect_type(LEFT_PAR);
+    ASTNode_ptr cond = parse_exp_rhs(token);
+    
     free_token(token);
     consume_eols();
-
-    ASTNode_ptr cond = parse_exp_rhs();
 
     token = expect_type(RIGHT_PAR);
     free_token(token);
@@ -900,10 +905,10 @@ static ASTNode_ptr parse_while_statement(ST_Node *glob_var_symtable)
     free_token(token);
 
     token = expect_type(LEFT_PAR);
+    ASTNode_ptr cond = parse_exp_rhs(token);
+
     free_token(token);
     consume_eols();
-
-    ASTNode_ptr cond = parse_exp_rhs();
 
     token = expect_type(RIGHT_PAR);
     free_token(token);
@@ -930,9 +935,9 @@ static ASTNode_ptr parse_while_statement(ST_Node *glob_var_symtable)
 static ASTNode_ptr parse_return_statement(void)
 {
     token_ptr token = expect_keyword("return");
+    
+    ASTNode_ptr value = parse_exp_rhs(token);
     free_token(token);
-
-    ASTNode_ptr value = parse_exp_rhs();
 
     return ast_create_return(value);
 }
@@ -967,9 +972,9 @@ static ASTNode_ptr parse_for_statement(ST_Node *glob_var_symtable)
     char *iter_name = id_token->value.str_value;
 
     token = expect_keyword("in");
+    
+    ASTNode_ptr iter_expr = parse_exp_rhs(token); // ???
     free_token(token);
-
-    ASTNode_ptr iter_expr = parse_exp_rhs();
 
     // if (iter_expr->type != NODE_RANGE)
 
