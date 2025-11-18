@@ -10,6 +10,53 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include "error.h"
+#include "scanner.h"
+#include "ast.h"
+#include "symtable.h"
+
+
+// Static global pointers – only for parser/PSA
+static ASTNode_ptr g_parser_ast_root = NULL;
+static ST_Node *g_parser_func_symtable = NULL;
+static ST_Node *g_parser_glob_symtable = NULL;
+
+// Setters
+void error_set_parser_ast_root(void *ast_root)
+{
+    g_parser_ast_root = (ASTNode_ptr)ast_root;
+}
+
+void error_set_parser_func_symtable(void *func_symtable)
+{
+    g_parser_func_symtable = (ST_Node *)func_symtable;
+}
+
+void error_set_parser_glob_symtable(void *glob_var_symtable)
+{
+    g_parser_glob_symtable = (ST_Node *)glob_var_symtable;
+}
+
+// Internal cleanup only for parser/PSA
+static void parser_psa_cleanup(void)
+{
+    if (g_parser_ast_root != NULL) {
+        ast_free(g_parser_ast_root);
+        g_parser_ast_root = NULL;
+    }
+
+    if (g_parser_func_symtable != NULL) {
+        st_dispose(g_parser_func_symtable);
+        g_parser_func_symtable = NULL;
+    }
+
+    if (g_parser_glob_symtable != NULL) {
+        st_dispose(g_parser_glob_symtable);
+        g_parser_glob_symtable = NULL;
+    }
+
+    // scanner (token buffer, pushed_token, ...)
+    scanner_cleanup();
+}
 
 /**
  * @brief Prints a warning messages based on the provided warning code. 
@@ -51,6 +98,8 @@ void warnings(int warning, const char *format, ...) {
  * @param error Error code to exit with.
  */
 void error_exit(int error) {
+    parser_psa_cleanup();
+
     switch (error) {
         case ERR_LEXICAL: exit(ERR_LEXICAL);
         case ERR_SYNTACTIC: exit(ERR_SYNTACTIC);
