@@ -5,6 +5,7 @@
 #include "parser_expression.h"
 #include "scanner.h"
 #include "stack.h"
+#include "parser.h"
 
 /**
  * @brief Internal token type for precedence parser marker ('<')
