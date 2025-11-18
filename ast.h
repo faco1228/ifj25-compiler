@@ -121,7 +121,7 @@ struct ASTNode
             char *name;
             unsigned arg_count;
             function_type type;
-            ASTNode_ptr body;
+            // ASTNode_ptr body; // do children [0]
         } function_def;
 
         // CALL - keep as is
@@ -135,76 +135,76 @@ struct ASTNode
         // ASSIGN
         struct
         {
-            ASTNode_ptr lhs; // typicky NODE_IDENTIFIER
-            ASTNode_ptr rhs; // expression
+            // ASTNode_ptr lhs; // typicky NODE_IDENTIFIER // children
+            // ASTNode_ptr rhs; // expression // children
         } assign;
 
         // BINARY operation
         struct
         {
-            ASTNode_ptr lhs;
-            ASTNode_ptr rhs;
+            // ASTNode_ptr lhs;  // children [0]
+            // ASTNode_ptr rhs;  // children [1]
             operator_types op_type;
         } binary_operator;
 
         // UNARY operation
         struct
         {
-            ASTNode_ptr expres;
+            // ASTNode_ptr expres; // children
             operator_types op_type; // unary minus - OP_MINUS
         } unary_operator;
 
         // IF
         struct
         {
-            ASTNode_ptr condition;
-            ASTNode_ptr block_then; // NODE_BLOCK
-            ASTNode_ptr block_else; // NODE_BLOCK or NULL
+            // ASTNode_ptr condition; // children [0]
+            // ASTNode_ptr block_then; // NODE_BLOCK // children [1]
+            // ASTNode_ptr block_else; // NODE_BLOCK or NULL // children [2]
         } if_statement;
 
         // WHILE
         struct
         {
-            ASTNode_ptr condition;
-            ASTNode_ptr body; // NODE_BLOCK
+            // ASTNode_ptr condition; // children [0]
+            // ASTNode_ptr body; // NODE_BLOCK children [1]
         } while_statement;
 
         // FOR
         struct
         {
             char *name_iter;
-            ASTNode_ptr expr_iter; // NODE_RANGE
-            ASTNode_ptr body;
+            // ASTNode_ptr expr_iter; // NODE_RANGE // children [0]
+            // ASTNode_ptr body; // children [1]
         } for_statement;
 
         // RETURN
         struct
         {
-            ASTNode_ptr value;
+            // ASTNode_ptr value; // children [0]
         } ret;
 
         // EXPRESION statement;
         struct
         { // 0-left 1-right
-            ASTNode_ptr exp;
+            // ASTNode_ptr exp; // children [0]
             ValueType result_type;
-            exp_restriction_t restriction;
+            exp_restriction_t restriction; 
         } exp_statement;
 
         // RANGE
         struct
         {
-            ASTNode_ptr start;
-            ASTNode_ptr stop;
+            // ASTNode_ptr start; // children [0]
+            // ASTNode_ptr stop; // children [1]
             bool inclusive; // true: a..b (inclusive, "<a,b>"); false: a...b (excluisive, "<a,b)")
         } range;
 
         // TERNARY
         struct
         {
-            ASTNode_ptr condition;
-            ASTNode_ptr expr_then;
-            ASTNode_ptr expr_else;
+            // ASTNode_ptr condition; // children [0]
+            // ASTNode_ptr expr_then; // children [1]
+            // ASTNode_ptr expr_else; // children [2]
         } ternary;
 
         // LITERAL
