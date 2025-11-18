@@ -89,7 +89,6 @@ void verify_var_existence(ASTNode_ptr root, Key *key, Scope_Stack *scope_stack)
 
     if (!search_result)
     {
-        ast_free(root);
         free(key);
         error_exit(ERR_SEM_UNDEFINED);
     }
@@ -213,19 +212,16 @@ void handle_function_call(ASTNode_ptr root, ASTNode_ptr call_node, ST_Node *func
 
         if (!builtin_exists(name)) // incorrect built-in ident used
         {
-            ast_free(root);
             error_exit(ERR_SEM_UNDEFINED);
         }
 
         if (!builtin_args_count_correct(name, args_count))
         {
-            ast_free(root);
             error_exit(ERR_SEM_ARG_COUNT);
         }
 
         if (!builtin_args_check(root, call_node, name, args_count, scope_stack, func_symtable))
         {
-            ast_free(root);
             error_exit(ERR_SEM_TYPE_MISMATCH);
         }
     }
@@ -241,13 +237,11 @@ void handle_function_call(ASTNode_ptr root, ASTNode_ptr call_node, ST_Node *func
 
         if (!search_result) // function called does not exist
         {
-            ast_free(root);
             error_exit(ERR_SEM_UNDEFINED);
         }
 
         if (!args_count_check(search_result, key->args_count)) // incorrect num of arguments inside function call
         {
-            ast_free(root);
             error_exit(ERR_SEM_ARG_COUNT);
         }
 
@@ -486,6 +480,9 @@ void semantic_analysis(ASTNode_ptr root, ASTNode_ptr node_to_handle, ST_Node *fu
 
     switch (node_to_handle->type)
     {
+    case NODE_PROGRAM:
+        if (!main_exists(func_symtable))
+            error_exit(ERR_SEM_UNDEFINED);
     case NODE_ASSIGN: // when assignment node is found, we need to verify whether the assignment target is not a setter
     {
         // first we try to find a setter with idents name
@@ -507,7 +504,6 @@ void semantic_analysis(ASTNode_ptr root, ASTNode_ptr node_to_handle, ST_Node *fu
         if (verify_var_redec(key, current_scope)) // redec detected
         {
             free(key);
-            ast_free(root);
             error_exit(ERR_SEM_REDEFINITION);
         }
         else // new local var needs to be added to current_scope
@@ -537,13 +533,11 @@ void semantic_analysis(ASTNode_ptr root, ASTNode_ptr node_to_handle, ST_Node *fu
 
         if (!eval_exp_flags(node_to_handle)) // type mismatch detected inside eval_exp_flags()
         {
-            ast_free(root);
             error_exit(ERR_SEM_TYPE_MISMATCH);
         }
 
         if (zero_divison_detected)
         {
-            ast_free(root);
             error_exit(ERR_SEM_OTHER);
         }
 
@@ -561,7 +555,6 @@ void semantic_analysis(ASTNode_ptr root, ASTNode_ptr node_to_handle, ST_Node *fu
     {
         if (loop_nesting_tracker == 0) // break or continue keyword used outside of a loop
         {
-            ast_free(root);
             error_exit(ERR_SEM_OTHER);
         }
 

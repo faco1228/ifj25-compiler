@@ -340,8 +340,8 @@ static ASTNode_ptr parse_function_def(token_ptr id, ST_Node *func_symtable, ST_N
 
     ASTNode_ptr body = parse_block(glob_var_symtable);
 
-    token = expect_type(END_OF_LINE);
-    free_token(token);
+    // token = expect_type(END_OF_LINE);
+    // free_token(token);
 
     ASTNode_ptr fun = ast_create_function(id->value.str_value, arg_count, FUN_F, body);
 
@@ -395,8 +395,8 @@ static ASTNode_ptr parse_setter_def(token_ptr id, ST_Node *func_symtable, ST_Nod
 
     ASTNode_ptr body = parse_block(glob_var_symtable);
 
-    token = expect_type(END_OF_LINE);
-    free_token(token);
+    // token = expect_type(END_OF_LINE);
+    // free_token(token);
 
     ASTNode_ptr fun = ast_create_function(id->value.str_value, 1, FUN_S, body);
 
@@ -427,8 +427,8 @@ static ASTNode_ptr parse_getter_def(token_ptr id, ST_Node *func_symtable, ST_Nod
 
     ASTNode_ptr body = parse_block(glob_var_symtable);
 
-    token = expect_type(END_OF_LINE);
-    free_token(token);
+    // token = expect_type(END_OF_LINE);
+    // free_token(token);
 
     ASTNode_ptr fun = ast_create_function(id->value.str_value, 0, FUN_G, body);
 
