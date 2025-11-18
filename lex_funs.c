@@ -975,7 +975,7 @@ void process_number(token_ptr token, int first_char){
     printf("Velkost temp_bufferu = %lu\n", strlen(temp_buffer));
 
     //Strings have to be null terminated
-    //temp_buffer[index] = '\0';
+    temp_buffer[index] = '\0';
 
     //Converts string to appropriate numeric value
     if (is_hexa){
