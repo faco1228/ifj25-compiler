@@ -20,7 +20,7 @@
 const char *key_words_arr[] = {
     "class", "if", "else", "is", "return", "var", "while", "Ifj",
     "static", "true", "false", "Num", "String", "Null", "Break", "Continue", 
-    "for", NULL
+    "for", "import", NULL
 };
 
 //Initializing global variables

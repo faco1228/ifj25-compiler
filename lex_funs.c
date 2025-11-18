@@ -759,10 +759,10 @@ void process_dots(token_ptr token){
  * @param first_char first digit (0-9) that has already been read
  */
 void process_number(token_ptr token, int first_char){
-    int digit;              //Variable for reading characters from input stream
-    char *temp_buffer;      //Temporary buffer for storing numeric string
-    unsigned index = 0;     //Index in the buffer
-    bool is_hexa = false;   //Tracks whether the variable is hexadecimal
+    int digit;                 //Variable for reading characters from input stream
+    char *temp_buffer = NULL;  //Temporary buffer for storing numeric string
+    unsigned index = 0;        //Index in the buffer
+    bool is_hexa = false;      //Tracks whether the variable is hexadecimal
 
     //Allocating memory for temp buffer
     if ((temp_buffer = malloc(sizeof(char) * MAX_DIGITS)) == NULL){
@@ -783,6 +783,15 @@ void process_number(token_ptr token, int first_char){
         
         switch (digit){
         case '.':
+            // Checks whetherr the index is in valid range
+            if (index >= MAX_DIGITS - 1){
+                //warnings(1, "numeric literal too long\n");
+                free_token(token);
+                free(temp_buffer);
+                temp_buffer = NULL;
+                error_exit(ERR_LEXICAL);
+            }
+
             //Storing decimal point
             temp_buffer[index] = digit;
             index++;
@@ -794,6 +803,15 @@ void process_number(token_ptr token, int first_char){
         case 'e':
         case 'E':
             //Exponential notation starting with 0
+
+            // Checks whetherr the index is in valid range
+            if (index >= MAX_DIGITS - 1){
+                //warnings(1, "numeric literal too long\n");
+                free_token(token);
+                free(temp_buffer);
+                temp_buffer = NULL;
+                error_exit(ERR_LEXICAL);
+            }
 
             //Storying e/E
             temp_buffer[index] = digit;
@@ -807,6 +825,15 @@ void process_number(token_ptr token, int first_char){
             //Hexadecimal number
             is_hexa = true;
 
+            // Checks whetherr the index is in valid range
+            if (index >= MAX_DIGITS - 1){
+                //warnings(1, "numeric literal too long\n");
+                free_token(token);
+                free(temp_buffer);
+                temp_buffer = NULL;
+                error_exit(ERR_LEXICAL);
+            }
+
             //Storing x
             temp_buffer[index] = 'x';
             index++;
@@ -814,7 +841,7 @@ void process_number(token_ptr token, int first_char){
             //Reads hexadecimal digits
             while (isxdigit(digit = fgetc(stdin))){
                 //Check if buffer is full
-                if (index >= MAX_DIGITS){
+                if (index >= MAX_DIGITS - 1){
                     //warnings(1, "numeric literal too long\n");
                     free_token(token);
                     free(temp_buffer);
@@ -871,8 +898,8 @@ void process_number(token_ptr token, int first_char){
         //Reads while the characters are digits
         while (isdigit(digit = fgetc(stdin))){
             //Check if buffer is full
-            if (index >= MAX_DIGITS){
-                //warnings(1, "invalid number format (leading zeros)\n");
+            if (index >= MAX_DIGITS - 1){
+                //warnings(1, "numeric literal too long\n");
                 free_token(token);
                 free(temp_buffer);
                 temp_buffer = NULL;
@@ -887,6 +914,15 @@ void process_number(token_ptr token, int first_char){
         //After the while loop terminated, check what character stopped the loop
         switch (digit){
         case '.':
+            // Checks whetherr the index is in valid range
+            if (index >= MAX_DIGITS - 1){
+                //warnings(1, "numeric literal too long\n");
+                free_token(token);
+                free(temp_buffer);
+                temp_buffer = NULL;
+                error_exit(ERR_LEXICAL);
+            }
+
             //Storing decimal point
             temp_buffer[index] = digit;
             index++;
@@ -898,6 +934,15 @@ void process_number(token_ptr token, int first_char){
         case 'e':
         case 'E':
             //Exponential notation
+
+            // Checks whetherr the index is in valid range
+            if (index >= MAX_DIGITS - 1){
+                //warnings(1, "numeric literal too long\n");
+                free_token(token);
+                free(temp_buffer);
+                temp_buffer = NULL;
+                error_exit(ERR_LEXICAL);
+            }
 
             //Storing decimal point
             temp_buffer[index] = digit;
@@ -918,8 +963,19 @@ void process_number(token_ptr token, int first_char){
         }
     }
 
+    // Checks whetherr the index is in valid range
+    if (index >= MAX_DIGITS - 1){
+        //warnings(1, "numeric literal too long\n");
+        free_token(token);
+        free(temp_buffer);
+        temp_buffer = NULL;
+        error_exit(ERR_LEXICAL);
+    }    
+
+    printf("Velkost temp_bufferu = %lu\n", strlen(temp_buffer));
+
     //Strings have to be null terminated
-    temp_buffer[index] = '\0';
+    //temp_buffer[index] = '\0';
 
     //Converts string to appropriate numeric value
     if (is_hexa){
@@ -957,6 +1013,15 @@ void process_float(token_ptr token, char *buffer, unsigned *buf_index){
     
     //Reads decimal digits
     while (isdigit(digit = fgetc(stdin))){
+        // Checks whetherr the index is in valid range
+        if (*buf_index >= MAX_DIGITS - 1){
+            //warnings(1, "numeric literal too long\n");
+            free_token(token);
+            free(buffer);
+            buffer = NULL;
+            error_exit(ERR_LEXICAL);
+        }
+
         buffer[*buf_index] = digit;
         (*buf_index)++;
         count++;
@@ -964,6 +1029,16 @@ void process_float(token_ptr token, char *buffer, unsigned *buf_index){
 
     //Sets tokens attributes
     token->type = FLOAT_LIT;
+
+    // Checks whetherr the index is in valid range
+    if (*buf_index >= MAX_DIGITS - 1){
+        //warnings(1, "numeric literal too long\n");
+        free_token(token);
+        free(buffer);
+        buffer = NULL;
+        error_exit(ERR_LEXICAL);
+    }
+
 
     //Strings have to be null terminated
     buffer[*buf_index] = '\0';
@@ -974,6 +1049,15 @@ void process_float(token_ptr token, char *buffer, unsigned *buf_index){
     }
     //Check if there's an exponent
     else if(digit == 'e' || digit == 'E'){
+        // Checks whetherr the index is in valid range
+        if (*buf_index >= MAX_DIGITS - 1){
+            //warnings(1, "numeric literal too long\n");
+            free_token(token);
+            free(buffer);
+            buffer = NULL;
+            error_exit(ERR_LEXICAL);
+        }
+
         //Storing decimal point
         buffer[*buf_index] = digit;
         (*buf_index)++;
@@ -1022,6 +1106,15 @@ void process_exp(token_ptr token, char *buffer, unsigned *buf_index){
     }
     //Check for optional sign
     else if (digit == '+' || digit == '-'){
+        // Checks whetherr the index is in valid range
+        if (*buf_index >= MAX_DIGITS - 1){
+            //warnings(1, "numeric literal too long\n");
+            free_token(token);
+            free(buffer);
+            buffer = NULL;
+            error_exit(ERR_LEXICAL);
+        }
+
         //Stores sign
         buffer[*buf_index] = digit;
         (*buf_index)++;
@@ -1032,6 +1125,15 @@ void process_exp(token_ptr token, char *buffer, unsigned *buf_index){
 
     //Read exponent digits
     while (isdigit(digit)){
+        // Checks whetherr the index is in valid range
+        if (*buf_index >= MAX_DIGITS - 1){
+            //warnings(1, "numeric literal too long\n");
+            free_token(token);
+            free(buffer);
+            buffer = NULL;
+            error_exit(ERR_LEXICAL);
+        }
+
         //Tracks how many digits were read
         count++;
 
