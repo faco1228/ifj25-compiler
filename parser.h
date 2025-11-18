@@ -15,9 +15,14 @@
 #include "scanner.h"
 #include "error.h"
 #include "ast.h"
+#include "scope_stack.h"
+#include "symtable.h"
+#include "semantic_analysis.h"
 #include <stdio.h>
 #include <string.h>
 
+#define PARSE_OK 0
+#define PARSE_ERROR ERR_SYNTACTIC
 
 /**
  * @brief Parse the entire IFJ25 program using the scanner.
@@ -36,5 +41,40 @@
  *         because @c error_exit(ERR_SYNTACTIC) terminates the program.
  */
 ASTNode_ptr parse_program(ST_Node *func_symtable, ST_Node *glob_var_symtable);
+
+/**
+ * @brief Parse a comma-separated parameter list.
+ *
+ * Grammar:
+ * @code
+ * <param_list> ::= ε | ID ( "," ID )*
+ * @endcode
+ *
+ * @note
+ *  - EOLs are allowed after each comma.
+ *
+ * @return PARSE_OK on success.
+ */
+int parse_param_list(unsigned *arg_count);
+
+/**
+ * @brief Read and return a token of the required type.
+ *
+ * @param exp_tok Expected token type.
+ *
+ * @pre Next token's type must match @p exp_tok.
+ * @return Token pointer owned by the caller (must call free_token()).
+ * @note On mismatch calls error_exit(ERR_SYNTACTIC).
+ */
+token_ptr expect_type(enum token_type exp_tok);
+
+/**
+ * @brief Consume a maximal sequence of EOL tokens as soft whitespace.
+ *
+ * @note
+ *  - Typical usage: after '(', after ',', and after operators like '=' or '.'.
+ *  - Internally reads and frees all contiguous EOL tokens.
+ */
+void consume_eols(void);
 
 #endif

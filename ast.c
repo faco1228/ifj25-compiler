@@ -21,10 +21,10 @@ static char *ast_strcpy(const char *str);
 // implementation of core functions
 ASTNode_ptr ast_create(NodeType type) {
     // allocate mem for new ast node
-    ASTNode_ptr node = (ASTNode_ptr)ast_malloc(sizeof(ASTNode));
+    ASTNode_ptr node = (ASTNode_ptr)ast_malloc(sizeof(ASTNode_t));
 
     // make sure, whole struct is clear
-    memset(node, 0, sizeof(ASTNode));
+    memset(node, 0, sizeof(ASTNode_t));
 
     // set the values for type, num of children and pointer
     node->type = type;

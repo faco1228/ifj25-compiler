@@ -93,10 +93,10 @@ typedef enum
 } NodeType;
 
 // Forward declaration and pointer alias for the ASTNode structure
-typedef struct ASTNode ASTNode, *ASTNode_ptr;
+typedef struct ASTNode ASTNode_t, *ASTNode_ptr;
 
 // Data type representing AST node
-typedef struct ASTNode
+struct ASTNode
 {
     NodeType type;
 
