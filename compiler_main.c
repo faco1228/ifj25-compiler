@@ -14,9 +14,6 @@
 #include "scope_stack.h"
 #include "symtable.h"
 
-// other imports
-#include <stdlib.h>
-
 #define COMPILATIONS_SUCCESS 0
 
 int main()
