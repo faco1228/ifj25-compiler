@@ -8,15 +8,8 @@
  * @copyright Copyright (c) 2025
  * 
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "error.h"
-#include "parser_expression.h"
-#include "scanner.h"
-#include "stack.h"
-#include "parser.h"
 
+#include "parser_expression.h"
 
 
 /**
@@ -50,6 +43,62 @@ const precedence_relation precedence_table[OP_END+1][OP_END+1] = {
     { precedence_shift,  precedence_shift,  precedence_shift,  precedence_shift,  precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_error, precedence_shift, precedence_finish }  // $
 };
 
+// doplnit brief doxxy
+// z operandového tokenu (ident, literal) spraví AST leaf
+static ASTNode_ptr ast_from_operand_token(token_ptr t) {
+    switch (t->type) {
+        case IDENT:
+        case GLOB_VAR:
+            return ast_create_ident(t->value.str_value);
+
+        case INT_LIT:
+            return ast_create_int(t->value.int_value);
+
+        case FLOAT_LIT:
+            return ast_create_float(t->value.float_value);
+
+        case ONE_L_STRING:
+        case MUL_L_STRING:
+            return ast_create_str(t->value.str_value);
+
+        case NULL_LIT:
+            return ast_create_null();
+
+        default:
+            error_exit(ERR_INTERNAL);
+    }
+    return NULL;
+}
+
+// doplnit brief doxxy
+// mapovanie scanner operátorov na enum operator_types v AST
+static operator_types map_op_to_ast(enum other_value_type op_val)
+{
+    switch (op_val)
+    {
+        case PLUS_V:               return OP_PLUS;
+        case MINUS_V:              return OP_MINUS;
+        case STAR_V:               return OP_MUL;
+        case SLASH_V:              return OP_DIV;
+
+        case LOGICAL_EQUAL_V:      return OP_EQ;
+        case LOGICAL_NOT_EQUAL_V:  return OP_NEQ;
+
+        case LESS_THAN_V:          return OP_LT;
+        case LESS_OR_EQ_THAN_V:    return OP_LTE;
+        case GREATER_THAN_V:       return OP_GT;
+        case GREATER_OR_EQ_THAN_V: return OP_GTE;
+
+        // case NULL_V:               return OP_IS;
+        // case Q_MARK_V:             return OP_IS;
+
+        default:
+            error_exit(ERR_INTERNAL);
+    }
+}
+
+
+
 /**
  * @brief Maps token types from scanner to precedence table indices.
  * 
@@ -74,7 +123,7 @@ precedence_index token_to_index(token_ptr token) {
                 case LESS_OR_EQ_THAN_V:    return OP_LOWER_EQUAL;    // <=
                 case GREATER_OR_EQ_THAN_V: return OP_GREATER_EQUAL;  // >=
                 case LOGICAL_EQUAL_V:      return OP_EQUAL;          // ==
-                case EXC_MARK_V:           return OP_NOT_EQUAL;      // !=
+                case LOGICAL_NOT_EQUAL_V:           return OP_NOT_EQUAL;      // !=
             default:                   return OP_UNRECOGNISED;       // Fallback for unknown operators
             }
 
@@ -146,9 +195,7 @@ void precedence_reduce_func(Stack *stack) {
             //  NOW free the tokens that were reduced
             // Don't free nonterminals (they will be used in further reductions)
             for (int i = 0; i < count; i++) {
-                if (items[i]->type != NONTERMINAL_E) {
-                    free_token(items[i]);
-                }
+                free_token(items[i]);      
             }
             stack_free(stack);
             error_exit(ERR_SYNTACTIC);
@@ -166,29 +213,33 @@ void precedence_reduce_func(Stack *stack) {
     token_ptr third_stack_item   = (count >= 3) ? items[count - 3] : NULL;
 
     bool matched = false; // Flag to check if any grammar rule matched
+    ASTNode_ptr reduced_ast = NULL;
 
     // Grammar rule: E → i (single operand)
     if (count == 1 && first_stack_item->type != OPERATOR &&
         first_stack_item->type != MARKER &&
         first_stack_item->type != NONTERMINAL_E) {
+        reduced_ast = ast_from_operand_token(first_stack_item);
         matched = true;
     }
 
     // Grammar rule: E → E (nonterminal - for final reductions)
-    if (count == 1 && first_stack_item->type == NONTERMINAL_E) {
+    if (!matched && count == 1 && first_stack_item->type == NONTERMINAL_E) {
+        reduced_ast = (ASTNode_ptr)first_stack_item->ast;
         matched = true;
     }
 
     // Grammar rule: E → (E) (parenthesized expression)
-    if (count == 3 &&
+    if (!matched && count == 3 &&
         first_stack_item->type == LEFT_PAR &&
         second_stack_item->type == NONTERMINAL_E &&
         third_stack_item->type == RIGHT_PAR) {
+        reduced_ast = (ASTNode_ptr)second_stack_item->ast;
         matched = true;
     }
 
     // Grammar rule: E → E op E (binary operation)
-    if (count == 3 &&
+    if (!matched && count == 3 &&
         first_stack_item->type == NONTERMINAL_E &&
         third_stack_item->type == NONTERMINAL_E &&
         second_stack_item->type == OPERATOR) {
@@ -203,7 +254,14 @@ void precedence_reduce_func(Stack *stack) {
             case LESS_OR_EQ_THAN_V:   // <=
             case GREATER_OR_EQ_THAN_V:// >=
             case LOGICAL_EQUAL_V:        // ==
-            case EXC_MARK_V:          // !=
+            case LOGICAL_NOT_EQUAL_V:    // !=
+
+                operator_types op = map_op_to_ast(second_stack_item->value.other_value);
+
+                ASTNode_ptr lhs = (ASTNode_ptr)first_stack_item->ast;
+                ASTNode_ptr rhs = (ASTNode_ptr)third_stack_item->ast;
+
+                reduced_ast = ast_create_binary(lhs, rhs, op);
                 matched = true;
                 break;
             default:
@@ -216,9 +274,7 @@ void precedence_reduce_func(Stack *stack) {
         //  NOW free the tokens that were reduced
         // Don't free nonterminals (they will be used in further reductions)
         for (int i = 0; i < count; i++) {
-            if (items[i]->type != NONTERMINAL_E) {
-                free_token(items[i]);
-            }
+            free_token(items[i]);
         }        
         stack_free(stack);
         error_exit(ERR_SYNTACTIC);        
@@ -230,15 +286,15 @@ void precedence_reduce_func(Stack *stack) {
         //  NOW free the tokens that were reduced
         // Don't free nonterminals (they will be used in further reductions)
         for (int i = 0; i < count; i++) {
-            if (items[i]->type != NONTERMINAL_E) {
-                free_token(items[i]);
-            }
+            free_token(items[i]);
         }
         stack_free(stack);
-        error_exit(ERR_SYNTACTIC);        
         error_exit(ERR_INTERNAL);  
     }
+
+    memset(newE, 0, sizeof(token_t));
     newE->type = NONTERMINAL_E;
+    newE->ast = reduced_ast;
     
     // Push the nonterminal E back onto stack
     stack_push(stack, newE);
@@ -246,9 +302,7 @@ void precedence_reduce_func(Stack *stack) {
     //  NOW free the tokens that were reduced
     // Don't free nonterminals (they will be used in further reductions)
     for (int i = 0; i < count; i++) {
-        if (items[i]->type != NONTERMINAL_E) {
-            free_token(items[i]);
-        }
+        free_token(items[i]); 
     }
 }
 
@@ -383,7 +437,7 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
  * @param recognition_token Token that indicates context (= for assignment, ( for condition, return keyword)
  * @return true if expression is syntactically valid, exits with error otherwise
  */
-bool parse_expression(token_ptr recognition_token) {
+ASTNode_ptr parse_expression(token_ptr recognition_token) {
    
     // Initialize the parsing stack
     Stack stack;
@@ -423,11 +477,11 @@ bool parse_expression(token_ptr recognition_token) {
 
                     // Parse assignment expression until EOL after non-operator
                     while (true) {
-                        printf("DEBUG: current_token type=%d\n", current_token->type);
+                        // printf("DEBUG: current_token type=%d\n", current_token->type);
 
                         // Process current token with precedence comparison
                         bool should_advance = precedence_table_compare(&stack, current_token, &top_terminal);
-                        free(current_token);
+                        free(current_token); // erase ??
 
                         // If we should advance (shift or equal operation)
                         if (should_advance) {
@@ -469,7 +523,7 @@ bool parse_expression(token_ptr recognition_token) {
                 // Skip newlines (allowed in conditions)
                 consume_eols();
                 
-                printf("DEBUG: current_token type=%d\n", current_token->type);
+                // printf("DEBUG: current_token type=%d\n", current_token->type);
 
                 // Count parentheses to track nesting
                 if (current_token->type == LEFT_PAR)
@@ -491,7 +545,7 @@ bool parse_expression(token_ptr recognition_token) {
             break;
     }
 
-    printf("Dostal som sa az po kontrolu s $ (Vysiel som z pytania si tokenov)");
+    // printf("Dostal som sa az po kontrolu s $ (Vysiel som z pytania si tokenov)");
     // After main expression parsing, create end token for final reductions
     token_ptr end_token = malloc(sizeof(token_t));
     if (!end_token)
@@ -541,9 +595,13 @@ bool parse_expression(token_ptr recognition_token) {
         stack.top &&
         stack.top->token->type == NONTERMINAL_E) {
         // Success: expression is syntactically valid
+
+        // root pre PSA
+        ASTNode_ptr psa_root = (ASTNode_ptr)stack.top->token->ast;
+
         free(end_token);
         stack_free(&stack);
-        return true;
+        return psa_root;
     }
     else {
         // Error: stack not in expected final state
@@ -553,6 +611,6 @@ bool parse_expression(token_ptr recognition_token) {
         error_exit(ERR_SYNTACTIC);
     }
 
-    return false;
+    return NULL;
 }
 

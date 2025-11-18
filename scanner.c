@@ -76,6 +76,9 @@ token_ptr get_token(){
         //warnings(99, "memory allocation failed at line: %d\n", 73);
         error_exit(ERR_INTERNAL);
     }
+
+    // uprava pre PSA
+    token->ast = NULL;
     
     //Takes care of the rest
     process_next_token(token); 
