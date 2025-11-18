@@ -1,8 +1,18 @@
+/**
+ * @file symtable.c
+ * @author xmezeim00
+ * @brief Implementation of symtable using AVL binary tree.
+ * @version 0.1
+ * @date 2025-11-17
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
 #include "symtable.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include "../error.h" // library with custom error handling
+#include "error.h" // library with custom error handling
 
 //**HELPER FUNCTION PROTOTYPES**//
 static char *str_duplicate(char *to_duplicate);
@@ -121,10 +131,10 @@ ST_Node *st_insert_node(ST_Node *root_ptr, ST_Node *to_insert)
         int key_cmp_result = key_cmp(&to_insert->key, &root_ptr->key);
 
         if (key_cmp_result < 0) // go to left subtree
-            root_ptr->left = insert_node(root_ptr->left, to_insert);
+            root_ptr->left = st_insert_node(root_ptr->left, to_insert);
 
         else if (key_cmp_result > 0) // go to right subtree
-            root_ptr->right = insert_node(root_ptr->right, to_insert);
+            root_ptr->right = st_insert_node(root_ptr->right, to_insert);
 
         else // attempt to add already existing symbol made
             error_exit(ERR_SEM_REDEFINITION);
@@ -160,11 +170,11 @@ ST_Node *st_remove_node(ST_Node *root_ptr, Key *key)
 
     if (key_cmp_result < 0) // go to the left subtree
     {
-        root_ptr->left = remove_node(root_ptr->left, key);
+        root_ptr->left = st_remove_node(root_ptr->left, key);
     }
     else if (key_cmp_result > 0) // go to the right subtree
     {
-        root_ptr->right = remove_node(root_ptr->right, key);
+        root_ptr->right = st_remove_node(root_ptr->right, key);
     }
     else // node found
     {
@@ -190,7 +200,7 @@ ST_Node *st_remove_node(ST_Node *root_ptr, Key *key)
             root_ptr->key.id_type = max_node->key.id_type;
 
             // max node is removed
-            root_ptr->left = remove_node(root_ptr->left, &max_node->key);
+            root_ptr->left = st_remove_node(root_ptr->left, &max_node->key);
         }
         else if (root_ptr->left && !root_ptr->right) // only left child present
         {
@@ -237,10 +247,10 @@ ST_Node *st_search(ST_Node *root_ptr, Key *key)
         int key_cmp_result = key_cmp(key, &root_ptr->key);
 
         if (key_cmp_result < 0) // go to the left subtree
-            return search(root_ptr->left, key);
+            return st_search(root_ptr->left, key);
 
         else if (key_cmp_result > 0) // go to the right subtree
-            return search(root_ptr->right, key);
+            return st_search(root_ptr->right, key);
 
         else // node found
             return root_ptr;
@@ -257,8 +267,8 @@ void st_dispose_tree(ST_Node *root_ptr)
     if (!root_ptr)
         return;
 
-    dispose_tree(root_ptr->left);
-    dispose_tree(root_ptr->right);
+    st_dispose_tree(root_ptr->left);
+    st_dispose_tree(root_ptr->right);
     node_dispose(root_ptr);
 }
 

@@ -11,8 +11,9 @@
 #ifndef SEMANTIC_ANALYSIS_H
 #define SEMANTIC_ANALYSIS_H
 
-#include "include/symtable.h"
-#include "include/scope_stack.h"
+#include "symtable.h"
+#include "scope_stack.h"
+#include "ast.h"
 #include <stdbool.h>
 
 // enum of number codes for all possible data types
@@ -29,27 +30,13 @@ enum data_types
 typedef struct Builtin_Function
 {
     char *name;
-    int args_count;
+    unsigned args_count;
     enum data_types return_types[2]; // all built in functions have maximum of 2 return types
     enum data_types arg_types[3];    // order of the data types inside the array is the same as the order of args inside the function head
 
 } builtin_function_t;
 
 #define builtin_functions_arr_lenght 10
-
-// an array containing all built in functions
-extern builtin_function_t builtin_functions[builtin_functions_arr_lenght] =
-    {
-        {"read_str", 0, {STR_TYPE, NULL_TYPE}, {}},
-        {"read_num", 0, {NUM_TYPE, NULL_TYPE}, {}},
-        {"write", 1, {NULL_TYPE, UNDEFINED}, {ANY_TYPE}},
-        {"floor", 1, {NUM_TYPE, UNDEFINED}, {NUM_TYPE}},
-        {"str", 1, {STR_TYPE, UNDEFINED}, {ANY_TYPE}},
-        {"length", 1, {NUM_TYPE, UNDEFINED}, {STR_TYPE}},
-        {"substring", 3, {STR_TYPE, NULL_TYPE}, {STR_TYPE, NUM_TYPE, NUM_TYPE}},
-        {"strcmp", 2, {NUM_TYPE, UNDEFINED}, {STR_TYPE, STR_TYPE}},
-        {"ord", 2, {NUM_TYPE, UNDEFINED}, {STR_TYPE, NUM_TYPE}},
-        {"chr", 1, {STR_TYPE, UNDEFINED}, {NUM_TYPE}}};
 
 // flags signaling that things significant to type prediction are present in an expression
 extern bool has_string_lit;

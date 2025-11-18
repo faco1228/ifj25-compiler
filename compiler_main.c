@@ -11,8 +11,8 @@
 // importing compilder modules
 #include "parser.h"
 #include "semantic_analysis.h"
-#include "include/scope_stack.h"
-#include "include/symtable.h"
+#include "scope_stack.h"
+#include "symtable.h"
 
 // other imports
 #include <stdlib.h>

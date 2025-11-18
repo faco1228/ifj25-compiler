@@ -1,6 +1,18 @@
+/**
+ * @file scope_stack.c
+ * @author xmezeim00
+ * @brief Implements Stack and its helper functions to manage working with variable
+ * scopes according to the memory model of the IFJcode25 programming language.
+ * 
+ * @version 0.1
+ * @date 2025-11-17
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
 #include "scope_stack.h"
 #include "symtable.h"
-#include "../error.h"
+#include "error.h"
 #include <stdlib.h>
 
 #define DEFAULT_SCOPE_STACK_SIZE 10
@@ -36,7 +48,7 @@ void scope_stack_dispose(Scope_Stack *scope_stack)
     {
         if (scope_stack->symtable_array[idx])
         {
-            dispose_tree(scope_stack->symtable_array[idx]);
+            st_dispose_tree(scope_stack->symtable_array[idx]);
         }
     }
 
@@ -86,7 +98,7 @@ void scope_stack_pop(Scope_Stack *scope_stack)
     if (scope_stack_empty(scope_stack)) // cannot pop from an empty stack, nothing happens
         return;
 
-    dispose_tree(scope_stack_top(scope_stack)); // tree is freed before popping
+    st_dispose_tree(scope_stack_top(scope_stack)); // tree is freed before popping
 
     scope_stack->stack_top_index--;
 }
@@ -132,7 +144,7 @@ ST_Node *scope_stack_var_lookup(Scope_Stack *scope_stack, Key *key)
     
     for (int idx = scope_stack->stack_top_index; idx >= 0; idx--) // check the whole scope stack for var
     {
-        symbol = search(scope_stack->symtable_array[idx], key); 
+        symbol = st_search(scope_stack->symtable_array[idx], key); 
 
         if (symbol)
             return symbol;
