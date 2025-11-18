@@ -12,6 +12,14 @@
 #include <stdbool.h>
 #include "scanner.h"
 #include "stack.h"
+#include "ast.h"
+#include <stdio.h> 
+#include <stdlib.h>
+#include <string.h>
+#include "error.h"
+#include "scanner.h"
+#include "stack.h"
+#include "parser.h"
 
 
 
@@ -34,7 +42,7 @@
  * @brief Parses and checks syntax of expression.
  * 
  */
-bool parse_expression(token_ptr recognition_token );
+ASTNode_ptr parse_expression(token_ptr recognition_token );
 
 
 /**

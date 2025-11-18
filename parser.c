@@ -25,7 +25,7 @@ static ASTNode_ptr parse_statement(ST_Node *glob_var_symtable);
 static ASTNode_ptr parse_var_def(void);
 static ASTNode_ptr parse_assign_target(ST_Node *glob_var_symtable);
 static ASTNode_ptr parse_assignment_or_call(ST_Node *glob_var_symtable);
-static ASTNode_ptr parse_exp_rhs(void);
+static ASTNode_ptr parse_exp_rhs(token_ptr token);
 // static ASTNode_ptr parse_arg_list(void);
 static ASTNode_ptr parse_if_statement(ST_Node *glob_var_symtable);
 static ASTNode_ptr parse_while_statement(ST_Node *glob_var_symtable);
@@ -810,11 +810,11 @@ static ASTNode_ptr parse_assignment_or_call(ST_Node *glob_var_symtable)
         scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
-    free_token(token);
-
     consume_eols();
-
-    ASTNode_ptr rhs = parse_exp_rhs();
+    
+    ASTNode_ptr rhs = parse_exp_rhs(token);
+    
+    free_token(token);
 
     return ast_create_assignment(lhs, rhs);
 }
@@ -829,12 +829,10 @@ static ASTNode_ptr parse_assignment_or_call(ST_Node *glob_var_symtable)
  * @return PARSE_OK for now (stub). PSA will signal syntax errors
  *         via error_exit(ERR_SYNTACTIC).
  */
-static ASTNode_ptr parse_exp_rhs(void)
+static ASTNode_ptr parse_exp_rhs(token_ptr token)
 {
-    // psa_parse_expression() alebo aka funkcia bude vytvarat psa
-    ASTNode_ptr expr = NULL; // zatial iba null
-    if (expr == NULL)
-    {
+    ASTNode_ptr expr = parse_expression(token); 
+    if (expr == NULL){
         scanner_cleanup();
         error_exit(PARSE_ERROR);
     }
@@ -866,10 +864,10 @@ static ASTNode_ptr parse_if_statement(ST_Node *glob_var_symtable)
     free_token(token);
 
     token = expect_type(LEFT_PAR);
+    ASTNode_ptr cond = parse_exp_rhs(token);
+    
     free_token(token);
     consume_eols();
-
-    ASTNode_ptr cond = parse_exp_rhs();
 
     token = expect_type(RIGHT_PAR);
     free_token(token);
@@ -907,10 +905,10 @@ static ASTNode_ptr parse_while_statement(ST_Node *glob_var_symtable)
     free_token(token);
 
     token = expect_type(LEFT_PAR);
+    ASTNode_ptr cond = parse_exp_rhs(token);
+
     free_token(token);
     consume_eols();
-
-    ASTNode_ptr cond = parse_exp_rhs();
 
     token = expect_type(RIGHT_PAR);
     free_token(token);
@@ -937,9 +935,9 @@ static ASTNode_ptr parse_while_statement(ST_Node *glob_var_symtable)
 static ASTNode_ptr parse_return_statement(void)
 {
     token_ptr token = expect_keyword("return");
+    
+    ASTNode_ptr value = parse_exp_rhs(token);
     free_token(token);
-
-    ASTNode_ptr value = parse_exp_rhs();
 
     return ast_create_return(value);
 }
@@ -974,9 +972,9 @@ static ASTNode_ptr parse_for_statement(ST_Node *glob_var_symtable)
     char *iter_name = id_token->value.str_value;
 
     token = expect_keyword("in");
+    
+    ASTNode_ptr iter_expr = parse_exp_rhs(token); // ???
     free_token(token);
-
-    ASTNode_ptr iter_expr = parse_exp_rhs();
 
     // if (iter_expr->type != NODE_RANGE)
 

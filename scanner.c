@@ -81,8 +81,11 @@ token_ptr get_token()
         error_exit(ERR_INTERNAL);
     }
 
-    // Takes care of the rest
-    process_next_token(token);
+    // uprava pre PSA
+    token->ast = NULL;
+    
+    //Takes care of the rest
+    process_next_token(token); 
 
     return token;
 }

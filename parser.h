@@ -18,6 +18,7 @@
 #include "scope_stack.h"
 #include "symtable.h"
 #include "semantic_analysis.h"
+#include "parser_expression.h"
 #include <stdio.h>
 #include <string.h>
 
