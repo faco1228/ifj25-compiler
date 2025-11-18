@@ -141,6 +141,7 @@ precedence_index token_to_index(token_ptr token) {
         case ONE_L_STRING:
         case MUL_L_STRING:
             return OP_OPERAND;
+        
 
         // End of file marker maps to OP_END ($)
         case END_OF_FILE:
@@ -173,6 +174,7 @@ void precedence_reduce_func(Stack *stack) {
     // Check if stack is empty (should never happen)
     if (stack_is_empty(stack)){
         stack_free(stack);
+                printf("Sem som sa dostal 1 \n");
         error_exit(ERR_SYNTACTIC);
     }
 
@@ -198,7 +200,9 @@ void precedence_reduce_func(Stack *stack) {
             for (int i = 0; i < count; i++) {
                 free_token(items[i]);      
             }
+            
             stack_free(stack);
+                    printf("Sem som sa dostal 2 \n");
             error_exit(ERR_SYNTACTIC);
         }
 
@@ -277,8 +281,10 @@ void precedence_reduce_func(Stack *stack) {
         // Don't free nonterminals (they will be used in further reductions)
         for (int i = 0; i < count; i++) {
             free_token(items[i]);
-        }        
+        }
+                
         stack_free(stack);
+                printf("Sem som sa dostal  3 \n");
         error_exit(ERR_SYNTACTIC);        
     }
 
@@ -330,6 +336,7 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     if (top_token == NULL){
         stack_free(stack);
         free_token(current_token);
+                printf("Sem som sa dostal  4\n");
         error_exit(ERR_SYNTACTIC); // Stack should never be empty during parsing
     }
 
@@ -350,7 +357,8 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     // Top terminal should always exist (at minimum, '$' is on stack)
     if(*top_terminal == NULL){
         stack_free(stack);
-        free_token(current_token);     
+        free_token(current_token);  
+                printf("Sem som sa dostal 5 \n");
         error_exit(ERR_SYNTACTIC);
     }
     
@@ -363,14 +371,16 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     precedence_index top_index = token_to_index(*top_terminal);
     if (top_index == OP_UNRECOGNISED){
         stack_free(stack);
-        free_token(current_token);        
+        free_token(current_token);  
+                printf("Sem som sa dostal 6 \n");  
         error_exit(ERR_SYNTACTIC);
     }
     
     precedence_index curr_index = token_to_index(current_token);
     if (curr_index == OP_UNRECOGNISED){
         stack_free(stack);
-        free_token(current_token);        
+        free_token(current_token); 
+                printf("Sem som sa dostal  7 \n");     
         error_exit(ERR_SYNTACTIC);
     }
     
@@ -412,6 +422,7 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
             // Invalid token combination according to precedence table
             stack_free(stack);
             free_token(current_token);
+                    printf("Sem som sa dostal 8\n");
             error_exit(ERR_SYNTACTIC);
     }
     return true;
@@ -434,7 +445,7 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
  * @return true if expression is syntactically valid, exits with error otherwise
  */
 ASTNode_ptr parse_expression(token_ptr recognition_token) {
-   
+        
     // Initialize the parsing stack
     Stack stack;
     stack_init(&stack);
@@ -484,17 +495,63 @@ ASTNode_ptr parse_expression(token_ptr recognition_token) {
                             // IF there are not then it does nothing 
                             if(current_token->type == OPERATOR){
                                 consume_eols();
-                            } 
+                            } else if (eol_end_expr(current_token)){
+                                // expression ended, the rest of precedence analysis will terminate
+                                break;
+                            }
 
                             // reading next token
                             current_token = get_token();
                             precedence_index curr_index = token_to_index(current_token);
 
-                            if (curr_index == OP_UNRECOGNISED)
-                            {
+                            if (curr_index == OP_UNRECOGNISED){
+
+                     //--------------------------------------DOPLNENE PRE DEBUG//--------------------------------------//
+
+
+                            printf("Sem som sa dostal 9 \n");
+
+                            switch (current_token->type) {
+                                case IDENT:
+                                case GLOB_VAR:
+                                case KEY_WORD:
+                                case ONE_L_STRING:
+                                case MUL_L_STRING:
+                                    printf("  value: %s\n", current_token->value.str_value);
+                                    break;
+                                case INT_LIT:
+                                    printf("  value: %lld\n", current_token->value.int_value);
+                                    break;
+                                case FLOAT_LIT:
+                                    printf("  value: %Lf\n", current_token->value.float_value);
+                                    break;
+                                case NULL_LIT:
+                                case OPERATOR:
+                                case MINUS:
+                                case LEFT_PAR: 
+                                case RIGHT_PAR:
+                                case LEFT_DOM_PAR: 
+                                case RIGHT_DOM_PAR:
+                                case DOT: 
+                                case DOUBLE_DOT: 
+                                case TRIPLE_DOT:
+                                case Q_MARK: 
+                                case EXC_MARK: 
+                                case SEMICOLON: 
+                                case COMMA:
+                                case END_OF_LINE:
+                                    printf("  value code: %d\n", current_token->value.other_value);
+                                    break;
+                                default:
+                                    printf("\n");
+                                    break;
+                            }
+
                                 stack_free(&stack);
                                 free_token(current_token);
-                                free_token(recognition_token);        
+                                free_token(recognition_token);       
+
+                               
                                 error_exit(ERR_SYNTACTIC);
                             }
                         }
@@ -539,6 +596,9 @@ ASTNode_ptr parse_expression(token_ptr recognition_token) {
             break;
     }
 
+
+
+
     // printf("Dostal som sa az po kontrolu s $ (Vysiel som z pytania si tokenov)");
     // After main expression parsing, create end token for final reductions
     token_ptr end_token = malloc(sizeof(token_t));
@@ -551,7 +611,7 @@ ASTNode_ptr parse_expression(token_ptr recognition_token) {
     end_token->value.other_value = '$';
 
     token_ptr top_terminal_final = NULL;
-
+    
     // Final reduction phase: reduce all remaining handles until only $E remains
     while (true) {
         // Find the topmost terminal on stack
@@ -597,9 +657,11 @@ ASTNode_ptr parse_expression(token_ptr recognition_token) {
         return psa_root;
     }
     else {
+        
         // Error: stack not in expected final state
         free(end_token);
         stack_free(&stack);
+                printf("Sem som sa dostal 10 \n");
         error_exit(ERR_SYNTACTIC);
     }
 
