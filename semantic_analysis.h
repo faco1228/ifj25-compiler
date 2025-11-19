@@ -76,7 +76,7 @@ bool verify_var_redec(Key *key, ST_Node *symtable);
  * @param key Pointer to the key of the symbol.
  * @param scope_stack Pointer to the scope stack to look for the symbol inside higher level scopes.
  */
-void verify_var_existence(ASTNode_ptr root, Key *key, Scope_Stack *scope_stack);
+void verify_var_existence(Key *key, Scope_Stack *scope_stack);
 
 /**
  * @brief Called by the parser when function definition is detected. Verifies if a function, getter or a setter
@@ -116,7 +116,7 @@ bool zero_division(ASTNode_ptr divider);
  * @param func_symtable Pointer to the symtable of functions.
  * @param scope_stack Pointer to the scope stack.
  */
-void handle_function_call(ASTNode_ptr root, ASTNode_ptr call_node, ST_Node *func_symtable, Scope_Stack *scope_stack);
+void handle_function_call(ASTNode_ptr call_node, ST_Node *func_symtable, Scope_Stack *scope_stack);
 
 /**
  * @brief Verifies whether the args count inside the function call matches the function
@@ -156,7 +156,7 @@ bool builtin_args_count_correct(char *name, unsigned args_count);
  * @param name Name of the built-in function.
  * @param args_count Num of args inside the function call.
  */
-bool builtin_args_check(ASTNode_ptr root, ASTNode_ptr call_node, char *name, unsigned args_count,
+bool builtin_args_check(ASTNode_ptr call_node, char *name, unsigned args_count,
                         Scope_Stack *scope_stack, ST_Node *func_symtable);
 
 /**
@@ -167,7 +167,7 @@ bool builtin_args_check(ASTNode_ptr root, ASTNode_ptr call_node, char *name, uns
  * @param exp_root Root of the expression subtree.
  * @param func_symtable Pointer to the symtable of all setter, getters and functions.
  */
-void exp_analysis(ASTNode_ptr root, ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *scope_stack);
+void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *scope_stack);
 
 /**
  * @brief Traverses the tree and calls semantic functions based on the current node type.
@@ -178,6 +178,6 @@ void exp_analysis(ASTNode_ptr root, ASTNode_ptr exp_root, ST_Node *func_symtable
  * @param glob_var_symtable Pointer to a global variable symtable.
  * @param scope_stack Pointer to the scope_stack.
  */
-void semantic_analysis(ASTNode_ptr root, ASTNode_ptr node_to_handle, ST_Node *func_symtable, ST_Node *glob_var_symtable, Scope_Stack *scope_stack);
+void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, ST_Node *glob_var_symtable, Scope_Stack *scope_stack);
 
 #endif

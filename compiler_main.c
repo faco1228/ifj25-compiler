@@ -13,16 +13,18 @@
 #include "semantic_analysis.h"
 #include "scope_stack.h"
 #include "symtable.h"
+#include "global_structures.h"
 
 #define COMPILATIONS_SUCCESS 0
 
+ASTNode_ptr g_ast_root = NULL;
+ST_Node *g_func_symtable = NULL;
+ST_Node *g_global_symtable = NULL;
+
 int main()
 {
-    ST_Node *func_symtable = NULL;
-    ST_Node *glob_var_symtable = NULL;
-
     // syntactic analysis and creation of ast
-    ASTNode_ptr ast = parse_program(func_symtable, glob_var_symtable);
+    ASTNode_ptr ast = parse_program();
 
     // scope_stack init
     Scope_Stack *scope_stack = malloc(sizeof(Scope_Stack));
@@ -32,13 +34,14 @@ int main()
     scope_stack_init(scope_stack); // if something fails, error_exit() is called inside the function and memory is freed
 
     // performes semantic_analysis and generates code after every successful semantic action
-    semantic_analysis(ast, ast, func_symtable, glob_var_symtable, scope_stack);
+    semantic_analysis(ast, g_func_symtable, g_global_symtable, scope_stack);
 
     // free all allocated structures
     scope_stack_dispose(scope_stack);
     ast_free(ast);
-    st_dispose_tree(func_symtable);
-    st_dispose_tree(glob_var_symtable);
+    st_dispose_tree(g_func_symtable);
+    st_dispose_tree(g_global_symtable);
+    // parser calls scanner_cleanup
 
     return COMPILATIONS_SUCCESS;
 }

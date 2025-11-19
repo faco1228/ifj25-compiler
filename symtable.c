@@ -4,19 +4,20 @@
  * @brief Implementation of symtable using AVL binary tree.
  * @version 0.1
  * @date 2025-11-17
- * 
+ *
  * @copyright Copyright (c) 2025
- * 
+ *
  */
 #include "symtable.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 #include "error.h" // library with custom error handling
+#include "global_structures.h"
 
 //**HELPER FUNCTION PROTOTYPES**//
 static char *str_duplicate(char *to_duplicate);
-static void node_dispose(ST_Node *node);
+static void node_dispose(ST_Node *node, Key *key);
 static ST_Node *find_max_node(ST_Node *node);
 static ST_Node *left_rotation(ST_Node *root_ptr);
 static ST_Node *right_rotation(ST_Node *root_ptr);
@@ -24,6 +25,20 @@ static ST_Node *balance_tree(ST_Node *critical_node);
 static void tree_height(ST_Node *root_ptr, int *height);
 static void set_balance_factor(ST_Node *node);
 static int key_cmp(Key *key1, Key *key2);
+
+/**
+ * @brief Deallocates key struct and it's data.
+ *
+ * @param key Key to dispose.
+ */
+void key_dispose(Key *key)
+{
+    if (key)
+    {
+        free(key->name);
+        key->name = NULL;
+    }
+}
 
 /**
  * @brief Used for creating function, setter and getter keys.
@@ -62,7 +77,7 @@ Key *st_create_variable_key(char *name)
     Key *new_key = malloc(sizeof(Key));
 
     new_key->args_count = -1; // args count value of variables
-    new_key->id_type = VAR; 
+    new_key->id_type = VAR;
 
     char *name_copy = str_duplicate(name);
 
@@ -180,7 +195,7 @@ ST_Node *st_remove_node(ST_Node *root_ptr, Key *key)
     {
         if (!root_ptr->right && !root_ptr->left) // ST_Node has no children
         {
-            node_dispose(root_ptr);
+            node_dispose(root_ptr, &root_ptr->key);
             return NULL;
         }
         else if (root_ptr->right && root_ptr->left) // ST_Node has both children
@@ -205,7 +220,7 @@ ST_Node *st_remove_node(ST_Node *root_ptr, Key *key)
         else if (root_ptr->left && !root_ptr->right) // only left child present
         {
             ST_Node *onlyChild = root_ptr->left;
-            node_dispose(root_ptr);
+            node_dispose(root_ptr, &root_ptr->key);
 
             // tree needs to be balanced after removal
             set_balance_factor(onlyChild);
@@ -214,7 +229,7 @@ ST_Node *st_remove_node(ST_Node *root_ptr, Key *key)
         else // only right child present
         {
             ST_Node *onlyChild = root_ptr->right;
-            node_dispose(root_ptr);
+            node_dispose(root_ptr, &root_ptr->key);
 
             // tree needs to be balanced after removal
             set_balance_factor(onlyChild);
@@ -269,7 +284,7 @@ void st_dispose_tree(ST_Node *root_ptr)
 
     st_dispose_tree(root_ptr->left);
     st_dispose_tree(root_ptr->right);
-    node_dispose(root_ptr);
+    node_dispose(root_ptr, &root_ptr->key);
 }
 
 //**HELPER FUNCTIONS DEFINITIONS**//
@@ -478,12 +493,15 @@ static ST_Node *find_max_node(ST_Node *node)
  * @brief Deallocates data inside the node and the node itself.
  *
  * @param node Pointer to ST_Node we want to clean up after.
+ * @param key Pointer to the key of the node.
  */
-void node_dispose(ST_Node *node)
+void node_dispose(ST_Node *node, Key *key)
 {
     if (node)
     {
-        free(node->key.name);
+        key_dispose(key);
+        key = NULL;
         free(node);
+        node = NULL;
     }
 }

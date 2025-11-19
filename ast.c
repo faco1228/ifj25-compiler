@@ -10,6 +10,7 @@
  */
 
 #include "ast.h"
+#include "global_structures.h"
 
 
 // definition of helper functions

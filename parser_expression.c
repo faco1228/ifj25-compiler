@@ -10,6 +10,7 @@
  */
 
 #include "parser_expression.h"
+#include "global_structures.h"
 
 /**
  * @brief Precedence table for operators.

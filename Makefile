@@ -30,33 +30,35 @@ error.o: error.c error.h
 lex_funs.o: lex_funs.c lex_funs.h scanner.h error.h
 	$(CC) $(CFLAGS) -c lex_funs.c
 
-ast.o: ast.c ast.h scanner.h error.h
+ast.o: ast.c ast.h scanner.h error.h global_structures.h
 	$(CC) $(CFLAGS) -c ast.c
 
-semantic_analysis.o: semantic_analysis.c semantic_analysis.h scope_stack.h symtable.h error.h ast.h
+semantic_analysis.o: semantic_analysis.c semantic_analysis.h scope_stack.h symtable.h error.h ast.h global_structures.h
 	$(CC) $(CFLAGS) -c semantic_analysis.c
 
 stack.o: stack.c stack.h
 	$(CC) $(CFLAGS) -c stack.c
 
-parser_expression.o: parser_expression.c parser_expression.h scanner.h stack.h error.h
+parser_expression.o: parser_expression.c parser_expression.h scanner.h stack.h error.h global_structures.h
 	$(CC) $(CFLAGS) -c parser_expression.c
 
-parser.o: parser.c parser.h scope_stack.h symtable.h semantic_analysis.h
+parser.o: parser.c parser.h scope_stack.h symtable.h semantic_analysis.h global_structures.h
 	$(CC) $(CFLAGS) -c parser.c
 
 scope_stack.o: scope_stack.c scope_stack.h symtable.h error.h
 	$(CC) $(CFLAGS) -c scope_stack.c
 
-symtable.o: symtable.c symtable.h error.h
+symtable.o: symtable.c symtable.h error.h global_structures.h
 	$(CC) $(CFLAGS) -c symtable.c
 
-main.o: compiler_main.c parser.h semantic_analysis.h scope_stack.h symtable.h
+main.o: compiler_main.c parser.h semantic_analysis.h scope_stack.h symtable.h global_structures.h
 	$(CC) $(CFLAGS) -c compiler_main.c -o main.o
 
 # od tadialto nizsie to pred odovzdanim treba zakomentovat pre istotu
 run: compiler
-	valgrind --leak-check=full --show-leak-kinds=all ./compiler < test.txt || echo "Compiler exited with code $$?"
+	./compiler < test.txt || echo "Compiler exited with code $$?"
 
+#	valgrind --leak-check=full --show-leak-kinds=all
+ 
 clean:
 	rm -f *.o compiler

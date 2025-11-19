@@ -38,6 +38,13 @@ struct ST_Node
 //**FUNCTION FOR CREATING KEYS**//
 
 /**
+ * @brief Deallocates key struct and it's data.
+ * 
+ * @param key Key to dispose.
+ */
+void key_dispose (Key *key);
+
+/**
  * @brief Used for creating function, setter and getter keys.
  *
  * @param name

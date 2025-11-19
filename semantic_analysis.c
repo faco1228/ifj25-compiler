@@ -15,6 +15,7 @@
 #include "symtable.h"
 #include "error.h"
 #include "ast.h"
+#include "global_structures.h"
 
 // an array containing all built in functions
 builtin_function_t builtin_functions[builtin_functions_arr_lenght] =
@@ -83,7 +84,7 @@ bool verify_var_redec(Key *key, ST_Node *symtable)
  * @param key Pointer to the key of the symbol.
  * @param scope_stack Pointer to the scope stack to look for the symbol inside higher level scopes.
  */
-void verify_var_existence(ASTNode_ptr root, Key *key, Scope_Stack *scope_stack)
+void verify_var_existence(Key *key, Scope_Stack *scope_stack)
 {
     ST_Node *search_result = scope_stack_var_lookup(scope_stack, key);
 
@@ -119,13 +120,19 @@ void verify_func_redef(Key *key, ST_Node *func_symtable)
 bool main_exists(ST_Node *func_symtable)
 {
     if (!func_symtable) // mainly for debugging
+    {
+        printf("main_exists1\n");
         error_exit(ERR_INTERNAL);
+    }
 
     // key init to search for main with no args
     Key *key = st_create_function_key("main", 0, FUNCTION);
 
     if (!key)
+    {
+        printf("main_exists\n");
         error_exit(ERR_INTERNAL);
+    }
 
     ST_Node *search_result = st_search(func_symtable, key);
     free(key);
@@ -175,7 +182,7 @@ bool args_count_check(ST_Node *func_node, int args_count)
  * @param scope_stack Pointer to the scope stack.
  *
  */
-void args_symbols_check(ASTNode_ptr root, ASTNode_ptr call_node, ST_Node *func_symtable, Scope_Stack *scope_stack)
+void args_symbols_check(ASTNode_ptr call_node, ST_Node *func_symtable, Scope_Stack *scope_stack)
 {
     unsigned args_count = call_node->data.function_call.param_count;
 
@@ -183,13 +190,13 @@ void args_symbols_check(ASTNode_ptr root, ASTNode_ptr call_node, ST_Node *func_s
     {
         if (call_node->children[idx]->type == NODE_CALL) // function call passed as arg
         {
-            handle_function_call(root, call_node, func_symtable, scope_stack);
+            handle_function_call(call_node, func_symtable, scope_stack);
         }
         else if (call_node->children[idx]->type == NODE_IDENTIFIER)
         {
 
             Key *key = st_create_variable_key(call_node->children[idx]->data.identifier.name);
-            verify_var_existence(root, key, scope_stack);
+            verify_var_existence(key, scope_stack);
         }
     }
 }
@@ -202,7 +209,7 @@ void args_symbols_check(ASTNode_ptr root, ASTNode_ptr call_node, ST_Node *func_s
  * @param func_symtable Pointer to the symtable of functions.
  * @param scope_stack Pointer to the scope stack.
  */
-void handle_function_call(ASTNode_ptr root, ASTNode_ptr call_node, ST_Node *func_symtable, Scope_Stack *scope_stack)
+void handle_function_call(ASTNode_ptr call_node, ST_Node *func_symtable, Scope_Stack *scope_stack)
 {
     if (call_node->data.function_call.is_builtin) // built-in function call
     {
@@ -220,7 +227,7 @@ void handle_function_call(ASTNode_ptr root, ASTNode_ptr call_node, ST_Node *func
             error_exit(ERR_SEM_ARG_COUNT);
         }
 
-        if (!builtin_args_check(root, call_node, name, args_count, scope_stack, func_symtable))
+        if (!builtin_args_check(call_node, name, args_count, scope_stack, func_symtable))
         {
             error_exit(ERR_SEM_TYPE_MISMATCH);
         }
@@ -246,7 +253,7 @@ void handle_function_call(ASTNode_ptr root, ASTNode_ptr call_node, ST_Node *func
         }
 
         // if an error occurs
-        args_symbols_check(root, call_node, func_symtable, scope_stack);
+        args_symbols_check(call_node, func_symtable, scope_stack);
     }
 }
 
@@ -299,7 +306,7 @@ bool builtin_args_count_correct(char *name, unsigned args_count)
  * @param name Name of the built-in function.
  * @param args_count Num of args inside the function call.
  */
-bool builtin_args_check(ASTNode_ptr root, ASTNode_ptr call_node, char *name, unsigned args_count,
+bool builtin_args_check(ASTNode_ptr call_node, char *name, unsigned args_count,
                         Scope_Stack *scope_stack, ST_Node *func_symtable)
 {
     builtin_function_t *search_result = NULL;
@@ -320,11 +327,11 @@ bool builtin_args_check(ASTNode_ptr root, ASTNode_ptr call_node, char *name, uns
         if (current_param->type == NODE_IDENTIFIER) // var passed as param
         {
             Key *key = st_create_variable_key(current_param->data.identifier.name);
-            verify_var_existence(root, key, scope_stack);
+            verify_var_existence(key, scope_stack);
         }
         else if (current_param->type == NODE_CALL) // param is a function call
         {
-            handle_function_call(root, current_param, func_symtable, scope_stack);
+            handle_function_call(current_param, func_symtable, scope_stack);
         }
 
         // types only need to be checked if the current arg has any type restrictions
@@ -348,7 +355,7 @@ bool builtin_args_check(ASTNode_ptr root, ASTNode_ptr call_node, char *name, uns
  * @param exp_root Root of the expression subtree.
  * @param func_symtable Pointer to the symtable of all setter, getters and functions.
  */
-void exp_analysis(ASTNode_ptr root, ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *scope_stack)
+void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *scope_stack)
 {
     if (!exp_root)
         return;
@@ -370,7 +377,7 @@ void exp_analysis(ASTNode_ptr root, ASTNode_ptr exp_root, ST_Node *func_symtable
 
         // now we know that ident has to be a local or a global variable and we need to check if it exists
         key = st_create_variable_key(exp_root->data.identifier.name);
-        verify_var_existence(root, key, scope_stack);
+        verify_var_existence(key, scope_stack);
 
         break;
     }
@@ -418,8 +425,8 @@ void exp_analysis(ASTNode_ptr root, ASTNode_ptr exp_root, ST_Node *func_symtable
     }
 
     // we agreed on a convention that children[0] is the left child and children[1] the right child inside the exp subtree
-    exp_analysis(root, exp_root->children[0], func_symtable, scope_stack); // handle left subtree
-    exp_analysis(root, exp_root->children[1], func_symtable, scope_stack); // handle right subtree
+    exp_analysis(exp_root->children[0], func_symtable, scope_stack); // handle left subtree
+    exp_analysis(exp_root->children[1], func_symtable, scope_stack); // handle right subtree
 }
 
 /**
@@ -473,7 +480,7 @@ bool eval_exp_flags(ASTNode_ptr exp_root)
  * @param glob_var_symtable Pointer to a global variable symtable.
  * @param scope_stack Pointer to the scope_stack.
  */
-void semantic_analysis(ASTNode_ptr root, ASTNode_ptr node_to_handle, ST_Node *func_symtable, ST_Node *glob_var_symtable, Scope_Stack *scope_stack)
+void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, ST_Node *glob_var_symtable, Scope_Stack *scope_stack)
 {
     if (!node_to_handle->child_count)
         return;
@@ -481,16 +488,21 @@ void semantic_analysis(ASTNode_ptr root, ASTNode_ptr node_to_handle, ST_Node *fu
     switch (node_to_handle->type)
     {
     case NODE_PROGRAM:
+    {
         if (!main_exists(func_symtable))
             error_exit(ERR_SEM_UNDEFINED);
+        break;
+    }
+
     case NODE_ASSIGN: // when assignment node is found, we need to verify whether the assignment target is not a setter
     {
         // first we try to find a setter with idents name
-        Key *setter_key = st_create_function_key(node_to_handle->data.identifier.name, 1, SETTER);
+        ASTNode_ptr assign_target = node_to_handle->children[0]; // first child inside NODE_ASSING is always assign target
+        Key *setter_key = st_create_function_key(assign_target->data.identifier.name, 1, SETTER);
         ST_Node *search_result = st_search(func_symtable, setter_key);
 
         if (search_result) // setter was found, so idents type is set to SETTER
-            node_to_handle->data.identifier.id_type = SETTER;
+            assign_target->data.identifier.id_type = SETTER;
 
         free(setter_key);
         break;
@@ -524,12 +536,12 @@ void semantic_analysis(ASTNode_ptr root, ASTNode_ptr node_to_handle, ST_Node *fu
     case NODE_IDENTIFIER: // can only be a local or global var, because function nodes have a separate node type
     {
         Key *var_key = st_create_variable_key(node_to_handle->data.identifier.name);
-        verify_var_existence(root, var_key, scope_stack);
+        verify_var_existence(var_key, scope_stack);
         break;
     }
 
     case NODE_EXPR_STMNT:
-        exp_analysis(root, node_to_handle, func_symtable, scope_stack);
+        exp_analysis(node_to_handle, func_symtable, scope_stack);
 
         if (!eval_exp_flags(node_to_handle)) // type mismatch detected inside eval_exp_flags()
         {
@@ -562,13 +574,13 @@ void semantic_analysis(ASTNode_ptr root, ASTNode_ptr node_to_handle, ST_Node *fu
     }
 
     case NODE_CALL:
-        handle_function_call(root, node_to_handle, func_symtable, scope_stack);
+        handle_function_call(node_to_handle, func_symtable, scope_stack);
     default:
         break;
     }
 
     for (unsigned idx = 0; idx < node_to_handle->child_count; idx++)
-        semantic_analysis(root, node_to_handle->children[idx], func_symtable, glob_var_symtable, scope_stack);
+        semantic_analysis(node_to_handle->children[idx], func_symtable, glob_var_symtable, scope_stack);
 
     // block and all its statements processed - safe to pop scope from stack
     if (node_to_handle->type == NODE_BLOCK)
