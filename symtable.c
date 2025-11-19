@@ -4,15 +4,16 @@
  * @brief Implementation of symtable using AVL binary tree.
  * @version 0.1
  * @date 2025-11-17
- * 
+ *
  * @copyright Copyright (c) 2025
- * 
+ *
  */
 #include "symtable.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 #include "error.h" // library with custom error handling
+#include "global_structures.h"
 
 //**HELPER FUNCTION PROTOTYPES**//
 static char *str_duplicate(char *to_duplicate);
@@ -27,13 +28,16 @@ static int key_cmp(Key *key1, Key *key2);
 
 /**
  * @brief Deallocates key struct and it's data.
- * 
+ *
  * @param key Key to dispose.
  */
-void key_dispose (Key *key)
+void key_dispose(Key *key)
 {
-    free(key->name);
-    free(key);
+    if (key)
+    {
+        free(key->name);
+        key->name = NULL;
+    }
 }
 
 /**
@@ -73,7 +77,7 @@ Key *st_create_variable_key(char *name)
     Key *new_key = malloc(sizeof(Key));
 
     new_key->args_count = -1; // args count value of variables
-    new_key->id_type = VAR; 
+    new_key->id_type = VAR;
 
     char *name_copy = str_duplicate(name);
 
@@ -496,6 +500,8 @@ void node_dispose(ST_Node *node, Key *key)
     if (node)
     {
         key_dispose(key);
+        key = NULL;
         free(node);
+        node = NULL;
     }
 }

@@ -10,27 +10,28 @@
  */
 
 #include "parser.h"
+#include "global_structures.h"
 
 // forward prototypes (internal)
 static int parse_prolog(void);
-static int parse_class_def(ASTNode_ptr program, ST_Node *func_symtable, ST_Node *glob_var_symtable);
-static int parse_class_body(ASTNode_ptr program, ST_Node *func_symtable, ST_Node *glob_var_symtable);
-static ASTNode_ptr parse_definition(ST_Node *func_symtable, ST_Node *glob_var_symtable);
-static ASTNode_ptr parse_function_def(token_ptr id, ST_Node *func_symtable, ST_Node *glob_var_symtable);
-static ASTNode_ptr parse_setter_def(token_ptr id, ST_Node *func_symtable, ST_Node *glob_var_symtable);
-static ASTNode_ptr parse_getter_def(token_ptr id, ST_Node *func_symtable, ST_Node *glob_var_symtable);
-static ASTNode_ptr parse_block(ST_Node *glob_var_symtable);
-static int parse_statement_list(ASTNode_ptr block, ST_Node *glob_var_symtable);
-static ASTNode_ptr parse_statement(ST_Node *glob_var_symtable);
+static int parse_class_def(ASTNode_ptr program);
+static int parse_class_body(ASTNode_ptr program);
+static ASTNode_ptr parse_definition(void);
+static ASTNode_ptr parse_function_def(token_ptr id);
+static ASTNode_ptr parse_setter_def(token_ptr id);
+static ASTNode_ptr parse_getter_def(token_ptr id);
+static ASTNode_ptr parse_block(void);
+static int parse_statement_list(ASTNode_ptr block);
+static ASTNode_ptr parse_statement(void);
 static ASTNode_ptr parse_var_def(void);
-static ASTNode_ptr parse_assign_target(ST_Node *glob_var_symtable);
-static ASTNode_ptr parse_assignment_or_call(ST_Node *glob_var_symtable);
+static ASTNode_ptr parse_assign_target(void);
+static ASTNode_ptr parse_assignment_or_call(void);
 static ASTNode_ptr parse_exp_rhs(token_ptr token);
 // static ASTNode_ptr parse_arg_list(void);
-static ASTNode_ptr parse_if_statement(ST_Node *glob_var_symtable);
-static ASTNode_ptr parse_while_statement(ST_Node *glob_var_symtable);
+static ASTNode_ptr parse_if_statement(void);
+static ASTNode_ptr parse_while_statement(void);
 static ASTNode_ptr parse_return_statement(void);
-static ASTNode_ptr parse_for_statement(ST_Node *glob_var_symtable);
+static ASTNode_ptr parse_for_statement(void);
 static ASTNode_ptr parse_break_statement(void);
 static ASTNode_ptr parse_continue_statement(void);
 
@@ -55,10 +56,10 @@ static token_ptr look_ahead(void);
  * @return PARSE_OK (0) on success. On a syntax error, it calls
  *         error_exit(ERR_SYNTACTIC) and the function does not return.
  */
-ASTNode_ptr parse_program(ST_Node **func_symtable, ST_Node **glob_var_symtable)
+ASTNode_ptr parse_program(void)
 {
-    error_set_parser_func_symtable(*func_symtable);
-    error_set_parser_glob_symtable(*glob_var_symtable);
+    error_set_parser_func_symtable(g_func_symtable);
+    error_set_parser_glob_symtable(g_global_symtable);
 
     // edge case if multiple EOLs
     consume_eols();
@@ -74,7 +75,7 @@ ASTNode_ptr parse_program(ST_Node **func_symtable, ST_Node **glob_var_symtable)
     ASTNode_ptr program = ast_create_program();
     error_set_parser_ast_root(program);
 
-    if (parse_class_def(program, *func_symtable, *glob_var_symtable) != 0)
+    if (parse_class_def(program) != 0)
     {
         error_exit(PARSE_ERROR);
     }
@@ -190,7 +191,7 @@ static int parse_prolog(void)
  *
  * @return PARSE_OK on success, otherwise volá error_exit(ERR_SYNTACTIC).
  */
-static int parse_class_def(ASTNode_ptr program, ST_Node *func_symtable, ST_Node *glob_var_symtable)
+static int parse_class_def(ASTNode_ptr program)
 {
     token_ptr token;
 
@@ -214,7 +215,7 @@ static int parse_class_def(ASTNode_ptr program, ST_Node *func_symtable, ST_Node 
     free_token(token);
 
     // parse "inside" of class
-    if (parse_class_body(program, func_symtable, glob_var_symtable) != PARSE_OK)
+    if (parse_class_body(program) != PARSE_OK)
     {
         error_exit(PARSE_ERROR);
     }
@@ -242,7 +243,7 @@ static int parse_class_def(ASTNode_ptr program, ST_Node *func_symtable, ST_Node 
  *
  * @return PARSE_OK on success.
  */
-static int parse_class_body(ASTNode_ptr program, ST_Node *func_symtable, ST_Node *glob_var_symtable)
+static int parse_class_body(ASTNode_ptr program)
 {
     while (1)
     {
@@ -254,7 +255,7 @@ static int parse_class_body(ASTNode_ptr program, ST_Node *func_symtable, ST_Node
             token_ptr token = expect_keyword("static");
             free_token(token);
 
-            ASTNode_ptr def = parse_definition(func_symtable, glob_var_symtable);
+            ASTNode_ptr def = parse_definition();
             add_child(program, def);
             continue;
         }
@@ -280,7 +281,7 @@ static int parse_class_body(ASTNode_ptr program, ST_Node *func_symtable, ST_Node
  *
  * @return PARSE_OK on success.
  */
-static ASTNode_ptr parse_definition(ST_Node *func_symtable, ST_Node *glob_var_symtable)
+static ASTNode_ptr parse_definition()
 {
     // saving next two tokens, for id and then token ahead, to decide which function
     token_ptr ident = expect_ident();
@@ -292,15 +293,15 @@ static ASTNode_ptr parse_definition(ST_Node *func_symtable, ST_Node *glob_var_sy
 
     if (token_ahead->type == LEFT_PAR)
     {
-        def_node = parse_function_def(ident, func_symtable, glob_var_symtable);
+        def_node = parse_function_def(ident);
     }
     else if (token_ahead->type == OPERATOR && token_ahead->value.other_value == EQUAL_SIGN_V)
     {
-        def_node = parse_setter_def(ident, func_symtable, glob_var_symtable);
+        def_node = parse_setter_def(ident);
     }
     else
     {
-        def_node = parse_getter_def(ident, func_symtable, glob_var_symtable);
+        def_node = parse_getter_def(ident);
     }
     free_token(ident);
 
@@ -321,7 +322,7 @@ static ASTNode_ptr parse_definition(ST_Node *func_symtable, ST_Node *glob_var_sy
  * @param id Identifier token of the function (already read by caller).
  * @return PARSE_OK on success.
  */
-static ASTNode_ptr parse_function_def(token_ptr id, ST_Node *func_symtable, ST_Node *glob_var_symtable)
+static ASTNode_ptr parse_function_def(token_ptr id)
 {
     token_ptr token;
 
@@ -338,7 +339,7 @@ static ASTNode_ptr parse_function_def(token_ptr id, ST_Node *func_symtable, ST_N
     token = expect_type(RIGHT_PAR);
     free_token(token);
 
-    ASTNode_ptr body = parse_block(glob_var_symtable);
+    ASTNode_ptr body = parse_block();
 
     // token = expect_type(END_OF_LINE);
     // free_token(token);
@@ -348,7 +349,7 @@ static ASTNode_ptr parse_function_def(token_ptr id, ST_Node *func_symtable, ST_N
     // adds new function to func symtable
     Key *key = st_create_function_key(id->value.str_value, arg_count, FUNCTION);
     ST_Node *new = st_create_node(key);
-    func_symtable = st_insert_node(func_symtable, new);
+    g_func_symtable = st_insert_node(g_func_symtable, new);
 
     key_dispose(key);
 
@@ -369,7 +370,7 @@ static ASTNode_ptr parse_function_def(token_ptr id, ST_Node *func_symtable, ST_N
  * @param id Identifier token of the setter (already read by caller).
  * @return PARSE_OK on success, otherwise volá error_exit(ERR_SYNTACTIC).
  */
-static ASTNode_ptr parse_setter_def(token_ptr id, ST_Node *func_symtable, ST_Node *glob_var_symtable)
+static ASTNode_ptr parse_setter_def(token_ptr id)
 {
     token_ptr token;
 
@@ -393,7 +394,7 @@ static ASTNode_ptr parse_setter_def(token_ptr id, ST_Node *func_symtable, ST_Nod
     token = expect_type(RIGHT_PAR);
     free_token(token);
 
-    ASTNode_ptr body = parse_block(glob_var_symtable);
+    ASTNode_ptr body = parse_block();
 
     // token = expect_type(END_OF_LINE);
     // free_token(token);
@@ -403,7 +404,7 @@ static ASTNode_ptr parse_setter_def(token_ptr id, ST_Node *func_symtable, ST_Nod
     // adds new setter to func symtable
     Key *key = st_create_function_key(id->value.str_value, 1, SETTER);
     ST_Node *new = st_create_node(key);
-    func_symtable = st_insert_node(func_symtable, new);
+    g_func_symtable = st_insert_node(g_func_symtable, new);
 
     key_dispose(key);
 
@@ -421,11 +422,11 @@ static ASTNode_ptr parse_setter_def(token_ptr id, ST_Node *func_symtable, ST_Nod
  * @param id Identifier token of the getter (already read by caller).
  * @return PARSE_OK on success.
  */
-static ASTNode_ptr parse_getter_def(token_ptr id, ST_Node *func_symtable, ST_Node *glob_var_symtable)
+static ASTNode_ptr parse_getter_def(token_ptr id)
 {
     // token_ptr token;
 
-    ASTNode_ptr body = parse_block(glob_var_symtable);
+    ASTNode_ptr body = parse_block();
 
     // token = expect_type(END_OF_LINE);
     // free_token(token);
@@ -435,7 +436,7 @@ static ASTNode_ptr parse_getter_def(token_ptr id, ST_Node *func_symtable, ST_Nod
     // adds new getter to func symtable
     Key *key = st_create_function_key(id->value.str_value, 0, GETTER);
     ST_Node *new = st_create_node(key);
-    func_symtable = st_insert_node(func_symtable, new);
+    g_func_symtable = st_insert_node(g_func_symtable, new);
 
     key_dispose(key);
 
@@ -504,7 +505,7 @@ int parse_param_list(unsigned *arg_count)
  *
  * @return PARSE_OK on success.
  */
-static ASTNode_ptr parse_block(ST_Node *glob_var_symtable)
+static ASTNode_ptr parse_block(void)
 {
     token_ptr token = expect_type(LEFT_DOM_PAR);
     free_token(token);
@@ -514,7 +515,7 @@ static ASTNode_ptr parse_block(ST_Node *glob_var_symtable)
 
     ASTNode_ptr block = ast_create_block();
 
-    if (parse_statement_list(block, glob_var_symtable) != PARSE_OK)
+    if (parse_statement_list(block) != PARSE_OK)
     {
         error_exit(PARSE_ERROR);
     }
@@ -537,7 +538,7 @@ static ASTNode_ptr parse_block(ST_Node *glob_var_symtable)
  *
  * @return PARSE_OK on success.
  */
-static int parse_statement_list(ASTNode_ptr block, ST_Node *glob_var_symtable)
+static int parse_statement_list(ASTNode_ptr block)
 {
     while (1)
     {
@@ -549,12 +550,12 @@ static int parse_statement_list(ASTNode_ptr block, ST_Node *glob_var_symtable)
 
         if (token_ahead->type == LEFT_DOM_PAR)
         { // if nahradil parse_stmnt_or_block
-            ASTNode_ptr nested = parse_block(glob_var_symtable);
+            ASTNode_ptr nested = parse_block();
             add_child(block, nested);
         }
         else
         {
-            ASTNode_ptr stmt = parse_statement(glob_var_symtable);
+            ASTNode_ptr stmt = parse_statement();
             if (stmt != NULL)
             {
                 add_child(block, stmt);
@@ -612,7 +613,7 @@ static int parse_statement_list(ASTNode_ptr block, ST_Node *glob_var_symtable)
  *
  * @return PARSE_OK on success, otherwise calls error_exit(ERR_SYNTACTIC).
  */
-static ASTNode_ptr parse_statement(ST_Node *glob_var_symtable)
+static ASTNode_ptr parse_statement()
 {
     token_ptr token;
     token_ptr token_ahead = look_ahead();
@@ -626,21 +627,21 @@ static ASTNode_ptr parse_statement(ST_Node *glob_var_symtable)
     }
     else if (token_ahead->type == IDENT || token_ahead->type == GLOB_VAR)
     {
-        ASTNode_ptr assign = parse_assignment_or_call(glob_var_symtable);
+        ASTNode_ptr assign = parse_assignment_or_call();
         token = expect_type(END_OF_LINE);
         free_token(token);
         return assign;
     }
     else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "if") == 0)
     {
-        ASTNode_ptr if_node = parse_if_statement(glob_var_symtable);
+        ASTNode_ptr if_node = parse_if_statement();
         token = expect_type(END_OF_LINE);
         free_token(token);
         return if_node;
     }
     else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "while") == 0)
     {
-        ASTNode_ptr while_node = parse_while_statement(glob_var_symtable);
+        ASTNode_ptr while_node = parse_while_statement();
         token = expect_type(END_OF_LINE);
         free_token(token);
         return while_node;
@@ -654,7 +655,7 @@ static ASTNode_ptr parse_statement(ST_Node *glob_var_symtable)
     }
     else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "for") == 0)
     {
-        ASTNode_ptr for_node = parse_for_statement(glob_var_symtable);
+        ASTNode_ptr for_node = parse_for_statement();
         token = expect_type(END_OF_LINE);
         free_token(token);
         return for_node;
@@ -729,7 +730,7 @@ static ASTNode_ptr parse_var_def(void)
  *
  * @return PARSE_OK on success, otherwise calls error_exit(ERR_SYNTACTIC).
  */
-static ASTNode_ptr parse_assign_target(ST_Node *glob_var_symtable)
+static ASTNode_ptr parse_assign_target(void)
 {
     token_ptr token;
     token_ptr token_ahead = look_ahead();
@@ -746,13 +747,13 @@ static ASTNode_ptr parse_assign_target(ST_Node *glob_var_symtable)
         token = expect_type(GLOB_VAR);
         ASTNode_ptr id = ast_create_ident(token->value.str_value);
 
-        // adds new glob variable to glob_var_symtable
+        // adds new glob variable to g_global_symtable
         Key *key = st_create_variable_key(token->value.str_value);
 
-        if (!st_search(glob_var_symtable, key)) // does not already exist so we can add a new one
+        if (!st_search(g_global_symtable, key)) // does not already exist so we can add a new one
         {
             ST_Node *new = st_create_node(key);
-            glob_var_symtable = st_insert_node(glob_var_symtable, new);
+            g_global_symtable = st_insert_node(g_global_symtable, new);
         }
 
         key_dispose(key);
@@ -785,9 +786,9 @@ static ASTNode_ptr parse_assign_target(ST_Node *glob_var_symtable)
  *
  * @return PARSE_OK on success.
  */
-static ASTNode_ptr parse_assignment_or_call(ST_Node *glob_var_symtable)
+static ASTNode_ptr parse_assignment_or_call(void)
 {
-    ASTNode_ptr lhs = parse_assign_target(glob_var_symtable);
+    ASTNode_ptr lhs = parse_assign_target();
 
     token_ptr token = expect_type(OPERATOR);
 
@@ -841,7 +842,7 @@ static ASTNode_ptr parse_exp_rhs(token_ptr token)
  *
  * @return PARSE_OK on success.
  */
-static ASTNode_ptr parse_if_statement(ST_Node *glob_var_symtable)
+static ASTNode_ptr parse_if_statement(void)
 {
     token_ptr token;
 
@@ -857,12 +858,12 @@ static ASTNode_ptr parse_if_statement(ST_Node *glob_var_symtable)
     token = expect_type(RIGHT_PAR);
     free_token(token);
 
-    ASTNode_ptr then_block = parse_block(glob_var_symtable);
+    ASTNode_ptr then_block = parse_block();
 
     token = expect_keyword("else");
     free_token(token);
 
-    ASTNode_ptr else_block = parse_block(glob_var_symtable);
+    ASTNode_ptr else_block = parse_block();
 
     return ast_create_if(cond, then_block, else_block);
 }
@@ -882,7 +883,7 @@ static ASTNode_ptr parse_if_statement(ST_Node *glob_var_symtable)
  *
  * @return PARSE_OK on success.
  */
-static ASTNode_ptr parse_while_statement(ST_Node *glob_var_symtable)
+static ASTNode_ptr parse_while_statement(void)
 {
     token_ptr token;
 
@@ -898,7 +899,7 @@ static ASTNode_ptr parse_while_statement(ST_Node *glob_var_symtable)
     token = expect_type(RIGHT_PAR);
     free_token(token);
 
-    ASTNode_ptr body = parse_block(glob_var_symtable);
+    ASTNode_ptr body = parse_block();
 
     return ast_create_while(cond, body);
 }
@@ -942,7 +943,7 @@ static ASTNode_ptr parse_return_statement(void)
  *
  * @return PARSE_OK on success.
  */
-static ASTNode_ptr parse_for_statement(ST_Node *glob_var_symtable)
+static ASTNode_ptr parse_for_statement(void)
 {
     token_ptr token;
 
@@ -966,7 +967,7 @@ static ASTNode_ptr parse_for_statement(ST_Node *glob_var_symtable)
     token = expect_type(RIGHT_PAR);
     free_token(token);
 
-    ASTNode_ptr body = parse_block(glob_var_symtable);
+    ASTNode_ptr body = parse_block();
 
     ASTNode_ptr node = ast_create_for(iter_name, iter_expr, body);
     free_token(id_token);

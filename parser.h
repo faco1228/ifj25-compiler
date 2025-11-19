@@ -41,7 +41,7 @@
  * @return 0 (PARSE_OK) on success. On syntax error the function does not return,
  *         because @c error_exit(ERR_SYNTACTIC) terminates the program.
  */
-ASTNode_ptr parse_program(ST_Node *func_symtable, ST_Node *glob_var_symtable);
+ASTNode_ptr parse_program(void);
 
 /**
  * @brief Parse a comma-separated parameter list.

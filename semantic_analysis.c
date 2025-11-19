@@ -15,6 +15,7 @@
 #include "symtable.h"
 #include "error.h"
 #include "ast.h"
+#include "global_structures.h"
 
 // an array containing all built in functions
 builtin_function_t builtin_functions[builtin_functions_arr_lenght] =
@@ -496,11 +497,12 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, ST_No
     case NODE_ASSIGN: // when assignment node is found, we need to verify whether the assignment target is not a setter
     {
         // first we try to find a setter with idents name
-        Key *setter_key = st_create_function_key(node_to_handle->data.identifier.name, 1, SETTER);
+        ASTNode_ptr assign_target = node_to_handle->children[0]; // first child inside NODE_ASSING is always assign target
+        Key *setter_key = st_create_function_key(assign_target->data.identifier.name, 1, SETTER);
         ST_Node *search_result = st_search(func_symtable, setter_key);
 
         if (search_result) // setter was found, so idents type is set to SETTER
-            node_to_handle->data.identifier.id_type = SETTER;
+            assign_target->data.identifier.id_type = SETTER;
 
         free(setter_key);
         break;

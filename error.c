@@ -13,45 +13,40 @@
 #include "scanner.h"
 #include "ast.h"
 #include "symtable.h"
-
-
-// Static global pointers – only for parser/PSA
-ASTNode_ptr g_parser_ast_root = NULL;
-ST_Node *g_parser_func_symtable = NULL;
-ST_Node *g_parser_glob_symtable = NULL;
+#include "global_structures.h"
 
 // Setters
 void error_set_parser_ast_root(void *ast_root)
 {
-    g_parser_ast_root = (ASTNode_ptr)ast_root;
+    g_ast_root = (ASTNode_ptr)ast_root;
 }
 
 void error_set_parser_func_symtable(void *func_symtable)
 {
-    g_parser_func_symtable = (ST_Node *)func_symtable;
+    g_func_symtable = (ST_Node *)func_symtable;
 }
 
 void error_set_parser_glob_symtable(void *glob_var_symtable)
 {
-    g_parser_glob_symtable = (ST_Node *)glob_var_symtable;
+    g_global_symtable = (ST_Node *)glob_var_symtable;
 }
 
 // Internal cleanup only for parser/PSA
 static void parser_psa_cleanup(void)
 {
-    if (g_parser_ast_root != NULL) {
-        ast_free(g_parser_ast_root);
-        g_parser_ast_root = NULL;
+    if (g_ast_root != NULL) {
+        ast_free(g_ast_root);
+        g_ast_root = NULL;
     }
 
-    if (g_parser_func_symtable != NULL) {
-        st_dispose_tree(g_parser_func_symtable);
-        g_parser_func_symtable = NULL;
+    if (g_func_symtable != NULL) {
+        st_dispose_tree(g_func_symtable);
+        g_func_symtable = NULL;
     }
 
-    if (g_parser_glob_symtable != NULL) {
-        st_dispose_tree(g_parser_glob_symtable);
-        g_parser_glob_symtable = NULL;
+    if (g_global_symtable != NULL) {
+        st_dispose_tree(g_global_symtable);
+        g_global_symtable = NULL;
     }
 
     // scanner (token buffer, pushed_token, ...)
