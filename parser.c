@@ -545,7 +545,6 @@ static int parse_statement_list(ASTNode_ptr block)
         token_ptr token_ahead = look_ahead();
         if (token_ahead->type == RIGHT_DOM_PAR || token_ahead->type == END_OF_FILE)
         {
-            printf("DEBUG\n");
             break;
         }
 
@@ -856,8 +855,11 @@ static ASTNode_ptr parse_if_statement(void)
     // free_token(token);
     consume_eols();
 
-    token = expect_type(RIGHT_PAR);
-    free_token(token);
+    // This should be here but, kikos precedence analysis already processes
+    // ) parent, will fix later
+
+    // token = expect_type(RIGHT_PAR);
+    // free_token(token);
 
     ASTNode_ptr then_block = parse_block();
 
@@ -897,8 +899,11 @@ static ASTNode_ptr parse_while_statement(void)
     // free_token(token);
     consume_eols();
 
-    token = expect_type(RIGHT_PAR);
-    free_token(token);
+    // This should be here but, kikos precedence analysis already processes
+    // ) parent, will fix later
+    
+    // token = expect_type(RIGHT_PAR);
+    // free_token(token);
 
     ASTNode_ptr body = parse_block();
 
@@ -1098,6 +1103,7 @@ token_ptr expect_type(enum token_type exp_tok)
 
     if (token->type != exp_tok)
     {
+        printf("DEBUG: %d\n", token->type);
         free_token(token);
         error_exit(PARSE_ERROR);
     }
