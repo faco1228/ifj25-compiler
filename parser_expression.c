@@ -530,59 +530,56 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
     switch (recognition_token->type)
     {
     // Return context: return expression
-    case KEY_WORD:
-        // Check if the keyword is "return"
-        if (recognition_token->value.str_value != NULL &&
-            strcmp(recognition_token->value.str_value, "return") == 0)
+    case KEY_WORD: {  // ← Otvárajúca zátvorka, ale ZATIAĽ NEUZATVÁRAJ!
+    // Check if the keyword is "return"
+    if (recognition_token->value.str_value != NULL &&
+        strcmp(recognition_token->value.str_value, "return") == 0)
+    {
+        // Parse assignment expression until EOL after non-operator
+        while (true)
         {
+            printf("DEBUG: current_token type=%d\n", current_token->type);
 
-            // Parse assignment expression until EOL after non-operator
-            while (true)
+            bool should_advance = precedence_table_compare(&stack, current_token, &top_terminal);
+
+            if (should_advance)
             {
-                // printf("DEBUG: current_token type=%d\n", current_token->type);
-
-                // Process current token with precedence comparison
-                bool should_advance = precedence_table_compare(&stack, current_token, &top_terminal);
-                // free(current_token); // erase ??
-
-                // If we should advance (shift or equal operation)
-                if (should_advance)
+                if (current_token->type == OPERATOR)
                 {
-                    // If current_token is OPERATOR , we check if there are any EOF
-                    // IF there are not then it does nothing
-                    if (current_token->type == OPERATOR)
+                    consume_eols();
+                }
+                else if (eol_end_expr(current_token))
+                {
+                    token_ptr peek_token = get_token();
+
+                    if (peek_token->type == END_OF_LINE)
                     {
-                        consume_eols();
-                    }
-                    else if (eol_end_expr(current_token))
-                    {
-                        // expression ended, the rest of precedence analysis will terminate
+                        push_token(peek_token);
                         break;
                     }
 
-                    // reading next token
-                    current_token = get_token();
-                    precedence_index curr_index = token_to_index(current_token);
+                    push_token(peek_token);
+                }
 
-                    if (curr_index == OP_UNRECOGNISED)
-                    {
-                        printf("Sem som sa dostal 9 \n");
+                current_token = get_token();
+                precedence_index curr_index = token_to_index(current_token);
 
-                        stack_free(&stack);
-                        free_token(current_token);
-                        free_token(recognition_token);
+                if (curr_index == OP_UNRECOGNISED)
+                {
+                    printf("DEBUG: current_token type=%d\n", current_token->type);
+                    printf("Sem som sa dostal 9 \n");
 
-                        error_exit(ERR_SYNTACTIC);
-                    }
+                    stack_free(&stack);
+                    free_token(current_token);
+                    free_token(recognition_token);
+
+                    error_exit(ERR_SYNTACTIC);
                 }
             }
-            break;
         }
-        else
-        {
-            // toto by nemalo nastat ig
-        }
-
+    }
+    break;  // ← TOTO MUSÍ BYŤ SÚČASŤOU case KEY_WORD!
+}  // ← ZATVÁRAJÚCA ZÁTVORKA pre case KEY_WORD
     case OPERATOR:
         switch (recognition_token->value.other_value)
         {
