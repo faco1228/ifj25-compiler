@@ -67,6 +67,7 @@ static ASTNode_ptr ast_from_operand_token(token_ptr t)
         return ast_create_null();
 
     default:
+        free_token(t);
         error_exit(ERR_INTERNAL);
     }
     return NULL;
@@ -201,7 +202,7 @@ void precedence_reduce_func(Stack *stack)
     if (stack_is_empty(stack))
     {
         stack_free(stack);
-        printf("Sem som sa dostal 1 \n");
+        // printf("Sem som sa dostal 1 \n");
         error_exit(ERR_SYNTACTIC);
     }
 
@@ -233,7 +234,7 @@ void precedence_reduce_func(Stack *stack)
             }
 
             stack_free(stack);
-            printf("Sem som sa dostal 2 \n");
+            // printf("Sem som sa dostal 2 \n");
             error_exit(ERR_SYNTACTIC);
         }
 
@@ -323,7 +324,7 @@ void precedence_reduce_func(Stack *stack)
         }
 
         stack_free(stack);
-        printf("Sem som sa dostal  3 \n");
+        // printf("Sem som sa dostal  3 \n");
         error_exit(ERR_SYNTACTIC);
     }
 
@@ -380,7 +381,7 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     {
         stack_free(stack);
         free_token(current_token);
-        printf("Sem som sa dostal  4\n");
+        // printf("Sem som sa dostal  4\n");
         error_exit(ERR_SYNTACTIC); // Stack should never be empty during parsing
     }
 
@@ -405,7 +406,7 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     {
         stack_free(stack);
         free_token(current_token);
-        printf("Sem som sa dostal 5 \n");
+        // printf("Sem som sa dostal 5 \n");
         error_exit(ERR_SYNTACTIC);
     }
 
@@ -421,7 +422,7 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     {
         stack_free(stack);
         free_token(current_token);
-        printf("Sem som sa dostal 6 \n");
+        // printf("Sem som sa dostal 6 \n");
         error_exit(ERR_SYNTACTIC);
     }
 
@@ -430,7 +431,7 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     {
         stack_free(stack);
         free_token(current_token);
-        printf("Sem som sa dostal  7 \n");
+        // printf("Sem som sa dostal  7 \n");
         error_exit(ERR_SYNTACTIC);
     }
 
@@ -473,11 +474,11 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     case precedence_error:
     default:
         // Invalid token combination according to precedence table 
-        printf("DEBUG: current_token type=%d\n", current_token->type);
+        // printf("DEBUG: current_token type=%d\n", current_token->type);
         stack_free(stack);
         free_token(current_token);
   
-        printf("Sem som sa dostal 8\n");
+        // printf("Sem som sa dostal 8\n");
         error_exit(ERR_SYNTACTIC);
     }
     return true;
@@ -564,10 +565,9 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
                 current_token = get_token();
                 precedence_index curr_index = token_to_index(current_token);
 
-                if (curr_index == OP_UNRECOGNISED)
-                {
-                    printf("DEBUG: current_token type=%d\n", current_token->type);
-                    printf("Sem som sa dostal 9 \n");
+                    if (curr_index == OP_UNRECOGNISED)
+                    {
+                        // printf("Sem som sa dostal 9 \n");
 
                     stack_free(&stack);
                     free_token(current_token);
@@ -590,7 +590,7 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
             // Parse assignment expression until EOL after non-operator
             while (true)
             {
-                printf("DEBUG: current_token type=%d\n", current_token->type);
+                // printf("DEBUG: current_token type=%d\n", current_token->type);
 
                 // Process current token with precedence comparison
                 bool should_advance = precedence_table_compare(&stack, current_token, &top_terminal);
@@ -625,8 +625,8 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
 
                     if (curr_index == OP_UNRECOGNISED)
                     {
-                        printf("DEBUG: current_token type=%d\n", current_token->type);
-                        printf("Sem som sa dostal 10 \n");
+                        // printf("DEBUG: current_token type=%d\n", current_token->type);
+                        // printf("Sem som sa dostal 10 \n");
 
                         stack_free(&stack);
                         free_token(current_token);
@@ -651,7 +651,7 @@ case LEFT_PAR: {
     bool should_advance = precedence_table_compare(&stack, recognition_token, &top_terminal);
     
     while (left_par_count > right_par_count) {
-        printf("DEBUG: current_token type=%d\n", current_token->type);
+        // printf("DEBUG: current_token type=%d\n", current_token->type);
         consume_eols();
         
         should_advance = precedence_table_compare(&stack, current_token, &top_terminal);
@@ -672,11 +672,14 @@ case LEFT_PAR: {
         break;
     }
 
-    printf("Dostal som sa az po kontrolu s $ (Vysiel som z pytania si tokenov) \n ");
+    // printf("Dostal som sa az po kontrolu s $ (Vysiel som z pytania si tokenov) \n ");
     // After main expression parsing, create end token for final reductions
     token_ptr end_token = malloc(sizeof(token_t));
     if (!end_token)
     {
+        free_token(recognition_token);
+        free_token(current_token);
+        stack_free(&stack);
         error_exit(ERR_INTERNAL);
     }
 
@@ -730,9 +733,11 @@ case LEFT_PAR: {
         // root pre PSA
         ASTNode_ptr psa_root = (ASTNode_ptr)stack.top->token->ast;
 
-        printf("Everything went fine (precedence analysis) \n ");
+        // printf("Everything went fine (precedence analysis) \n ");
 
         free(end_token);
+        // free(recognition_token);
+        // free(current_token);
         stack_free(&stack);
         return psa_root;
     }
@@ -742,7 +747,9 @@ case LEFT_PAR: {
         // Error: stack not in expected final state
         free(end_token);
         stack_free(&stack);
-        printf("Sem som sa dostal 11 \n");
+        free(recognition_token);
+        free(current_token);
+        // printf("Sem som sa dostal 11 \n");
         error_exit(ERR_SYNTACTIC);
     }
 

@@ -545,6 +545,7 @@ static int parse_statement_list(ASTNode_ptr block)
         token_ptr token_ahead = look_ahead();
         if (token_ahead->type == RIGHT_DOM_PAR || token_ahead->type == END_OF_FILE)
         {
+            printf("DEBUG\n");
             break;
         }
 
@@ -801,7 +802,7 @@ static ASTNode_ptr parse_assignment_or_call(void)
     
     ASTNode_ptr rhs = parse_exp_rhs(token);
     
-    free_token(token);
+    // free_token(token);
 
     return ast_create_assignment(lhs, rhs);
 }
@@ -852,7 +853,7 @@ static ASTNode_ptr parse_if_statement(void)
     token = expect_type(LEFT_PAR);
     ASTNode_ptr cond = parse_exp_rhs(token);
     
-    free_token(token);
+    // free_token(token);
     consume_eols();
 
     token = expect_type(RIGHT_PAR);
@@ -893,7 +894,7 @@ static ASTNode_ptr parse_while_statement(void)
     token = expect_type(LEFT_PAR);
     ASTNode_ptr cond = parse_exp_rhs(token);
 
-    free_token(token);
+    // free_token(token);
     consume_eols();
 
     token = expect_type(RIGHT_PAR);
@@ -923,7 +924,7 @@ static ASTNode_ptr parse_return_statement(void)
     token_ptr token = expect_keyword("return");
     
     ASTNode_ptr value = parse_exp_rhs(token);
-    free_token(token);
+    // free_token(token);
 
     return ast_create_return(value);
 }
@@ -960,7 +961,7 @@ static ASTNode_ptr parse_for_statement(void)
     token = expect_keyword("in");
     
     ASTNode_ptr iter_expr = parse_exp_rhs(token); // ???
-    free_token(token);
+    // free_token(token);
 
     // if (iter_expr->type != NODE_RANGE)
 
