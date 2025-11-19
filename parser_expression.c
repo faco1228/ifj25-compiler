@@ -647,49 +647,35 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
         break;
 
     // Condition context: if (expression) or while (expression)
-    case LEFT_PAR:
-    {
-        // Track parentheses to know when condition ends
-        int left_par_count = 1; // Start with 1 (recognition token)
-        int right_par_count = 0;
+case LEFT_PAR: {
+    int left_par_count = 1;
+    int right_par_count = 0;
+    
+    bool should_advance = precedence_table_compare(&stack, recognition_token, &top_terminal);
+    
+    while (left_par_count > right_par_count) {
+        printf("DEBUG: current_token type=%d\n", current_token->type);
+        consume_eols();
         
+        should_advance = precedence_table_compare(&stack, current_token, &top_terminal);
         
-        // Parse until parentheses are balanced
-        while (left_par_count > right_par_count)
-        {
-            printf("DEBUG: current_token type=%d\n", current_token->type);
 
-            // Skip newlines (allowed in conditions)
-            consume_eols();
-
-            // printf("DEBUG: current_token type=%d\n", current_token->type);
-
-            // Count parentheses to track nesting
+        if (should_advance) {
             if (current_token->type == LEFT_PAR)
                 left_par_count++;
             else if (current_token->type == RIGHT_PAR)
                 right_par_count++;
-
-             //if(left_par_count == right_par_count){ // check if the right par of if stmt was scanned
-              //   break;
-             //}
                 
-            // Process current token with precedence comparison
-            bool should_advance = precedence_table_compare(&stack, current_token, &top_terminal);
-
-            // If we should advance, get next token
-            if (should_advance)
-            {
-                current_token = get_token();
-            }
+            current_token = get_token();
         }
-        break;
     }
+    break;
+}
     default:
         break;
     }
 
-    // printf("Dostal som sa az po kontrolu s $ (Vysiel som z pytania si tokenov)");
+    printf("Dostal som sa az po kontrolu s $ (Vysiel som z pytania si tokenov) \n ");
     // After main expression parsing, create end token for final reductions
     token_ptr end_token = malloc(sizeof(token_t));
     if (!end_token)
