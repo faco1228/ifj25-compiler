@@ -55,10 +55,10 @@ main.o: compiler_main.c parser.h semantic_analysis.h scope_stack.h symtable.h gl
 	$(CC) $(CFLAGS) -c compiler_main.c -o main.o
 
 # od tadialto nizsie to pred odovzdanim treba zakomentovat pre istotu
-run: compiler
-	./compiler < test.txt || echo "Compiler exited with code $$?"
+#run: compiler
+#	./compiler < test.txt || echo "Compiler exited with code $$?"
 
 #	valgrind --leak-check=full --show-leak-kinds=all
  
-clean:
-	rm -f *.o compiler
+#clean:
+#	rm -f *.o compiler

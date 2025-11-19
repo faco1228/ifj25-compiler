@@ -121,7 +121,6 @@ bool main_exists(ST_Node *func_symtable)
 {
     if (!func_symtable) // mainly for debugging
     {
-        printf("main_exists1\n");
         error_exit(ERR_INTERNAL);
     }
 
@@ -130,7 +129,6 @@ bool main_exists(ST_Node *func_symtable)
 
     if (!key)
     {
-        printf("main_exists\n");
         error_exit(ERR_INTERNAL);
     }
 

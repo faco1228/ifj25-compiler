@@ -1,8 +1,7 @@
 import "ifj25" for Ifj
 
 class Program {
-    static main() { var x
-        x = 10
-        __dummy = Ifj.write(x)
+    static main() {
+        10 = 20
     }
 }

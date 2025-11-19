@@ -665,10 +665,10 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
                     right_par_count++;
                 }
 
-                current_token = get_token();
+                if(left_par_count != right_par_count)
+                    current_token = get_token();
             }
         }
-        push_token(current_token);
         break;
     }
     default:
