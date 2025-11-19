@@ -55,10 +55,10 @@ static token_ptr look_ahead(void);
  * @return PARSE_OK (0) on success. On a syntax error, it calls
  *         error_exit(ERR_SYNTACTIC) and the function does not return.
  */
-ASTNode_ptr parse_program(ST_Node *func_symtable, ST_Node *glob_var_symtable)
+ASTNode_ptr parse_program(ST_Node **func_symtable, ST_Node **glob_var_symtable)
 {
-    error_set_parser_func_symtable(func_symtable);
-    error_set_parser_glob_symtable(glob_var_symtable);
+    error_set_parser_func_symtable(*func_symtable);
+    error_set_parser_glob_symtable(*glob_var_symtable);
 
     // edge case if multiple EOLs
     consume_eols();
@@ -74,7 +74,7 @@ ASTNode_ptr parse_program(ST_Node *func_symtable, ST_Node *glob_var_symtable)
     ASTNode_ptr program = ast_create_program();
     error_set_parser_ast_root(program);
 
-    if (parse_class_def(program, func_symtable, glob_var_symtable) != 0)
+    if (parse_class_def(program, *func_symtable, *glob_var_symtable) != 0)
     {
         error_exit(PARSE_ERROR);
     }
@@ -350,7 +350,7 @@ static ASTNode_ptr parse_function_def(token_ptr id, ST_Node *func_symtable, ST_N
     ST_Node *new = st_create_node(key);
     func_symtable = st_insert_node(func_symtable, new);
 
-    free(key);
+    key_dispose(key);
 
     return fun;
 }
@@ -405,7 +405,7 @@ static ASTNode_ptr parse_setter_def(token_ptr id, ST_Node *func_symtable, ST_Nod
     ST_Node *new = st_create_node(key);
     func_symtable = st_insert_node(func_symtable, new);
 
-    free(key);
+    key_dispose(key);
 
     return fun;
 }
@@ -423,7 +423,7 @@ static ASTNode_ptr parse_setter_def(token_ptr id, ST_Node *func_symtable, ST_Nod
  */
 static ASTNode_ptr parse_getter_def(token_ptr id, ST_Node *func_symtable, ST_Node *glob_var_symtable)
 {
-    token_ptr token;
+    // token_ptr token;
 
     ASTNode_ptr body = parse_block(glob_var_symtable);
 
@@ -437,7 +437,7 @@ static ASTNode_ptr parse_getter_def(token_ptr id, ST_Node *func_symtable, ST_Nod
     ST_Node *new = st_create_node(key);
     func_symtable = st_insert_node(func_symtable, new);
 
-    free(key);
+    key_dispose(key);
 
     return fun;
 }
@@ -755,7 +755,7 @@ static ASTNode_ptr parse_assign_target(ST_Node *glob_var_symtable)
             glob_var_symtable = st_insert_node(glob_var_symtable, new);
         }
 
-        free(key);
+        key_dispose(key);
 
         free_token(token);
         return id;

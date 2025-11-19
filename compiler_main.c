@@ -32,7 +32,7 @@ int main()
     scope_stack_init(scope_stack); // if something fails, error_exit() is called inside the function and memory is freed
 
     // performes semantic_analysis and generates code after every successful semantic action
-    semantic_analysis(ast, ast, func_symtable, glob_var_symtable, scope_stack);
+    semantic_analysis(ast, func_symtable, glob_var_symtable, scope_stack);
 
     // free all allocated structures
     scope_stack_dispose(scope_stack);

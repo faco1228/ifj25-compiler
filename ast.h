@@ -133,11 +133,11 @@ struct ASTNode
         } function_call;
 
         // // ASSIGN
-        // struct
-        // {
-        //     // ASTNode_ptr lhs; // typicky NODE_IDENTIFIER // children
-        //     // ASTNode_ptr rhs; // expression // children
-        // } assign;
+        struct
+        {
+            // ASTNode_ptr lhs; // typicky NODE_IDENTIFIER // children
+            // ASTNode_ptr rhs; // expression // children
+        } assign;
 
         // BINARY operation
         struct

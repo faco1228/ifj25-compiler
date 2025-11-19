@@ -16,9 +16,9 @@
 
 
 // Static global pointers – only for parser/PSA
-static ASTNode_ptr g_parser_ast_root = NULL;
-static ST_Node *g_parser_func_symtable = NULL;
-static ST_Node *g_parser_glob_symtable = NULL;
+ASTNode_ptr g_parser_ast_root = NULL;
+ST_Node *g_parser_func_symtable = NULL;
+ST_Node *g_parser_glob_symtable = NULL;
 
 // Setters
 void error_set_parser_ast_root(void *ast_root)

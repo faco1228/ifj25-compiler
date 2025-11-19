@@ -56,7 +56,7 @@ main.o: compiler_main.c parser.h semantic_analysis.h scope_stack.h symtable.h
 
 # od tadialto nizsie to pred odovzdanim treba zakomentovat pre istotu
 run: compiler
-	valgrind --leak-check=full --show-leak-kinds=all ./compiler < test.txt || echo "Compiler exited with code $$?"
-
+	./compiler < test.txt || echo "Compiler exited with code $$?"
+#valgrind --leak-check=full --show-leak-kinds=all 
 clean:
 	rm -f *.o compiler
