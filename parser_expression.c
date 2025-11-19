@@ -471,9 +471,11 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
         return true;
     case precedence_error:
     default:
-        // Invalid token combination according to precedence table
+        // Invalid token combination according to precedence table 
+        printf("DEBUG: current_token type=%d\n", current_token->type);
         stack_free(stack);
         free_token(current_token);
+  
         printf("Sem som sa dostal 8\n");
         error_exit(ERR_SYNTACTIC);
     }
@@ -649,10 +651,13 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
         // Track parentheses to know when condition ends
         int left_par_count = 1; // Start with 1 (recognition token)
         int right_par_count = 0;
-
+        
+        
         // Parse until parentheses are balanced
         while (left_par_count > right_par_count)
         {
+            printf("DEBUG: current_token type=%d\n", current_token->type);
+
             // Skip newlines (allowed in conditions)
             consume_eols();
 
@@ -664,6 +669,10 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
             else if (current_token->type == RIGHT_PAR)
                 right_par_count++;
 
+             //if(left_par_count == right_par_count){ // check if the right par of if stmt was scanned
+              //   break;
+             //}
+                
             // Process current token with precedence comparison
             bool should_advance = precedence_table_compare(&stack, current_token, &top_terminal);
 

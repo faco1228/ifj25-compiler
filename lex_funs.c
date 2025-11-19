@@ -139,7 +139,7 @@ token_ptr process_next_token(token_ptr token){
 
             return token;
         case '\n':
-            token->type = END_OF_FILE;
+            token->type = END_OF_LINE;
             token->value.other_value = EOL_V;
             break;
         case '"':
