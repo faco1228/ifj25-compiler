@@ -901,7 +901,7 @@ static ASTNode_ptr parse_while_statement(void)
 
     // This should be here but, kikos precedence analysis already processes
     // ) parent, will fix later
-    
+
     // token = expect_type(RIGHT_PAR);
     // free_token(token);
 
@@ -1103,7 +1103,6 @@ token_ptr expect_type(enum token_type exp_tok)
 
     if (token->type != exp_tok)
     {
-        printf("DEBUG: %d\n", token->type);
         free_token(token);
         error_exit(PARSE_ERROR);
     }
