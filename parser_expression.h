@@ -93,6 +93,7 @@ typedef enum {
 
 #define eol_end_expr(current_token) \
     ((current_token)->type == IDENT || (current_token)->type == INT_LIT || (current_token)->type == FLOAT_LIT || \
-     (current_token)->type == NULL_LIT || (current_token)->type == ONE_L_STRING || (current_token)->type == MUL_L_STRING)
+     (current_token)->type == NULL_LIT || (current_token)->type == ONE_L_STRING || (current_token)->type == MUL_L_STRING \
+    || (current_token)->type == RIGHT_PAR)
 
 #endif
