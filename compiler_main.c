@@ -15,6 +15,22 @@
 #include "symtable.h"
 #include "global_structures.h"
 
+
+//! vymazat - funkcia pre print stromu pomocou preorder prechodu
+// void print_ast(ASTNode_ptr ast_root)
+// {
+//     if (!ast_root)
+//         return;
+
+//     printf("NODE TYPE: %d\n", ast_root->type);
+
+//     for (size_t i = 0; i < ast_root->child_count; i++)
+//     {
+//         print_ast(ast_root->children[i]);
+//     }
+    
+// }
+
 #define COMPILATIONS_SUCCESS 0
 
 ASTNode_ptr g_ast_root = NULL;
@@ -24,14 +40,16 @@ ST_Node *g_global_symtable = NULL;
 int main()
 {
     // syntactic analysis and creation of ast
-    ASTNode_ptr ast = parse_program();
+    ASTNode_ptr ast = parse_program(); //! bude vobec treba vratit ast ak je globalne? nestaci poslat ten globalny ptr? len na zamyslenie
+
+    // print_ast(ast); //! vymazat - volanie pomocnej funkcie pre print ast cez pre order
 
     // scope_stack init
     Scope_Stack *scope_stack = malloc(sizeof(Scope_Stack));
     if (!scope_stack)
         error_exit(ERR_INTERNAL);
 
-    scope_stack_init(scope_stack); // if something fails, error_exit() is called inside the function and memory is freed
+    scope_stack_init(scope_stack); // if stack array allocation fails, error_exit() is called inside the function and all memory is freed
 
     // performes semantic_analysis and generates code after every successful semantic action
     semantic_analysis(ast, g_func_symtable, g_global_symtable, scope_stack);
