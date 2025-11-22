@@ -3,17 +3,18 @@
  * @author xmezeim00
  * @brief Implements Stack and its helper functions to manage working with variable
  * scopes according to the memory model of the IFJcode25 programming language.
- * 
+ *
  * @version 0.1
  * @date 2025-11-17
- * 
+ *
  * @copyright Copyright (c) 2025
- * 
+ *
  */
 #include "scope_stack.h"
 #include "symtable.h"
 #include "error.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 #define DEFAULT_SCOPE_STACK_SIZE 10
 
@@ -90,7 +91,7 @@ void scope_stack_increase_size(Scope_Stack *scope_stack)
 
 /**
  * @brief Removes Symtable pointer from stack top. Calls Disposte_Tree before popping
- * 
+ *
  * @param Scope_Stack Pointer to Scope_Stack.
  */
 void scope_stack_pop(Scope_Stack *scope_stack)
@@ -98,7 +99,7 @@ void scope_stack_pop(Scope_Stack *scope_stack)
     if (scope_stack_empty(scope_stack)) // cannot pop from an empty stack, nothing happens
         return;
 
-    st_dispose_tree(scope_stack_top(scope_stack)); // tree is freed before popping
+    st_dispose_tree(*scope_stack_top(scope_stack)); // tree is freed before popping
 
     scope_stack->stack_top_index--;
 }
@@ -124,7 +125,7 @@ bool scope_stack_full(Scope_Stack *scope_stack)
     if (!scope_stack)
         error_exit(ERR_INTERNAL);
 
-    return scope_stack->stack_top_index == (int) scope_stack->stack_array_size - 1;
+    return scope_stack->stack_top_index == (int)scope_stack->stack_array_size - 1;
 }
 
 /**
@@ -141,10 +142,10 @@ ST_Node *scope_stack_var_lookup(Scope_Stack *scope_stack, Key *key)
         return NULL;
 
     ST_Node *symbol;
-    
+
     for (int idx = scope_stack->stack_top_index; idx >= 0; idx--) // check the whole scope stack for var
     {
-        symbol = st_search(scope_stack->symtable_array[idx], key); 
+        symbol = st_search(scope_stack->symtable_array[idx], key);
 
         if (symbol)
             return symbol;
@@ -159,11 +160,13 @@ ST_Node *scope_stack_var_lookup(Scope_Stack *scope_stack, Key *key)
  *
  * @return Pointer to an existing Symtable root node or NULL if stack is empty.
  */
-ST_Node *scope_stack_top(Scope_Stack *scope_stack)
+ST_Node **scope_stack_top(Scope_Stack *scope_stack)
 {
     // cannot return any Symtables from an empty stack
     if (scope_stack_empty(scope_stack))
+    {
         return NULL;
+    }
 
-    return scope_stack->symtable_array[scope_stack->stack_top_index];
+    return &scope_stack->symtable_array[scope_stack->stack_top_index];
 }

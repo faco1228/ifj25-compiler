@@ -19,7 +19,7 @@
 // NOTE: NULL at the end is just a breakpoint
 const char *key_words_arr[] = {
     "class", "if", "else", "is", "return", "var", "while", "Ifj",
-    "static", "true", "false", "Num", "String", "Null", "Break", "Continue", 
+    "static", "true", "false", "Num", "String", "Null", "break", "continue", 
     "for", "import", NULL
 };
 

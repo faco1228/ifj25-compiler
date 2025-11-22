@@ -84,6 +84,6 @@ ST_Node *scope_stack_var_lookup(Scope_Stack *scope_stack, Key *key);
  * @brief Returns an adress of a Symtable that is currently on top of the stack.
  * @param Scope_Stack Pointer to Scope_Stack.
  */
-ST_Node *scope_stack_top(Scope_Stack *scope_stack);
+ST_Node **scope_stack_top(Scope_Stack *scope_stack);
 
 #endif
