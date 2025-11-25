@@ -350,11 +350,6 @@ static ASTNode_ptr parse_function_def(token_ptr id) // parse parameter list
     ASTNode_ptr body = parse_block();
     add_child(fun, body); // we add body of the function as a child node 
 
-    // token = expect_type(END_OF_LINE);
-    // free_token(token);
-
-    // fun = ast_create_function(id->value.str_value, arg_count, FUN_F, body);
-
     // adds new function to func symtable
     Key *key = st_create_function_key(id->value.str_value, arg_count, FUNCTION);
     ST_Node *new = st_create_node(key);
@@ -764,17 +759,6 @@ static ASTNode_ptr parse_assign_target(void)
     {
         token = expect_type(GLOB_VAR);
         ASTNode_ptr id = ast_create_ident(token->value.str_value);
-
-        // adds new glob variable to g_global_symtable
-        Key *key = st_create_variable_key(token->value.str_value);
-
-        if (!st_search(g_global_symtable, key)) // does not already exist so we can add a new one
-        {
-            ST_Node *new = st_create_node(key);
-            g_global_symtable = st_insert_node(g_global_symtable, new);
-        }
-
-        key_dispose(key);
 
         free_token(token);
         return id;

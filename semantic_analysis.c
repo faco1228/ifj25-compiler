@@ -356,7 +356,7 @@ bool builtin_args_type_check(ASTNode_ptr call_node, char *name, unsigned args_co
  * @param glob_var_symtable Pointer to the symtable of all glob variables.
  * @param scope_stack Pointer to the scope stack.
  */
-void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, ST_Node *glob_var_symtable, Scope_Stack *scope_stack)
+void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *scope_stack)
 {
     if (!exp_root)
         return;
@@ -372,29 +372,34 @@ void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, ST_Node *glob_va
         if (search_result) // if a getter is found, ident is assigned the GETTER id_type
         {
             exp_root->data.identifier.id_type = GETTER;
-            free(key);
+            key_dispose(key);
         }
         else
         {
+            key_dispose(key);
             // now we know that ident has to be a local or a global variable and we need to check if it exists
             key = st_create_variable_key(exp_root->data.identifier.name);
-            search_result = st_search(glob_var_symtable, key);
+            search_result = st_search(g_global_symtable, key);
 
-            if (IS_GLOB_VAR(key->name) && !search_result) // undefined global variable was read
+            if (IS_GLOB_VAR(key->name)) // undefined global variable was read
             {
-                has_null_lit = true; // reading undefined GV is the same as using the null literal inside an expression
-                free(key);
-                break; // no need to search local variables
+                if (!search_result)
+                {
+                    has_null_lit = true; // reading undefined GV is the same as using a null literal inside an expression
+                    key_dispose(key);
+                }
             }
-
-            if (!verify_var_existence(key, scope_stack))
+            else
             {
-                free(key);
-                error_exit(ERR_SEM_UNDEFINED);
+                if (!verify_var_existence(key, scope_stack))
+                {
+                    key_dispose(key);
+                    error_exit(ERR_SEM_UNDEFINED);
+                }
             }
         }
 
-        free(key);
+        key_dispose(key);
         break;
     }
     case NODE_CALL: // function call used as a term inside an expression
@@ -442,10 +447,10 @@ void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, ST_Node *glob_va
     // we agreed on a convention that children[0] is the left child and children[1] the right child inside the exp subtree
 
     if (exp_root->children) // seg fault prevention
-        exp_analysis(exp_root->children[0], func_symtable, glob_var_symtable, scope_stack);
+        exp_analysis(exp_root->children[0], func_symtable, scope_stack);
 
     if (exp_root->children) // seg fault prevention
-        exp_analysis(exp_root->children[1], func_symtable, glob_var_symtable, scope_stack);
+        exp_analysis(exp_root->children[1], func_symtable, scope_stack);
 }
 
 /**
@@ -499,7 +504,7 @@ bool eval_exp_flags(ASTNode_ptr exp_root)
  * @param glob_var_symtable Pointer to a global variable symtable.
  * @param scope_stack Pointer to the scope_stack.
  */
-void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, ST_Node *glob_var_symtable, Scope_Stack *scope_stack)
+void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, Scope_Stack *scope_stack)
 {
     switch (node_to_handle->type)
     {
@@ -538,13 +543,28 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, ST_No
         // first we try to find a setter with idents name
         ASTNode_ptr assign_target = node_to_handle->children[0]; // first child inside NODE_ASSINGN is always the assign target
 
-        Key *setter_key = st_create_function_key(assign_target->data.identifier.name, 1, SETTER);
-        ST_Node *search_result = st_search(func_symtable, setter_key);
+        Key *key = st_create_function_key(assign_target->data.identifier.name, 1, SETTER);
+        ST_Node *search_result = st_search(func_symtable, key);
 
         if (search_result) // setter was found, so idents type is set to SETTER
             assign_target->data.identifier.id_type = SETTER;
 
-        free(setter_key);
+        free(key);
+
+        // now we can check if a new global variable was not defined
+        if (IS_GLOB_VAR(assign_target->data.identifier.name))
+        {
+            key = st_create_variable_key(assign_target->data.identifier.name);
+            search_result = st_search(g_global_symtable, key);
+
+            if (!search_result) // new global variable defined
+            {
+                ST_Node *new_glob_var = st_create_node(key);
+                g_global_symtable = st_insert_node(g_global_symtable, new_glob_var);
+            }
+
+            free(key);
+        }
         break;
     }
     case NODE_VAR_DECL:
@@ -591,7 +611,7 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, ST_No
     }
     case NODE_EXPR_STMNT:
 
-        exp_analysis(node_to_handle->children[0], func_symtable, glob_var_symtable, scope_stack);
+        exp_analysis(node_to_handle->children[0], func_symtable, scope_stack);
 
         if (!eval_exp_flags(node_to_handle))
             error_exit(ERR_SEM_TYPE_MISMATCH);
@@ -624,7 +644,7 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, ST_No
 
     for (unsigned idx = 0; idx < node_to_handle->child_count; idx++)
     {
-        semantic_analysis(node_to_handle->children[idx], func_symtable, glob_var_symtable, scope_stack);
+        semantic_analysis(node_to_handle->children[idx], func_symtable, scope_stack);
     }
 
     // block and all its statements processed - safe to pop scope from stack
