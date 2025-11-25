@@ -202,7 +202,7 @@ bool builtin_args_type_check(ASTNode_ptr call_node, char *name, unsigned args_co
  * @param glob_var_symtable Pointer to the symtable of all glob variables.
  * @param scope_stack Pointer to the scope stack.
  */
-void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, ST_Node *glob_var_symtable, Scope_Stack *scope_stack);
+void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *scope_stack);
 
 /**
  * @brief Traverses the tree and calls semantic functions based on the current node type.
@@ -213,6 +213,6 @@ void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, ST_Node *glob_va
  * @param glob_var_symtable Pointer to a global variable symtable.
  * @param scope_stack Pointer to the scope_stack.
  */
-void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, ST_Node *glob_var_symtable, Scope_Stack *scope_stack);
+void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, Scope_Stack *scope_stack);
 
 #endif
