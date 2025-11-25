@@ -322,7 +322,7 @@ static ASTNode_ptr parse_definition()
  * @param id Identifier token of the function (already read by caller).
  * @return PARSE_OK on success.
  */
-static ASTNode_ptr parse_function_def(token_ptr id)
+static ASTNode_ptr parse_function_def(token_ptr id) // parse parameter list
 {
     token_ptr token;
 
@@ -330,8 +330,10 @@ static ASTNode_ptr parse_function_def(token_ptr id)
     free_token(token);
     consume_eols();
 
+    ASTNode_ptr fun;
+
     unsigned arg_count = 0;
-    if (parse_param_list(&arg_count) != PARSE_OK)
+    if (parse_param_list(fun, &arg_count) != PARSE_OK)
     {
         error_exit(PARSE_ERROR);
     }
@@ -344,7 +346,7 @@ static ASTNode_ptr parse_function_def(token_ptr id)
     // token = expect_type(END_OF_LINE);
     // free_token(token);
 
-    ASTNode_ptr fun = ast_create_function(id->value.str_value, arg_count, FUN_F, body);
+    fun = ast_create_function(id->value.str_value, arg_count, FUN_F, body);
 
     // adds new function to func symtable
     Key *key = st_create_function_key(id->value.str_value, arg_count, FUNCTION);
@@ -456,7 +458,7 @@ static ASTNode_ptr parse_getter_def(token_ptr id)
  *
  * @return PARSE_OK on success.
  */
-int parse_param_list(unsigned *arg_count)
+int parse_param_list(ASTNode_ptr node, unsigned *arg_count)
 {
     token_ptr token_ahead = look_ahead();
     *arg_count = 0;
@@ -467,10 +469,15 @@ int parse_param_list(unsigned *arg_count)
         return PARSE_OK;
     }
 
+    ASTNode_ptr param;
+
     // next token should be id - of the parameter
     token_ptr token = expect_ident();
-    free_token(token);
     (*arg_count)++;
+
+    param = ast_create_ident(token->value.str_value);
+    add_child(node, param);
+    free_token(token);
 
     while (1)
     {
@@ -482,8 +489,12 @@ int parse_param_list(unsigned *arg_count)
             consume_eols();
 
             token = expect_ident();
-            free_token(token);
             (*arg_count)++;
+            
+            param = ast_create_ident(token->value.str_value);
+            add_child(node, param);
+            free_token(token);
+
             continue;
         }
         break;
@@ -798,9 +809,9 @@ static ASTNode_ptr parse_assignment_or_call(void)
         error_exit(PARSE_ERROR);
     }
     consume_eols();
-    
+
     ASTNode_ptr rhs = parse_exp_rhs(token);
-    
+
     // free_token(token);
 
     return ast_create_assignment(lhs, rhs);
@@ -818,8 +829,9 @@ static ASTNode_ptr parse_assignment_or_call(void)
  */
 static ASTNode_ptr parse_exp_rhs(token_ptr token)
 {
-    ASTNode_ptr expr = parse_expression(token); 
-    if (expr == NULL){
+    ASTNode_ptr expr = parse_expression(token);
+    if (expr == NULL)
+    {
         error_exit(PARSE_ERROR);
     }
     return ast_create_exp_statement(expr);
@@ -893,7 +905,7 @@ static ASTNode_ptr parse_if_statement(void)
 
     token = expect_type(LEFT_PAR);
     ASTNode_ptr cond = parse_exp_rhs(token);
-    
+
     // free_token(token);
     consume_eols();
 
@@ -969,7 +981,7 @@ static ASTNode_ptr parse_while_statement(void)
 static ASTNode_ptr parse_return_statement(void)
 {
     token_ptr token = expect_keyword("return");
-    
+
     ASTNode_ptr value = parse_exp_rhs(token);
     // free_token(token);
 
@@ -1006,7 +1018,7 @@ static ASTNode_ptr parse_for_statement(void)
     char *iter_name = id_token->value.str_value;
 
     token = expect_keyword("in");
-    
+
     ASTNode_ptr iter_expr = parse_exp_rhs(token); // ???
     // free_token(token);
 
