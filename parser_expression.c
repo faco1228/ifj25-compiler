@@ -15,7 +15,6 @@
 #include "parser_expression.h"
 #include "global_structures.h"
 
-
 /* Pomocná funkcia na nájdenie top terminálu */
 static token_ptr find_top_terminal(Stack *stack)
 {
@@ -118,6 +117,17 @@ static bool token_is_ifj_keyword(token_ptr t)
             strcmp(t->value.str_value, "Ifj") == 0);
 }
 
+// skontroluje ci je keyword Num alebo String alebo Null
+static bool token_is_type_keyword(token_ptr t)
+{
+    printf("DEBUG\n");
+    return (t->type == KEY_WORD &&
+            t->value.str_value != NULL &&
+            (strcmp(t->value.str_value, "String") == 0 ||
+             strcmp(t->value.str_value, "Num") == 0 ||
+             strcmp(t->value.str_value, "Null") == 0));
+}
+
 /* EOL môže ukončiť výraz? (heuristika pre assignment/return) */
 static bool psa_eol_end_expr(token_ptr current_token)
 {
@@ -199,7 +209,9 @@ static precedence_index token_to_index(token_ptr token)
         if (token_is_is_operator(token))
             return OP_IS_TOK;
         if (token_is_ifj_keyword(token))
-            return OP_OPERAND;      // <-- PRIDANÉ: Ifj je operand
+            return OP_OPERAND; // <-- PRIDANÉ: Ifj je operand
+        if (token_is_type_keyword(token))
+            return OP_OPERAND;
         return OP_UNRECOGNISED;
 
     case END_OF_FILE:
@@ -701,7 +713,8 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
     stack_init(&stack);
 
     token_ptr special_char = malloc(sizeof(token_t));
-    if (!special_char) {
+    if (!special_char)
+    {
         if (recognition_token)
             free_token(recognition_token);
         error_exit(ERR_INTERNAL);
@@ -716,13 +729,16 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
     token_ptr top_terminal = NULL;
 
     /* ─────────────── základný (NULL) kontext ─────────────── */
-    if (recognition_token == NULL) {
-        while (true) {
+    if (recognition_token == NULL)
+    {
+        while (true)
+        {
             /* 1) Konec výrazu – tieto tokeny už PSA nesmie spotrebovať */
             if (current_token->type == END_OF_LINE ||
                 current_token->type == END_OF_FILE ||
                 current_token->type == COMMA ||
-                current_token->type == RIGHT_PAR) {
+                current_token->type == RIGHT_PAR)
+            {
                 push_token(current_token);
                 break;
             }
@@ -732,7 +748,8 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
             /* 2a) FUNEXP heuristika – built-in: Ifj . something(...) */
             if (current_token->type == DOT &&
                 top_terminal &&
-                token_is_ifj_keyword(top_terminal)) {
+                token_is_ifj_keyword(top_terminal))
+            {
                 /* '.' nemá ísť do PSA – necháme ho na psa_parse_fun_call_operand() */
                 push_token(current_token);
                 break;
@@ -742,7 +759,8 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
             if (current_token->type == LEFT_PAR &&
                 top_terminal &&
                 (top_terminal->type == IDENT ||
-                 token_is_ifj_keyword(top_terminal))) {
+                 token_is_ifj_keyword(top_terminal)))
+            {
                 /* '(' nemá ísť do PSA – necháme ju na psa_parse_fun_call_operand() */
                 push_token(current_token);
                 break;
@@ -752,11 +770,15 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
             bool should_advance =
                 psa_table_compare(&stack, current_token, &top_terminal, NULL);
 
-            if (should_advance) {
+            if (should_advance)
+            {
                 current_token = get_token();
-            } else {
+            }
+            else
+            {
                 precedence_index curr_index = token_to_index(current_token);
-                if (curr_index == OP_UNRECOGNISED) {
+                if (curr_index == OP_UNRECOGNISED)
+                {
                     stack_free(&stack);
                     free_token(current_token);
                     error_exit(ERR_SYNTACTIC);
@@ -766,26 +788,35 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
     }
 
     /* ─────────────── špeciálne kontexty (return, =, in, '(') ─────────────── */
-    else {
-        switch (recognition_token->type) {
+    else
+    {
+        switch (recognition_token->type)
+        {
         case KEY_WORD:
             /* return <expr> */
             if (recognition_token->value.str_value != NULL &&
-                strcmp(recognition_token->value.str_value, "return") == 0) {
+                strcmp(recognition_token->value.str_value, "return") == 0)
+            {
 
-                while (true) {
+                while (true)
+                {
                     bool should_advance =
                         psa_table_compare(&stack, current_token, &top_terminal, recognition_token);
 
-                    if (should_advance) {
+                    if (should_advance)
+                    {
                         if (current_token->type == OPERATOR ||
                             current_token->type == DOUBLE_DOT ||
                             current_token->type == TRIPLE_DOT ||
-                            token_is_is_operator(current_token)) {
+                            token_is_is_operator(current_token))
+                        {
                             consume_eols();
-                        } else if (psa_eol_end_expr(current_token)) {
+                        }
+                        else if (psa_eol_end_expr(current_token))
+                        {
                             token_ptr peek_token = get_token();
-                            if (peek_token->type == END_OF_LINE) {
+                            if (peek_token->type == END_OF_LINE)
+                            {
                                 push_token(peek_token);
                                 break;
                             }
@@ -793,9 +824,12 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
                         }
 
                         current_token = get_token();
-                    } else {
+                    }
+                    else
+                    {
                         precedence_index curr_index = token_to_index(current_token);
-                        if (curr_index == OP_UNRECOGNISED) {
+                        if (curr_index == OP_UNRECOGNISED)
+                        {
                             stack_free(&stack);
                             free_token(current_token);
                             free_token(recognition_token);
@@ -805,20 +839,27 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
                 }
             }
             /* for (... in <expr>) */
-            else if (strcmp(recognition_token->value.str_value, "in") == 0) {
-                while (true) {
+            else if (strcmp(recognition_token->value.str_value, "in") == 0)
+            {
+                while (true)
+                {
                     bool should_advance =
                         psa_table_compare(&stack, current_token, &top_terminal, recognition_token);
 
-                    if (should_advance) {
+                    if (should_advance)
+                    {
                         current_token = get_token();
-                        if (current_token->type == RIGHT_PAR) {
+                        if (current_token->type == RIGHT_PAR)
+                        {
                             push_token(current_token);
                             break;
                         }
-                    } else {
+                    }
+                    else
+                    {
                         precedence_index curr_index = token_to_index(current_token);
-                        if (curr_index == OP_UNRECOGNISED) {
+                        if (curr_index == OP_UNRECOGNISED)
+                        {
                             stack_free(&stack);
                             free_token(current_token);
                             free_token(recognition_token);
@@ -831,20 +872,27 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
 
         case OPERATOR:
             /* assignment RHS: = <expr> */
-            if (recognition_token->value.other_value == EQUAL_SIGN_V) {
-                while (true) {
+            if (recognition_token->value.other_value == EQUAL_SIGN_V)
+            {
+                while (true)
+                {
                     bool should_advance =
                         psa_table_compare(&stack, current_token, &top_terminal, recognition_token);
 
-                    if (should_advance) {
+                    if (should_advance)
+                    {
                         if (current_token->type == OPERATOR ||
                             current_token->type == DOUBLE_DOT ||
                             current_token->type == TRIPLE_DOT ||
-                            token_is_is_operator(current_token)) {
+                            token_is_is_operator(current_token))
+                        {
                             consume_eols();
-                        } else if (psa_eol_end_expr(current_token)) {
+                        }
+                        else if (psa_eol_end_expr(current_token))
+                        {
                             token_ptr peek_token = get_token();
-                            if (peek_token->type == END_OF_LINE) {
+                            if (peek_token->type == END_OF_LINE)
+                            {
                                 push_token(peek_token);
                                 break;
                             }
@@ -852,9 +900,12 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
                         }
 
                         current_token = get_token();
-                    } else {
+                    }
+                    else
+                    {
                         precedence_index curr_index = token_to_index(current_token);
-                        if (curr_index == OP_UNRECOGNISED) {
+                        if (curr_index == OP_UNRECOGNISED)
+                        {
                             stack_free(&stack);
                             free_token(current_token);
                             free_token(recognition_token);
@@ -865,20 +916,23 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
             }
             break;
 
-        case LEFT_PAR: {
+        case LEFT_PAR:
+        {
             int left_par_count = 1;
             int right_par_count = 0;
 
             (void)psa_table_compare(&stack, recognition_token, &top_terminal, NULL);
             recognition_token = NULL; /* už je v zásobníku */
 
-            while (left_par_count > right_par_count) {
+            while (left_par_count > right_par_count)
+            {
                 consume_eols();
 
                 bool should_advance =
                     psa_table_compare(&stack, current_token, &top_terminal, NULL);
 
-                if (should_advance) {
+                if (should_advance)
+                {
                     if (current_token->type == LEFT_PAR)
                         left_par_count++;
                     else if (current_token->type == RIGHT_PAR)
@@ -886,9 +940,12 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
 
                     if (left_par_count != right_par_count)
                         current_token = get_token();
-                } else {
+                }
+                else
+                {
                     precedence_index curr_index = token_to_index(current_token);
-                    if (curr_index == OP_UNRECOGNISED) {
+                    if (curr_index == OP_UNRECOGNISED)
+                    {
                         stack_free(&stack);
                         free_token(current_token);
                         error_exit(ERR_SYNTACTIC);
@@ -902,7 +959,8 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
             break;
         }
 
-        if (recognition_token) {
+        if (recognition_token)
+        {
             free_token(recognition_token);
             recognition_token = NULL;
         }
@@ -911,7 +969,8 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
     /* ─────────────── finálne doredukovanie pomocou '$' ─────────────── */
 
     token_ptr end_token = malloc(sizeof(token_t));
-    if (!end_token) {
+    if (!end_token)
+    {
         free_token(current_token);
         stack_free(&stack);
         error_exit(ERR_INTERNAL);
@@ -924,12 +983,14 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
 
     token_ptr top_terminal_final = NULL;
 
-    while (true) {
+    while (true)
+    {
         top_terminal_final = find_top_terminal(&stack);
         psa_table_compare(&stack, end_token, &top_terminal_final, NULL);
         top_terminal_final = find_top_terminal(&stack);
 
-        if (top_terminal_final && top_terminal_final->type == END_OF_FILE) {
+        if (top_terminal_final && top_terminal_final->type == END_OF_FILE)
+        {
             break;
         }
     }
@@ -938,14 +999,17 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
         stack.head &&
         stack.head->token->type == END_OF_FILE &&
         stack.top &&
-        stack.top->token->type == NONTERMINAL_E) {
+        stack.top->token->type == NONTERMINAL_E)
+    {
 
         ASTNode_ptr psa_root = (ASTNode_ptr)stack.top->token->ast;
 
         free(end_token);
         stack_free(&stack);
         return psa_root;
-    } else {
+    }
+    else
+    {
         free(end_token);
         stack_free(&stack);
         error_exit(ERR_SYNTACTIC);
