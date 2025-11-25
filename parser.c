@@ -822,8 +822,7 @@ static ASTNode_ptr parse_exp_rhs(token_ptr token)
     if (expr == NULL){
         error_exit(PARSE_ERROR);
     }
-
-    return expr;
+    return ast_create_exp_statement(expr);
 }
 
 /**
