@@ -330,7 +330,9 @@ static ASTNode_ptr parse_function_def(token_ptr id) // parse parameter list
     free_token(token);
     consume_eols();
 
-    ASTNode_ptr fun;
+    // function node needs to be created before we try to add any args as children
+    // right now we only know the name of the function, the other values are just temporary
+    ASTNode_ptr fun = ast_create_function(id->value.str_value, 0, FUN_F, NULL);
 
     unsigned arg_count = 0;
     if (parse_param_list(fun, &arg_count) != PARSE_OK)
@@ -338,15 +340,20 @@ static ASTNode_ptr parse_function_def(token_ptr id) // parse parameter list
         error_exit(PARSE_ERROR);
     }
 
+    // now that we know the real arg_count we can overwrite the temporaty value
+    fun->data.function_def.arg_count = arg_count;
+
     token = expect_type(RIGHT_PAR);
     free_token(token);
 
+
     ASTNode_ptr body = parse_block();
+    add_child(fun, body); // we add body of the function as a child node 
 
     // token = expect_type(END_OF_LINE);
     // free_token(token);
 
-    fun = ast_create_function(id->value.str_value, arg_count, FUN_F, body);
+    // fun = ast_create_function(id->value.str_value, arg_count, FUN_F, body);
 
     // adds new function to func symtable
     Key *key = st_create_function_key(id->value.str_value, arg_count, FUNCTION);
