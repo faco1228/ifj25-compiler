@@ -423,9 +423,15 @@ void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *sco
         break;
     }
 
+    // exp subtree has the structure of a binary tree
     // we agreed on a convention that children[0] is the left child and children[1] the right child inside the exp subtree
-    exp_analysis(exp_root->children[0], func_symtable, scope_stack); // handle left subtree
-    exp_analysis(exp_root->children[1], func_symtable, scope_stack); // handle right subtree
+
+    if (exp_root->children) // seg fault prevention
+        exp_analysis(exp_root->children[0], func_symtable, scope_stack);
+
+    if (exp_root->children) // seg fault prevention
+        exp_analysis(exp_root->children[1], func_symtable, scope_stack);
+    
 }
 
 /**
@@ -487,6 +493,7 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, ST_No
     {
     case NODE_PROGRAM:
     {
+        
         if (!main_exists(func_symtable))
             error_exit(ERR_SEM_UNDEFINED);
         break;
@@ -529,6 +536,7 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, ST_No
     case NODE_BLOCK:// creates new empty scope
     {
         scope_stack_push(scope_stack, NULL);
+        
         break;
     }
     case NODE_IDENTIFIER: // can only be a local or global var, because function nodes have a separate node type
@@ -547,7 +555,8 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, ST_No
         break;
     }
     case NODE_EXPR_STMNT:
-        exp_analysis(node_to_handle, func_symtable, scope_stack);
+
+        exp_analysis(node_to_handle->children[0], func_symtable, scope_stack);
 
         if (!eval_exp_flags(node_to_handle)) // type mismatch detected inside eval_exp_flags()
             error_exit(ERR_SEM_TYPE_MISMATCH);
