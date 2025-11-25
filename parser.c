@@ -27,7 +27,7 @@ static ASTNode_ptr parse_var_def(void);
 static ASTNode_ptr parse_assign_target(void);
 static ASTNode_ptr parse_assignment_or_call(void);
 static ASTNode_ptr parse_exp_rhs(token_ptr token);
-// static ASTNode_ptr parse_arg_list(void);
+// static int parse_arg_list(void); // moze byt vyuzita ako sablona pre PSA
 static ASTNode_ptr parse_if_statement(void);
 static ASTNode_ptr parse_while_statement(void);
 static ASTNode_ptr parse_return_statement(void);
@@ -64,7 +64,7 @@ ASTNode_ptr parse_program(void)
     // edge case if multiple EOLs
     consume_eols();
 
-    if (parse_prolog() != 0)
+    if (parse_prolog() != PARSE_OK)
     {
         error_exit(PARSE_ERROR);
     }
@@ -825,6 +825,49 @@ static ASTNode_ptr parse_exp_rhs(token_ptr token)
 
     return expr;
 }
+
+/**
+ * @brief Parse a comma-separated argument list for function calls.
+ *
+ * Grammar:
+ * @code
+ * <arg_list> ::= ε | <expression> ( "," <expression> )*
+ * @endcode
+ *
+ * @note
+ *  - EOLs are allowed after each comma and after the opening '('
+ *    (the latter is handled by the caller).
+ *  - Each <expression> will be parsed by PSA.
+ *
+ * @return PARSE_OK on success.
+ */
+// static int parse_arg_list(void) {
+//     token_ptr token_ahead;
+//     token_ahead = look_ahead();
+//     // unsigned args = 0;
+
+//     if (token_ahead->type == RIGHT_PAR) {
+//         return PARSE_OK;
+//     }
+
+//     ASTNode_ptr expr = parse_expression(NULL);
+//     // add_child(current_call_node, expr);   // argument 0
+
+//     while (1) {
+//         token_ahead = look_ahead();
+//         if (token_ahead->type != COMMA) break;
+
+//         token_ptr token;
+//         token = expect_type(COMMA);
+//         free_token(token);
+//         consume_eols();
+
+//         expr = parse_expression(NULL);
+//         // add_child(current_call_node, expr);
+//     }
+
+//     return PARSE_OK;
+// }
 
 /**
  * @brief Parse an @c if statement with an @c else branch.
