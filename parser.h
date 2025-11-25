@@ -57,7 +57,7 @@ ASTNode_ptr parse_program(void);
  *
  * @return PARSE_OK on success.
  */
-int parse_param_list(unsigned *arg_count);
+int parse_param_list(ASTNode_ptr node, unsigned *arg_count);
 
 /**
  * @brief Read and return a token of the required type.
