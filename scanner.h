@@ -18,7 +18,7 @@
 //Note: Subtraction operator has separate type, since it can be used as unary operator (extension)
 enum token_type {
     IDENT, KEY_WORD, GLOB_VAR, 
-    INT_LIT, FLOAT_LIT, NULL_LIT,
+    INT_LIT, FLOAT_LIT,
     ONE_L_STRING, MUL_L_STRING, 
     OPERATOR, MINUS,
     LEFT_PAR, RIGHT_PAR, LEFT_DOM_PAR, RIGHT_DOM_PAR, 
@@ -30,7 +30,7 @@ enum token_type {
 //Enum defining different values a token's attribute other_value can obtain
 //Note: Token type END_OF_FILE uses value EOF - It's not included in enum because it's built in constant
 enum other_value_type {
-    EOL_V, EOF_V, NULL_V,
+    EOL_V, EOF_V,
     PLUS_V, MINUS_V, SLASH_V, STAR_V, EQUAL_SIGN_V, 
     LEFT_PAR_V, RIGHT_PAR_V, LEFT_DOM_PAR_V, RIGHT_DOM_PAR_V, 
     Q_MARK_V, EXC_MARK_V, SEMICOLON_V, COMMA_V,

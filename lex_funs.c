@@ -252,16 +252,6 @@ void process_ident(token_ptr token){
             return;
         }
     }
-
-    //Checks whether string isn't null value
-    if (strcmp("null", token->value.str_value) == 0){
-        token->type = NULL_LIT;
-        token->value.other_value = NULL_V;
-
-        free(token->value.str_value);
-
-        return;
-    }
     
     //When the token isn't KW but it's global variable
     if (token->value.str_value[0] == '_' && token->value.str_value[1] == '_'){
@@ -983,7 +973,7 @@ void process_number(token_ptr token, int first_char){
     }
     else if (token->type == FLOAT_LIT){
         //Converts string containing float number into float value
-        token->value.float_value = strtod(temp_buffer, NULL);
+        token->value.float_value = strtold(temp_buffer, NULL);
     }
     else{
         //Converts string containing integer number into integer value
@@ -1023,6 +1013,14 @@ void process_float(token_ptr token, char *buffer, unsigned *buf_index){
         buffer[*buf_index] = digit;
         (*buf_index)++;
         count++;
+    }
+
+   // After decimal point, there must be at least one digit
+    if (count == 0) {
+        free_token(token);
+        free(buffer);
+        buffer = NULL;
+        error_exit(ERR_LEXICAL);
     }
 
     //Sets tokens attributes
