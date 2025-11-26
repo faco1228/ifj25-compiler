@@ -15,7 +15,23 @@
 #include "parser_expression.h"
 #include "global_structures.h"
 
+static char *str_copy(const char *str);
 static bool token_is_type_keyword(token_ptr t);
+
+static char *str_copy(const char *str)
+{
+    if (!str)
+        return NULL;
+
+    size_t len = strlen(str) + 1;
+    char *copy = malloc(len);
+
+    if (!copy)
+        return NULL;
+
+    strcpy(copy, str);
+    return copy;
+}
 
 /* Pomocná funkcia na nájdenie top terminálu */
 static token_ptr find_top_terminal(Stack *stack)
@@ -399,7 +415,8 @@ static ASTNode_ptr psa_parse_fun_call_operand(token_ptr first_token)
             free_token(t);
             error_exit(ERR_SYNTACTIC);
         }
-        func_name = t->value.str_value; /* meno built-inu (read_str, write, ...) */
+        func_name = str_copy(t->value.str_value); /* meno built-inu (read_str, write, ...) */
+
         free_token(t);
 
         t = get_token();

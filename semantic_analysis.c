@@ -134,7 +134,7 @@ bool main_exists(ST_Node *func_symtable)
     }
 
     ST_Node *search_result = st_search(func_symtable, key);
-    free(key);
+    key_dispose(key);
 
     return search_result != NULL;
 }
@@ -217,18 +217,17 @@ void handle_function_call(ASTNode_ptr call_node, ST_Node *func_symtable, Scope_S
     if (call_node->data.function_call.is_builtin) // built-in function called
     {
         // get important info
-        char *name = call_node->data.function_call.name;
         unsigned args_count = call_node->data.function_call.param_count;
 
-        if (!builtin_exists(name)) // incorrect built-in ident used
+        if (!builtin_exists(call_node->data.function_call.name)) // incorrect built-in ident used
         {
             error_exit(ERR_SEM_UNDEFINED);
         }
 
-        if (!builtin_args_count_correct(name, args_count))
+        if (!builtin_args_count_correct(call_node->data.function_call.name, args_count))
             error_exit(ERR_SEM_ARG_COUNT);
 
-        if (!builtin_args_type_check(call_node, name, args_count, scope_stack, func_symtable))
+        if (!builtin_args_type_check(call_node, call_node->data.function_call.name, args_count, scope_stack, func_symtable))
             error_exit(ERR_SEM_TYPE_MISMATCH);
     }
     else // user-defined function call
@@ -378,13 +377,12 @@ void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *sco
         {
             key_dispose(key); // we need to free the setter key
             key = st_create_variable_key(exp_root->data.identifier.name);// new key is created
-            
+
             if (!IS_GLOB_VAR(key->name)) // we only need to look for local variables
             {
                 if (!verify_var_existence(key, scope_stack))
                 {
                     key_dispose(key);
-                    printf("DEBUG");
                     error_exit(ERR_SEM_UNDEFINED);
                 }
             }
@@ -626,9 +624,9 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, Scope
         break;
     }
 
-    case NODE_CALL:
-        handle_function_call(node_to_handle, func_symtable, scope_stack);
-        break;
+    // case NODE_CALL:
+    //     handle_function_call(node_to_handle, func_symtable, scope_stack);
+    //     break;
     default:
         break;
     }

@@ -49,6 +49,11 @@ static void parser_psa_cleanup(void)
         g_global_symtable = NULL;
     }
 
+    if (g_scope_stack != NULL) {
+        scope_stack_dispose(g_scope_stack);
+        g_scope_stack = NULL;
+    }
+
     // scanner (token buffer, pushed_token, ...)
     scanner_cleanup();
 }

@@ -58,7 +58,7 @@ Key *st_create_function_key(char *name, int args_count, ID_Type id_type)
 
     if (!name_copy)
     {
-        free(new_key);
+        key_dispose(new_key);
         return NULL;
     }
 

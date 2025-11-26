@@ -69,6 +69,10 @@ typedef struct Builtin_Function
      (name)[1] == '_' && \
      (name)[2] != '\0')
 
+// this macro checks if right operand of an expression that uses the is operator is valid
+#define IS_VALID_RIGHT_OP(op) \
+    ((op))
+
 // flags signaling that things significant to type prediction and type matching are present inside the expression
 // operand flags
 extern bool has_string_lit;
