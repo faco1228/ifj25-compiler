@@ -76,9 +76,12 @@ static ASTNode_ptr ast_from_operand_token(token_ptr t) // is token pre num str n
         return ast_create_null();
 
     case KEY_WORD:
-        if (token_is_type_keyword(t)) {
+        if (token_is_type_keyword(t))
+        {
             return ast_create_str(t->value.str_value);
-        } else {
+        }
+        else
+        {
             /* jiný keyword tu být nesmí */
             free_token(t);
             error_exit(ERR_SYNTACTIC);
@@ -888,6 +891,32 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
             {
                 while (true)
                 {
+                    /* FUNEXP heuristika – rovnaká ako hore v NULL kontexte */
+
+                    top_terminal = find_top_terminal(&stack);
+
+                    /* 2a) built-in: Ifj . something(...) */
+                    if (current_token->type == DOT &&
+                        top_terminal &&
+                        token_is_ifj_keyword(top_terminal))
+                    {
+                        /* '.' nemá ísť do PSA – necháme ho na psa_parse_fun_call_operand() */
+                        push_token(current_token);
+                        break;
+                    }
+
+                    /* 2b) user/built-in volanie: ident/Ifj + '(' */
+                    if (current_token->type == LEFT_PAR &&
+                        top_terminal &&
+                        (top_terminal->type == IDENT ||
+                         token_is_ifj_keyword(top_terminal)))
+                    {
+                        /* '(' nemá ísť do PSA – necháme ju na psa_parse_fun_call_operand() */
+                        push_token(current_token);
+                        break;
+                    }
+
+                    /* 3) Normálny PSA režim */
                     bool should_advance =
                         psa_table_compare(&stack, current_token, &top_terminal, recognition_token);
 
