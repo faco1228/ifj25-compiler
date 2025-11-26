@@ -64,9 +64,10 @@ typedef struct Builtin_Function
 
 // macro to determine if an ident is a GV
 #define IS_GLOB_VAR(name) \
-    ((strlen(name)) >= 2 && \
-    (name[0]) == '_' && \
-    (name[1]) == '_')
+    ((name) != NULL && \
+     (name)[0] == '_' && \
+     (name)[1] == '_' && \
+     (name)[2] != '\0')
 
 // flags signaling that things significant to type prediction and type matching are present inside the expression
 // operand flags

@@ -374,26 +374,17 @@ void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *sco
             exp_root->data.identifier.id_type = GETTER;
             key_dispose(key);
         }
-        else
+        else // ident is a variable
         {
-            key_dispose(key);
-            // now we know that ident has to be a local or a global variable and we need to check if it exists
-            key = st_create_variable_key(exp_root->data.identifier.name);
-            search_result = st_search(g_global_symtable, key);
-
-            if (IS_GLOB_VAR(key->name)) // undefined global variable was read
-            {
-                if (!search_result)
-                {
-                    has_null_lit = true; // reading undefined GV is the same as using a null literal inside an expression
-                    key_dispose(key);
-                }
-            }
-            else
+            key_dispose(key); // we need to free the setter key
+            key = st_create_variable_key(exp_root->data.identifier.name);// new key is created
+            
+            if (!IS_GLOB_VAR(key->name)) // we only need to look for local variables
             {
                 if (!verify_var_existence(key, scope_stack))
                 {
                     key_dispose(key);
+                    printf("DEBUG");
                     error_exit(ERR_SEM_UNDEFINED);
                 }
             }
