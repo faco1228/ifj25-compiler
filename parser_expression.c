@@ -15,6 +15,8 @@
 #include "parser_expression.h"
 #include "global_structures.h"
 
+static bool token_is_type_keyword(token_ptr t);
+
 /* Pomocná funkcia na nájdenie top terminálu */
 static token_ptr find_top_terminal(Stack *stack)
 {
@@ -33,11 +35,26 @@ static token_ptr find_top_terminal(Stack *stack)
     return top_terminal;
 }
 
+static bool token_is_is_operator(token_ptr t)
+{
+    return (t->type == KEY_WORD &&
+            t->value.str_value != NULL &&
+            strcmp(t->value.str_value, "is") == 0);
+}
+
+/* KEY_WORD "Ifj" – prefix pre built-in volania Ifj.* */
+static bool token_is_ifj_keyword(token_ptr t)
+{
+    return (t->type == KEY_WORD &&
+            t->value.str_value != NULL &&
+            strcmp(t->value.str_value, "Ifj") == 0);
+}
+
 /* ------------------------------------------------------------------------
  *  Pomocné funkcie pre vytváranie AST z operandov a operátorov
  * ------------------------------------------------------------------------ */
 
-static ASTNode_ptr ast_from_operand_token(token_ptr t)
+static ASTNode_ptr ast_from_operand_token(token_ptr t) // is token pre num str null
 {
     switch (t->type)
     {
@@ -58,9 +75,23 @@ static ASTNode_ptr ast_from_operand_token(token_ptr t)
     case NULL_LIT:
         return ast_create_null();
 
+    case KEY_WORD:
+        if (token_is_type_keyword(t))
+        {
+            return ast_create_str(t->value.str_value);
+        }
+        else
+        {
+            /* jiný keyword tu být nesmí */
+            free_token(t);
+            error_exit(ERR_SYNTACTIC);
+            return NULL;
+        }
+
     default:
         free_token(t);
         error_exit(ERR_INTERNAL);
+        return NULL;
     }
     return NULL;
 }
@@ -102,25 +133,9 @@ static operator_types map_op_to_ast(enum other_value_type op_val)
  *  Rozpoznanie špeciálnych tokenov
  * ------------------------------------------------------------------------ */
 
-static bool token_is_is_operator(token_ptr t)
-{
-    return (t->type == KEY_WORD &&
-            t->value.str_value != NULL &&
-            strcmp(t->value.str_value, "is") == 0);
-}
-
-/* KEY_WORD "Ifj" – prefix pre built-in volania Ifj.* */
-static bool token_is_ifj_keyword(token_ptr t)
-{
-    return (t->type == KEY_WORD &&
-            t->value.str_value != NULL &&
-            strcmp(t->value.str_value, "Ifj") == 0);
-}
-
 // skontroluje ci je keyword Num alebo String alebo Null
 static bool token_is_type_keyword(token_ptr t)
 {
-    printf("DEBUG\n");
     return (t->type == KEY_WORD &&
             t->value.str_value != NULL &&
             (strcmp(t->value.str_value, "String") == 0 ||
@@ -876,6 +891,32 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
             {
                 while (true)
                 {
+                    /* FUNEXP heuristika – rovnaká ako hore v NULL kontexte */
+
+                    top_terminal = find_top_terminal(&stack);
+
+                    /* 2a) built-in: Ifj . something(...) */
+                    if (current_token->type == DOT &&
+                        top_terminal &&
+                        token_is_ifj_keyword(top_terminal))
+                    {
+                        /* '.' nemá ísť do PSA – necháme ho na psa_parse_fun_call_operand() */
+                        push_token(current_token);
+                        break;
+                    }
+
+                    /* 2b) user/built-in volanie: ident/Ifj + '(' */
+                    if (current_token->type == LEFT_PAR &&
+                        top_terminal &&
+                        (top_terminal->type == IDENT ||
+                         token_is_ifj_keyword(top_terminal)))
+                    {
+                        /* '(' nemá ísť do PSA – necháme ju na psa_parse_fun_call_operand() */
+                        push_token(current_token);
+                        break;
+                    }
+
+                    /* 3) Normálny PSA režim */
                     bool should_advance =
                         psa_table_compare(&stack, current_token, &top_terminal, recognition_token);
 
