@@ -27,7 +27,7 @@ static ASTNode_ptr parse_var_def(void);
 static ASTNode_ptr parse_assign_target(void);
 static ASTNode_ptr parse_assignment_or_call(void);
 static ASTNode_ptr parse_exp_rhs(token_ptr token);
-// static ASTNode_ptr parse_arg_list(void);
+// static int parse_arg_list(void); // moze byt vyuzita ako sablona pre PSA
 static ASTNode_ptr parse_if_statement(void);
 static ASTNode_ptr parse_while_statement(void);
 static ASTNode_ptr parse_return_statement(void);
@@ -64,7 +64,7 @@ ASTNode_ptr parse_program(void)
     // edge case if multiple EOLs
     consume_eols();
 
-    if (parse_prolog() != 0)
+    if (parse_prolog() != PARSE_OK)
     {
         error_exit(PARSE_ERROR);
     }
@@ -322,7 +322,7 @@ static ASTNode_ptr parse_definition()
  * @param id Identifier token of the function (already read by caller).
  * @return PARSE_OK on success.
  */
-static ASTNode_ptr parse_function_def(token_ptr id)
+static ASTNode_ptr parse_function_def(token_ptr id) // parse parameter list
 {
     token_ptr token;
 
@@ -330,21 +330,25 @@ static ASTNode_ptr parse_function_def(token_ptr id)
     free_token(token);
     consume_eols();
 
+    // function node needs to be created before we try to add any args as children
+    // right now we only know the name of the function, the other values are just temporary
+    ASTNode_ptr fun = ast_create_function(id->value.str_value, 0, FUN_F, NULL);
+
     unsigned arg_count = 0;
-    if (parse_param_list(&arg_count) != PARSE_OK)
+    if (parse_param_list(fun, &arg_count) != PARSE_OK)
     {
         error_exit(PARSE_ERROR);
     }
 
+    // now that we know the real arg_count we can overwrite the temporaty value
+    fun->data.function_def.arg_count = arg_count;
+
     token = expect_type(RIGHT_PAR);
     free_token(token);
 
+
     ASTNode_ptr body = parse_block();
-
-    // token = expect_type(END_OF_LINE);
-    // free_token(token);
-
-    ASTNode_ptr fun = ast_create_function(id->value.str_value, arg_count, FUN_F, body);
+    add_child(fun, body); // we add body of the function as a child node 
 
     // adds new function to func symtable
     Key *key = st_create_function_key(id->value.str_value, arg_count, FUNCTION);
@@ -456,7 +460,7 @@ static ASTNode_ptr parse_getter_def(token_ptr id)
  *
  * @return PARSE_OK on success.
  */
-int parse_param_list(unsigned *arg_count)
+int parse_param_list(ASTNode_ptr node, unsigned *arg_count)
 {
     token_ptr token_ahead = look_ahead();
     *arg_count = 0;
@@ -467,10 +471,15 @@ int parse_param_list(unsigned *arg_count)
         return PARSE_OK;
     }
 
+    ASTNode_ptr param;
+
     // next token should be id - of the parameter
     token_ptr token = expect_ident();
-    free_token(token);
     (*arg_count)++;
+
+    param = ast_create_ident(token->value.str_value);
+    add_child(node, param);
+    free_token(token);
 
     while (1)
     {
@@ -482,8 +491,12 @@ int parse_param_list(unsigned *arg_count)
             consume_eols();
 
             token = expect_ident();
-            free_token(token);
             (*arg_count)++;
+            
+            param = ast_create_ident(token->value.str_value);
+            add_child(node, param);
+            free_token(token);
+
             continue;
         }
         break;
@@ -747,17 +760,6 @@ static ASTNode_ptr parse_assign_target(void)
         token = expect_type(GLOB_VAR);
         ASTNode_ptr id = ast_create_ident(token->value.str_value);
 
-        // adds new glob variable to g_global_symtable
-        Key *key = st_create_variable_key(token->value.str_value);
-
-        if (!st_search(g_global_symtable, key)) // does not already exist so we can add a new one
-        {
-            ST_Node *new = st_create_node(key);
-            g_global_symtable = st_insert_node(g_global_symtable, new);
-        }
-
-        key_dispose(key);
-
         free_token(token);
         return id;
     }
@@ -798,9 +800,9 @@ static ASTNode_ptr parse_assignment_or_call(void)
         error_exit(PARSE_ERROR);
     }
     consume_eols();
-    
+
     ASTNode_ptr rhs = parse_exp_rhs(token);
-    
+
     // free_token(token);
 
     return ast_create_assignment(lhs, rhs);
@@ -818,13 +820,56 @@ static ASTNode_ptr parse_assignment_or_call(void)
  */
 static ASTNode_ptr parse_exp_rhs(token_ptr token)
 {
-    ASTNode_ptr expr = parse_expression(token); 
-    if (expr == NULL){
+    ASTNode_ptr expr = parse_expression(token);
+    if (expr == NULL)
+    {
         error_exit(PARSE_ERROR);
     }
-
-    return expr;
+    return ast_create_exp_statement(expr);
 }
+
+/**
+ * @brief Parse a comma-separated argument list for function calls.
+ *
+ * Grammar:
+ * @code
+ * <arg_list> ::= ε | <expression> ( "," <expression> )*
+ * @endcode
+ *
+ * @note
+ *  - EOLs are allowed after each comma and after the opening '('
+ *    (the latter is handled by the caller).
+ *  - Each <expression> will be parsed by PSA.
+ *
+ * @return PARSE_OK on success.
+ */
+// static int parse_arg_list(void) {
+//     token_ptr token_ahead;
+//     token_ahead = look_ahead();
+//     // unsigned args = 0;
+
+//     if (token_ahead->type == RIGHT_PAR) {
+//         return PARSE_OK;
+//     }
+
+//     ASTNode_ptr expr = parse_expression(NULL);
+//     // add_child(current_call_node, expr);   // argument 0
+
+//     while (1) {
+//         token_ahead = look_ahead();
+//         if (token_ahead->type != COMMA) break;
+
+//         token_ptr token;
+//         token = expect_type(COMMA);
+//         free_token(token);
+//         consume_eols();
+
+//         expr = parse_expression(NULL);
+//         // add_child(current_call_node, expr);
+//     }
+
+//     return PARSE_OK;
+// }
 
 /**
  * @brief Parse an @c if statement with an @c else branch.
@@ -851,7 +896,7 @@ static ASTNode_ptr parse_if_statement(void)
 
     token = expect_type(LEFT_PAR);
     ASTNode_ptr cond = parse_exp_rhs(token);
-    
+
     // free_token(token);
     consume_eols();
 
@@ -927,7 +972,7 @@ static ASTNode_ptr parse_while_statement(void)
 static ASTNode_ptr parse_return_statement(void)
 {
     token_ptr token = expect_keyword("return");
-    
+
     ASTNode_ptr value = parse_exp_rhs(token);
     // free_token(token);
 
@@ -964,7 +1009,7 @@ static ASTNode_ptr parse_for_statement(void)
     char *iter_name = id_token->value.str_value;
 
     token = expect_keyword("in");
-    
+
     ASTNode_ptr iter_expr = parse_exp_rhs(token); // ???
     // free_token(token);
 

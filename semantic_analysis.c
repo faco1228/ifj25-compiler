@@ -31,13 +31,14 @@ builtin_function_t builtin_functions[builtin_functions_arr_lenght] =
         {"ord", 2, {NUM_TYPE, UNDEFINED}, {STR_TYPE, NUM_TYPE}},
         {"chr", 1, {STR_TYPE, UNDEFINED}, {NUM_TYPE}}};
 
-// expression flags
+// expression flags init
 bool has_only_plus_op = true;
 bool has_string_lit = false;
+bool has_num_lit = false;
 bool has_minus_or_slash = false;
 bool has_null_lit = false;
 bool has_unary_minus = false;
-bool has_operator = false;
+bool has_arit_op = false;
 bool has_rel_op = false;
 bool zero_divison_detected = false;
 bool has_comp_op = false;
@@ -52,10 +53,11 @@ void reset_flags()
 {
     has_only_plus_op = true;
     has_string_lit = false;
+    has_num_lit = false;
     has_minus_or_slash = false;
     has_null_lit = false;
     has_unary_minus = false;
-    has_operator = false;
+    has_arit_op = false;
     has_rel_op = false;
     zero_divison_detected = false;
     has_comp_op = false;
@@ -84,15 +86,14 @@ bool verify_var_redec(Key *key, ST_Node *symtable)
  * @param key Pointer to the key of the symbol.
  * @param scope_stack Pointer to the scope stack to look for the symbol inside higher level scopes.
  */
-void verify_var_existence(Key *key, Scope_Stack *scope_stack)
+bool verify_var_existence(Key *key, Scope_Stack *scope_stack)
 {
     ST_Node *search_result = scope_stack_var_lookup(scope_stack, key);
 
-    if (!search_result)
-    {
-        free(key);
-        error_exit(ERR_SEM_UNDEFINED);
-    }
+    if (search_result) // local variable found
+        return true;
+
+    return search_result != NULL;
 }
 
 /**
@@ -121,7 +122,7 @@ bool main_exists(ST_Node *func_symtable)
 {
     if (!func_symtable) // mainly for debugging
     {
-        error_exit(ERR_INTERNAL);
+        return false;
     }
 
     // key init to search for main with no args
@@ -133,7 +134,7 @@ bool main_exists(ST_Node *func_symtable)
     }
 
     ST_Node *search_result = st_search(func_symtable, key);
-    free(key);
+    key_dispose(key);
 
     return search_result != NULL;
 }
@@ -142,7 +143,7 @@ bool main_exists(ST_Node *func_symtable)
  * @brief Checks if the divider is equal to zero. Works only if the divider is a num literal, otherwise we cannot
  *        detect zero division. If zero division is detected error_exit() is called.
  *
- * @param divider Pointer towards the devider node inside AST
+ * @param divider Pointer towards the devider node inside AST.
  *
  * @return True if zero division detected, false otherwise.
  */
@@ -194,7 +195,11 @@ void args_symbols_check(ASTNode_ptr call_node, ST_Node *func_symtable, Scope_Sta
         {
 
             Key *key = st_create_variable_key(call_node->children[idx]->data.identifier.name);
-            verify_var_existence(key, scope_stack);
+            if (!verify_var_existence(key, scope_stack))
+            {
+                free(key);
+                error_exit(ERR_SEM_UNDEFINED);
+            }
         }
     }
 }
@@ -209,26 +214,21 @@ void args_symbols_check(ASTNode_ptr call_node, ST_Node *func_symtable, Scope_Sta
  */
 void handle_function_call(ASTNode_ptr call_node, ST_Node *func_symtable, Scope_Stack *scope_stack)
 {
-    if (call_node->data.function_call.is_builtin) // built-in function call
+    if (call_node->data.function_call.is_builtin) // built-in function called
     {
         // get important info
-        char *name = call_node->data.function_call.name;
         unsigned args_count = call_node->data.function_call.param_count;
 
-        if (!builtin_exists(name)) // incorrect built-in ident used
+        if (!builtin_exists(call_node->data.function_call.name)) // incorrect built-in ident used
         {
             error_exit(ERR_SEM_UNDEFINED);
         }
 
-        if (!builtin_args_count_correct(name, args_count))
-        {
+        if (!builtin_args_count_correct(call_node->data.function_call.name, args_count))
             error_exit(ERR_SEM_ARG_COUNT);
-        }
 
-        if (!builtin_args_check(call_node, name, args_count, scope_stack, func_symtable))
-        {
+        if (!builtin_args_type_check(call_node, call_node->data.function_call.name, args_count, scope_stack, func_symtable))
             error_exit(ERR_SEM_TYPE_MISMATCH);
-        }
     }
     else // user-defined function call
     {
@@ -304,8 +304,8 @@ bool builtin_args_count_correct(char *name, unsigned args_count)
  * @param name Name of the built-in function.
  * @param args_count Num of args inside the function call.
  */
-bool builtin_args_check(ASTNode_ptr call_node, char *name, unsigned args_count,
-                        Scope_Stack *scope_stack, ST_Node *func_symtable)
+bool builtin_args_type_check(ASTNode_ptr call_node, char *name, unsigned args_count,
+                             Scope_Stack *scope_stack, ST_Node *func_symtable)
 {
     builtin_function_t *search_result = NULL;
 
@@ -352,6 +352,8 @@ bool builtin_args_check(ASTNode_ptr call_node, char *name, unsigned args_count,
  *
  * @param exp_root Root of the expression subtree.
  * @param func_symtable Pointer to the symtable of all setter, getters and functions.
+ * @param glob_var_symtable Pointer to the symtable of all glob variables.
+ * @param scope_stack Pointer to the scope stack.
  */
 void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *scope_stack)
 {
@@ -369,26 +371,30 @@ void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *sco
         if (search_result) // if a getter is found, ident is assigned the GETTER id_type
         {
             exp_root->data.identifier.id_type = GETTER;
-            free(key);
-            break;
+            key_dispose(key);
+        }
+        else // ident is a variable
+        {
+            key_dispose(key);                                             // we need to free the setter key
+            key = st_create_variable_key(exp_root->data.identifier.name); // new key is created
+
+            if (!IS_GLOB_VAR(key->name)) // we only need to look for local variables
+            {
+                if (!verify_var_existence(key, scope_stack))
+                {
+                    key_dispose(key);
+                    error_exit(ERR_SEM_UNDEFINED);
+                }
+            }
         }
 
-        // now we know that ident has to be a local or a global variable and we need to check if it exists
-        key = st_create_variable_key(exp_root->data.identifier.name);
-        verify_var_existence(key, scope_stack);
-
+        key_dispose(key);
         break;
     }
-
-    case NODE_STR_LIT:
-        has_string_lit = true;
-        break;
-    case NODE_UNARY_OP:
-        has_unary_minus = true;
-        has_operator = true;
+    case NODE_CALL: // function call used as a term inside an expression
+        handle_function_call(exp_root, func_symtable, scope_stack);
         break;
     case NODE_BINARY_OP:
-        has_operator = true;
 
         if (exp_root->data.binary_operator.op_type != OP_PLUS)
             has_only_plus_op = false;
@@ -396,35 +402,44 @@ void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *sco
         if (exp_root->data.binary_operator.op_type == OP_DIV || exp_root->data.binary_operator.op_type == OP_MINUS)
             has_minus_or_slash = true;
 
-        if (exp_root->data.binary_operator.op_type == OP_EQ ||
-            exp_root->data.binary_operator.op_type == OP_NEQ ||
-            exp_root->data.binary_operator.op_type == OP_LT ||
-            exp_root->data.binary_operator.op_type == OP_LTE ||
-            exp_root->data.binary_operator.op_type == OP_GT ||
-            exp_root->data.binary_operator.op_type == OP_GTE ||
-            exp_root->data.binary_operator.op_type == OP_IS)
+        if (!IS_REL_OP(exp_root->data.binary_operator.op_type)) // has any arit operators
+            has_arit_op = true;
+
+        if (IS_REL_OP(exp_root->data.binary_operator.op_type)) // has any rel operators
             has_rel_op = true;
 
-        if (exp_root->data.binary_operator.op_type == OP_LT ||
-            exp_root->data.binary_operator.op_type == OP_LTE ||
-            exp_root->data.binary_operator.op_type == OP_GT ||
-            exp_root->data.binary_operator.op_type == OP_GTE)
+        if (IS_COMP_OP(exp_root->data.binary_operator.op_type)) // exp has <, >, <=, >= specifically
             has_comp_op = true;
 
         if (exp_root->data.binary_operator.op_type == OP_DIV && zero_division(exp_root->children[1]))
             zero_divison_detected = true;
 
+        if (exp_root->data.binary_operator.op_type == OP_MUL && STR_ITER_INVALID(exp_root->children[0]->type, exp_root->children[1]->type))
+            error_exit(ERR_SEM_TYPE_MISMATCH);
+
         break;
     case NODE_NULL_LIT:
         has_null_lit = true;
+        break;
+    case NODE_INT_LIT:
+    case NODE_FLOAT_LIT:
+        has_num_lit = true;
+        break;
+    case NODE_STR_LIT:
+        has_string_lit = true;
         break;
     default:
         break;
     }
 
+    // exp subtree has the structure of a binary tree
     // we agreed on a convention that children[0] is the left child and children[1] the right child inside the exp subtree
-    exp_analysis(exp_root->children[0], func_symtable, scope_stack); // handle left subtree
-    exp_analysis(exp_root->children[1], func_symtable, scope_stack); // handle right subtree
+
+    if (exp_root->children) // seg fault prevention
+        exp_analysis(exp_root->children[0], func_symtable, scope_stack);
+
+    if (exp_root->children) // seg fault prevention
+        exp_analysis(exp_root->children[1], func_symtable, scope_stack);
 }
 
 /**
@@ -437,27 +452,27 @@ bool eval_exp_flags(ASTNode_ptr exp_root)
 {
     //! tato funkcia moze ostat pretoze code gen funkcia pre generovanie vyrazu si prejde ten podstrom sama a tato funkcia ziadny prechod nerobi
     //! v code gen sa nam zmensi logika o tu co sa nachadza tu a mozeme asi rovno pracovat len s tymi expressions
-    if (!has_rel_op)
+    if (has_arit_op) // type checks that are specific for arit operators
     {
         // handle error flag combinations
         if (has_string_lit && has_minus_or_slash) // minus and division operators cannot be used with strings
             return false;
-        else if (has_unary_minus && has_string_lit)
+        else if (has_null_lit && has_arit_op) // null literal inside
             return false;
-        else if (has_null_lit && has_operator) // null literal inside
+        else if (has_num_lit && has_string_lit && has_only_plus_op)
             return false;
 
         // handle prediction of exp operand restrictions
         if (has_minus_or_slash || has_unary_minus)
             // these operands cannot be used with strings
             exp_root->data.exp_statement.restriction = ONLY_NUM;
-        else if (has_operator && has_only_plus_op && has_string_lit)
+        else if (has_only_plus_op && has_string_lit)
             // when string literal is present here, + operator can only be used as concat
             exp_root->data.exp_statement.restriction = ONLY_STR;
         else // could not predict any restrictions
             exp_root->data.exp_statement.restriction = UNDETERMINED;
     }
-    else // has rel operators
+    else if (has_rel_op) // has rel operators
     {
         if (has_string_lit && has_comp_op) // comparison operators cannot be used with string values
             return false;
@@ -478,40 +493,84 @@ bool eval_exp_flags(ASTNode_ptr exp_root)
  * @param glob_var_symtable Pointer to a global variable symtable.
  * @param scope_stack Pointer to the scope_stack.
  */
-void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, ST_Node *glob_var_symtable, Scope_Stack *scope_stack)
+void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, Scope_Stack *scope_stack)
 {
-    if (!node_to_handle->child_count)
-        return;
-
     switch (node_to_handle->type)
     {
     case NODE_PROGRAM:
     {
         if (!main_exists(func_symtable))
+        {
             error_exit(ERR_SEM_UNDEFINED);
+        }
         break;
     }
+    case NODE_FUNCTION_DEF:
+    {
+        // creates a separate symtable for the function arguments
+        // this symtable is always going to be on the bottom of the stack, so all args will be visible to lower level scopes
+        scope_stack_push(scope_stack, NULL);
+        ST_Node **arg_symtable = scope_stack_top(scope_stack);
 
+        if (node_to_handle->child_count == 0)
+            break;
+
+        for (unsigned idx = 0; idx < node_to_handle->data.function_def.arg_count; idx++) // we loop through all of the args and add them to the symtable of args
+        {
+            // new symbol is created
+            Key *key = st_create_variable_key(node_to_handle->children[idx]->data.identifier.name);
+            ST_Node *arg_node = st_create_node(key);
+
+            // symbol is inserted
+            *arg_symtable = st_insert_node(*arg_symtable, arg_node);
+            free(key);
+        }
+        break;
+    }
     case NODE_ASSIGN: // when assignment node is found, we need to verify whether the assignment target is not a setter
     {
         // first we try to find a setter with idents name
-        ASTNode_ptr assign_target = node_to_handle->children[0]; // first child inside NODE_ASSING is always assign target
-        Key *setter_key = st_create_function_key(assign_target->data.identifier.name, 1, SETTER);
-        ST_Node *search_result = st_search(func_symtable, setter_key);
+        ASTNode_ptr assign_target = node_to_handle->children[0]; // first child inside NODE_ASSINGN is always the assign target
+
+        Key *key = st_create_function_key(assign_target->data.identifier.name, 1, SETTER);
+        ST_Node *search_result = st_search(func_symtable, key);
 
         if (search_result) // setter was found, so idents type is set to SETTER
             assign_target->data.identifier.id_type = SETTER;
 
-        free(setter_key);
+        key_dispose(key);
+
+        // we check if user did not assign into a getter
+        key = st_create_function_key(assign_target->data.identifier.name, 0, GETTER);
+        search_result = st_search(func_symtable, key);
+
+        if (search_result) // assign target was a getter
+            error_exit(ERR_SEM_OTHER);
+
+        key_dispose(key);
+
+        // now we can check if a new global variable was not defined
+        if (IS_GLOB_VAR(assign_target->data.identifier.name))
+        {
+            key = st_create_variable_key(assign_target->data.identifier.name);
+            search_result = st_search(g_global_symtable, key);
+
+            if (!search_result) // new global variable defined
+            {
+                ST_Node *new_glob_var = st_create_node(key);
+                g_global_symtable = st_insert_node(g_global_symtable, new_glob_var);
+            }
+
+            free(key);
+        }
         break;
     }
-
     case NODE_VAR_DECL:
     {
         Key *key = st_create_variable_key(node_to_handle->data.identifier.name);
-        ST_Node *current_scope = scope_stack_top(scope_stack);
+        ST_Node **current_scope = scope_stack_top(scope_stack);
 
-        if (verify_var_redec(key, current_scope)) // redec detected
+        if (verify_var_redec(key, *current_scope)) // redec detected
         {
             free(key);
             error_exit(ERR_SEM_REDEFINITION);
@@ -519,37 +578,44 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, ST_No
         else // new local var needs to be added to current_scope
         {
             ST_Node *new_node = st_create_node(key);
-            current_scope = st_insert_node(current_scope, new_node);
+            *current_scope = st_insert_node(*current_scope, new_node);
+            free(key);
         }
+
         break;
     }
-
-    case NODE_BLOCK:
+    case NODE_BLOCK: // creates new empty scope
     {
-        ST_Node *new_scope = NULL; // creates new empty scope
-        scope_stack_push(scope_stack, new_scope);
+        scope_stack_push(scope_stack, NULL);
         break;
     }
-
     case NODE_IDENTIFIER: // can only be a local or global var, because function nodes have a separate node type
     {
+        if (node_to_handle->data.identifier.id_type == SETTER || node_to_handle->data.identifier.id_type == GETTER)
+            break; // node has already been identified a we know that it exists
+
         Key *var_key = st_create_variable_key(node_to_handle->data.identifier.name);
-        verify_var_existence(var_key, scope_stack);
+
+        if (!IS_GLOB_VAR(var_key->name)) // we only need to search if the variable is not global
+        {
+            if (!verify_var_existence(var_key, scope_stack))
+            {
+                free(var_key);
+                error_exit(ERR_SEM_UNDEFINED);
+            }
+        }
+
         break;
     }
-
     case NODE_EXPR_STMNT:
-        exp_analysis(node_to_handle, func_symtable, scope_stack);
 
-        if (!eval_exp_flags(node_to_handle)) // type mismatch detected inside eval_exp_flags()
-        {
+        exp_analysis(node_to_handle->children[0], func_symtable, scope_stack);
+
+        if (!eval_exp_flags(node_to_handle))
             error_exit(ERR_SEM_TYPE_MISMATCH);
-        }
 
         if (zero_divison_detected)
-        {
             error_exit(ERR_SEM_OTHER);
-        }
 
         // todo : add exp code gen function when exp is ok
 
@@ -559,28 +625,31 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, ST_No
     case NODE_WHILE:
         loop_nesting_tracker++; // gets incremented each time a loop is entered
         break;
-
     case NODE_BREAK: // break and continue keyword usage check
     case NODE_CONTINUE:
     {
         if (loop_nesting_tracker == 0) // break or continue keyword used outside of a loop
-        {
             error_exit(ERR_SEM_OTHER);
-        }
-
         break;
     }
 
-    case NODE_CALL:
-        handle_function_call(node_to_handle, func_symtable, scope_stack);
+    // case NODE_CALL:
+    //     handle_function_call(node_to_handle, func_symtable, scope_stack);
+    //     break;
     default:
         break;
     }
 
     for (unsigned idx = 0; idx < node_to_handle->child_count; idx++)
-        semantic_analysis(node_to_handle->children[idx], func_symtable, glob_var_symtable, scope_stack);
+    {
+        semantic_analysis(node_to_handle->children[idx], func_symtable, scope_stack);
+    }
 
     // block and all its statements processed - safe to pop scope from stack
     if (node_to_handle->type == NODE_BLOCK)
         scope_stack_pop(scope_stack);
+
+    // loops processed - we can decrement loop nesting tracker
+    if (node_to_handle->type == NODE_FOR || node_to_handle->type == NODE_WHILE)
+        loop_nesting_tracker--;
 }

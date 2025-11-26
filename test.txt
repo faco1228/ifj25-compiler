@@ -2,6 +2,13 @@ import "ifj25" for Ifj
 
 class Program {
     static main() {
-        10 = 20
+        var x
+        x = 2
+        if (x == 2) {
+
+        }
+        else {
+            
+        }
     }
 }

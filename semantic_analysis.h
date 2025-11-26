@@ -38,15 +38,54 @@ typedef struct Builtin_Function
 
 #define builtin_functions_arr_lenght 10
 
-// flags signaling that things significant to type prediction are present in an expression
+// macro that determines if an expression has any relational operators
+#define IS_REL_OP(op) \
+    ((op) == OP_EQ  || \
+     (op) == OP_NEQ || \
+     (op) == OP_LT  || \
+     (op) == OP_LTE || \
+     (op) == OP_GT  || \
+     (op) == OP_GTE || \
+     (op) == OP_IS)
+
+// macro that determines if an expression has >, <, >=, <= operators
+#define IS_COMP_OP(op) \
+    ((op) == OP_LT  || \
+     (op) == OP_LTE || \
+     (op) == OP_GT  || \
+     (op) == OP_GTE)
+
+// this macro is used when type checking string iteration
+#define STR_ITER_INVALID(op1, op2) \
+    (((op1) == NODE_INT_LIT && \
+    (op2) == NODE_STR_LIT) || \
+    ((op1) == NODE_STR_LIT && \
+    (op2) == NODE_FLOAT_LIT) || \
+    (op2) == NODE_STR_LIT)
+
+// macro to determine if an ident is a GV
+#define IS_GLOB_VAR(name) \
+    ((name) != NULL && \
+     (name)[0] == '_' && \
+     (name)[1] == '_' && \
+     (name)[2] != '\0')
+
+// this macro checks if right operand of an expression that uses the is operator is valid
+#define IS_VALID_RIGHT_OP(op) \
+    ((op))
+
+// flags signaling that things significant to type prediction and type matching are present inside the expression
+// operand flags
 extern bool has_string_lit;
-extern bool has_minus_or_slash;
 extern bool has_null_lit;
-extern bool has_unary_minus;
-extern bool has_operator;
+extern bool has_num_lit;
+// operator flags
+extern bool has_arit_op;
+extern bool has_minus_or_slash;
 extern bool has_only_plus_op; // expression contains only + operators
 extern bool has_rel_op;
 extern bool has_comp_op; // contains >, <, >=, <=
+// illegal operation flags
 extern bool zero_divison_detected;
 
 // when equal to zero we can determine we are not in a loop, otherwise we are
@@ -76,7 +115,7 @@ bool verify_var_redec(Key *key, ST_Node *symtable);
  * @param key Pointer to the key of the symbol.
  * @param scope_stack Pointer to the scope stack to look for the symbol inside higher level scopes.
  */
-void verify_var_existence(Key *key, Scope_Stack *scope_stack);
+bool verify_var_existence(Key *key, Scope_Stack *scope_stack);
 
 /**
  * @brief Called by the parser when function definition is detected. Verifies if a function, getter or a setter
@@ -156,7 +195,7 @@ bool builtin_args_count_correct(char *name, unsigned args_count);
  * @param name Name of the built-in function.
  * @param args_count Num of args inside the function call.
  */
-bool builtin_args_check(ASTNode_ptr call_node, char *name, unsigned args_count,
+bool builtin_args_type_check(ASTNode_ptr call_node, char *name, unsigned args_count,
                         Scope_Stack *scope_stack, ST_Node *func_symtable);
 
 /**
@@ -166,6 +205,8 @@ bool builtin_args_check(ASTNode_ptr call_node, char *name, unsigned args_count,
  *
  * @param exp_root Root of the expression subtree.
  * @param func_symtable Pointer to the symtable of all setter, getters and functions.
+ * @param glob_var_symtable Pointer to the symtable of all glob variables.
+ * @param scope_stack Pointer to the scope stack.
  */
 void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *scope_stack);
 
@@ -178,6 +219,6 @@ void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *sco
  * @param glob_var_symtable Pointer to a global variable symtable.
  * @param scope_stack Pointer to the scope_stack.
  */
-void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, ST_Node *glob_var_symtable, Scope_Stack *scope_stack);
+void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, Scope_Stack *scope_stack);
 
 #endif

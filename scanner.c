@@ -18,9 +18,9 @@
 // Initializing global array of keywords
 // NOTE: NULL at the end is just a breakpoint
 const char *key_words_arr[] = {
-    "class", "if", "else", "is", "return", "var", "while", "Ifj",
+    "class", "if", "else", "is", "return", "var", "while", "Ifj", "null",
     "static", "true", "false", "Num", "String", "Null", "break", "continue", 
-    "for", "import", NULL
+    "for", "import", "in", NULL
 };
 
 // Initializing global variables

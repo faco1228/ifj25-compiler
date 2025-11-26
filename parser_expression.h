@@ -1,13 +1,15 @@
 /**
- * @file parser_expression.h
- * @author xcillik00
- * @brief Header file for precedence expression parser
+ * @file psa.h
+ * @author your name (you@domain.com)
+ * @brief 
  * @version 0.1
- * @date 2025-10-27
+ * @date 2025-11-23
+ * 
+ * @copyright Copyright (c) 2025
+ * 
  */
 
-#ifndef PARSER_EXPRESSION_H
-#define PARSER_EXPRESSION_H
+#pragma once
 
 #include <stdbool.h>
 #include "scanner.h"
@@ -21,63 +23,21 @@
 #include "stack.h"
 #include "parser.h"
 
+#define MARKER 132456     // interný token type pre '<' marker na zásobníku
+#define NONTERMINAL_E 123456789  // interný token type pre zredukovaný výraz E
 
-
-/**
- * @brief Internal token type for precedence parser marker ('<')
- * This value is not from the scanner; it is only used inside the expression parser.
- */
-
-#define MARKER 132456  // Must not collide with real token types
-
-
-/**
- * @brief Nonterminal E used to represent reduced expressions on the stack
- */
-
-#define NONTERMINAL_E 123456789
-
-
-/**
- * @brief Parses and checks syntax of expression.
- * 
- */
-ASTNode_ptr parse_expression(token_ptr recognition_token );
-
-
-/**
- * @brief Compares current token with the one on the top of the Stack
- * 
- */
-bool precedence_table_compare ( Stack *stack , token_ptr current_token, token_ptr *top_terminal);
-
-
-/**
- * @brief  Performs reduction when precedence_table gives '>'
- * Pops tokens until '<' marker and replaces recognized handle with NONTERMINAL_E.
- * 
- */ 
-void precedence_reduce_func(Stack *stack);
-
-
-/**
- * @brief Will set relation between current Token and the Stack top token
- * 
- */
 typedef enum relation {
-    precedence_shift,   // <
-    precedence_reduce,   // >
-    precedence_equal_reduce,   // =
-    precedence_error,   // error
-    precedence_finish // comparing two $
+    psa_shift,          // <
+    psa_reduce,         // >
+    psa_eq_reduce,      // =
+    psa_error,          // error
+    psa_finish          // comparing two $
 } precedence_relation;
 
 
 typedef enum {
-    OP_ADD,             // +
-    OP_SUB,             // -
-    OP_MULTIPLICATION,             // *
-    OP_DIVISION,             // /
+    OP_ADD_SUB,         // + and -
+    OP_MUL_DIV,         // * and /
     OP_LOWER,           // <
     OP_GREATER,         // >
     OP_LOWER_EQUAL,     // <=
@@ -86,14 +46,12 @@ typedef enum {
     OP_NOT_EQUAL,       // !=
     OP_LPAR,            // (
     OP_RPAR,            // )
-    OP_OPERAND,         // literal, identifikátor, getter
-    OP_END,              // $
+    OP_OPERAND,         // i (literal, ident, ...)
+    OP_IS_TOK,          // is
+    OP_D_DOT,           // ..
+    OP_T_DOT,           // ...
+    OP_END,             // $
     OP_UNRECOGNISED
 } precedence_index;
 
-#define eol_end_expr(current_token) \
-    ((current_token)->type == IDENT || (current_token)->type == INT_LIT || (current_token)->type == FLOAT_LIT || \
-     (current_token)->type == NULL_LIT || (current_token)->type == ONE_L_STRING || (current_token)->type == MUL_L_STRING \
-    || (current_token)->type == RIGHT_PAR)
-
-#endif
+ASTNode_ptr parse_expression(token_ptr recognition_token);

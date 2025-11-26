@@ -1,51 +1,76 @@
 /**
- * @file parser_expression.c
- * @author xcillik00
- * @brief Main for the precedence_expression
- * @version 0.1
- * @date 2025-10-27
+ * @file psa.c
+ * @brief Precedence syntax analyzer (PSA) for expressions.
  *
- * @copyright Copyright (c) 2025
- *
+ * Podporované:
+ *  - aritmetika: + - * /
+ *  - relačné operátory: < > <= >=
+ *  - typový operátor: is
+ *  - rovnostné: == !=
+ *  - rozsahy: .. ...
+ *  - FUNEXP: volania funkcií ako operand (user + Ifj.*)
+ *  - (TODO) unárny mínus
  */
 
 #include "parser_expression.h"
 #include "global_structures.h"
 
-/**
- * @brief Precedence table for operators.
- *
- * Relations:
- * - precedence_shift: Push marker and current token
- * - precedence_reduce: Reduce handle to nonterminal E
- * - precedence_equal_reduce: Push current token (used for parentheses)
- * - precedence_error: Syntax error
- * - precedence_finish: End of expression parsing
- *
- * Rows = stack top terminal
- * Cols = current input token
- */
-const precedence_relation precedence_table[OP_END + 1][OP_END + 1] = {
-    //  +                       -                  *                 /                  <                 >                  <=                 >=                  ==                 !=               (                  )                   i                  $
-    {precedence_reduce, precedence_reduce, precedence_shift, precedence_shift, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_shift, precedence_reduce, precedence_shift, precedence_reduce},   // +
-    {precedence_reduce, precedence_reduce, precedence_shift, precedence_shift, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_shift, precedence_reduce, precedence_shift, precedence_reduce},   // -
-    {precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_shift, precedence_reduce, precedence_shift, precedence_reduce}, // *
-    {precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_shift, precedence_reduce, precedence_shift, precedence_reduce}, // /
-    {precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_error, precedence_error, precedence_error, precedence_error, precedence_reduce, precedence_reduce, precedence_shift, precedence_reduce, precedence_shift, precedence_reduce},         //
-    {precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_error, precedence_error, precedence_error, precedence_error, precedence_reduce, precedence_reduce, precedence_shift, precedence_reduce, precedence_shift, precedence_reduce},         // >
-    {precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_error, precedence_error, precedence_error, precedence_error, precedence_reduce, precedence_reduce, precedence_shift, precedence_reduce, precedence_shift, precedence_reduce},         // <=
-    {precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_error, precedence_error, precedence_error, precedence_error, precedence_reduce, precedence_reduce, precedence_shift, precedence_reduce, precedence_shift, precedence_reduce},         // >=
-    {precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_error, precedence_error, precedence_shift, precedence_reduce, precedence_shift, precedence_reduce},           // ==
-    {precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_error, precedence_error, precedence_shift, precedence_reduce, precedence_shift, precedence_reduce},           // !=
-    {precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_equal_reduce, precedence_shift, precedence_error},      // (
-    {precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_error, precedence_reduce, precedence_error, precedence_reduce}, // )
-    {precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_reduce, precedence_error, precedence_reduce, precedence_error, precedence_reduce}, // i (operand)
-    {precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_shift, precedence_error, precedence_shift, precedence_finish}             // $
-};
+static char *str_copy(const char *str);
+static bool token_is_type_keyword(token_ptr t);
 
-// doplnit brief doxxy
-// z operandového tokenu (ident, literal) spraví AST leaf
-static ASTNode_ptr ast_from_operand_token(token_ptr t)
+static char *str_copy(const char *str)
+{
+    if (!str)
+        return NULL;
+
+    size_t len = strlen(str) + 1;
+    char *copy = malloc(len);
+
+    if (!copy)
+        return NULL;
+
+    strcpy(copy, str);
+    return copy;
+}
+
+/* Pomocná funkcia na nájdenie top terminálu */
+static token_ptr find_top_terminal(Stack *stack)
+{
+    StackItem *tmp = stack->head;
+    token_ptr top_terminal = NULL;
+
+    while (tmp)
+    {
+        if (tmp->token->type != NONTERMINAL_E &&
+            tmp->token->type != MARKER)
+        {
+            top_terminal = tmp->token;
+        }
+        tmp = tmp->next;
+    }
+    return top_terminal;
+}
+
+static bool token_is_is_operator(token_ptr t)
+{
+    return (t->type == KEY_WORD &&
+            t->value.str_value != NULL &&
+            strcmp(t->value.str_value, "is") == 0);
+}
+
+/* KEY_WORD "Ifj" – prefix pre built-in volania Ifj.* */
+static bool token_is_ifj_keyword(token_ptr t)
+{
+    return (t->type == KEY_WORD &&
+            t->value.str_value != NULL &&
+            strcmp(t->value.str_value, "Ifj") == 0);
+}
+
+/* ------------------------------------------------------------------------
+ *  Pomocné funkcie pre vytváranie AST z operandov a operátorov
+ * ------------------------------------------------------------------------ */
+
+static ASTNode_ptr ast_from_operand_token(token_ptr t) // is token pre num str null
 {
     switch (t->type)
     {
@@ -63,18 +88,30 @@ static ASTNode_ptr ast_from_operand_token(token_ptr t)
     case MUL_L_STRING:
         return ast_create_str(t->value.str_value);
 
-    case NULL_LIT:
-        return ast_create_null();
+    // case NULL_LIT:
+    //     return ast_create_null();
+
+    case KEY_WORD:
+        if (token_is_type_keyword(t))
+        {
+            return ast_create_str(t->value.str_value);
+        }
+        else
+        {
+            /* jiný keyword tu být nesmí */
+            free_token(t);
+            error_exit(ERR_SYNTACTIC);
+            return NULL;
+        }
 
     default:
         free_token(t);
         error_exit(ERR_INTERNAL);
+        return NULL;
     }
     return NULL;
 }
 
-// doplnit brief doxxy
-// mapovanie scanner operátorov na enum operator_types v AST
 static operator_types map_op_to_ast(enum other_value_type op_val)
 {
     switch (op_val)
@@ -102,174 +139,402 @@ static operator_types map_op_to_ast(enum other_value_type op_val)
     case GREATER_OR_EQ_THAN_V:
         return OP_GTE;
 
-        // case NULL_V:               return OP_IS;
-        // case Q_MARK_V:             return OP_IS;
-
     default:
         error_exit(ERR_INTERNAL);
     }
     return OP_ERROR;
 }
 
-/**
- * @brief Maps token types from scanner to precedence table indices.
- *
- * Converts scanner token types to internal precedence table indices used for
- * determining operator precedence and associativity during expression parsing.
- *
- * @param token Pointer to token from scanner
- * @return precedence_index Index corresponding to the token in precedence table
- */
-precedence_index token_to_index(token_ptr token)
+/* ------------------------------------------------------------------------
+ *  Rozpoznanie špeciálnych tokenov
+ * ------------------------------------------------------------------------ */
+
+// skontroluje ci je keyword Num alebo String alebo Null
+static bool token_is_type_keyword(token_ptr t)
 {
-    // Check if token is an operator
-    switch (token->type)
+    return (t->type == KEY_WORD &&
+            t->value.str_value != NULL &&
+            (strcmp(t->value.str_value, "String") == 0 ||
+             strcmp(t->value.str_value, "Num") == 0 ||
+             strcmp(t->value.str_value, "Null") == 0));
+}
+
+/* EOL môže ukončiť výraz? (heuristika pre assignment/return) */
+static bool psa_eol_end_expr(token_ptr current_token)
+{
+    switch (current_token->type)
     {
-    case OPERATOR:
-        // Map specific operator values to precedence indices
-        switch (token->value.other_value)
-        {
-        case PLUS_V:
-            return OP_ADD; // +
-        case MINUS_V:
-            return OP_SUB; // -
-        case STAR_V:
-            return OP_MULTIPLICATION; // *
-        case SLASH_V:
-            return OP_DIVISION; // /
-        case LESS_THAN_V:
-            return OP_LOWER; //
-        case GREATER_THAN_V:
-            return OP_GREATER; // >
-        case LESS_OR_EQ_THAN_V:
-            return OP_LOWER_EQUAL; // <=
-        case GREATER_OR_EQ_THAN_V:
-            return OP_GREATER_EQUAL; // >=
-        case LOGICAL_EQUAL_V:
-            return OP_EQUAL; // ==
-        case LOGICAL_NOT_EQUAL_V:
-            return OP_NOT_EQUAL; // !=
-        default:
-            return OP_UNRECOGNISED; // Fallback for unknown operators
-        }
-
-    // Map parentheses to precedence indices
-    case LEFT_PAR:
-        return OP_LPAR; // (
-    case RIGHT_PAR:
-        return OP_RPAR; // )
-
-    // All operands (identifiers, literals) map to OP_OPERAND
     case IDENT:
     case GLOB_VAR:
     case INT_LIT:
     case FLOAT_LIT:
-    case NULL_LIT:
+    // case NULL_LIT:
+    case ONE_L_STRING:
+    case MUL_L_STRING:
+    case RIGHT_PAR:
+        return true;
+    default:
+        return false;
+    }
+}
+
+/* ------------------------------------------------------------------------
+ *  Mapovanie tokenov na indexy precedenčnej tabuľky
+ * ------------------------------------------------------------------------ */
+
+static precedence_index token_to_index(token_ptr token)
+{
+    switch (token->type)
+    {
+    case OPERATOR:
+        switch (token->value.other_value)
+        {
+        case PLUS_V:
+        case MINUS_V:
+            return OP_ADD_SUB;
+        case STAR_V:
+        case SLASH_V:
+            return OP_MUL_DIV;
+
+        case LESS_THAN_V:
+            return OP_LOWER;
+        case GREATER_THAN_V:
+            return OP_GREATER;
+        case LESS_OR_EQ_THAN_V:
+            return OP_LOWER_EQUAL;
+        case GREATER_OR_EQ_THAN_V:
+            return OP_GREATER_EQUAL;
+
+        case LOGICAL_EQUAL_V:
+            return OP_EQUAL;
+        case LOGICAL_NOT_EQUAL_V:
+            return OP_NOT_EQUAL;
+
+        default:
+            return OP_UNRECOGNISED;
+        }
+
+    case LEFT_PAR:
+        return OP_LPAR;
+    case RIGHT_PAR:
+        return OP_RPAR;
+
+    case COMMA:
+        return OP_UNRECOGNISED;
+
+    case DOUBLE_DOT:
+        return OP_D_DOT; // ..
+    case TRIPLE_DOT:
+        return OP_T_DOT; // ...
+
+    case IDENT:
+    case GLOB_VAR:
+    case INT_LIT:
+    case FLOAT_LIT:
+    // case NULL_LIT:
     case ONE_L_STRING:
     case MUL_L_STRING:
         return OP_OPERAND;
 
-    // End of file marker maps to OP_END ($)
+    case KEY_WORD:
+        if (token_is_is_operator(token))
+            return OP_IS_TOK;
+        if (token_is_ifj_keyword(token))
+            return OP_OPERAND; // <-- PRIDANÉ: Ifj je operand
+        if (token_is_type_keyword(token))
+            return OP_OPERAND;
+        return OP_UNRECOGNISED;
+
     case END_OF_FILE:
         return OP_END;
 
-    // Default case for any unrecognized token type
     default:
         return OP_UNRECOGNISED;
     }
 }
 
-/**
- * @brief Performs reduction when precedence table indicates reduce action ('>').
- *
- * This function implements the reduction phase of precedence parsing:
- * 1. Pops tokens from stack until a MARKER ('<') is found
- * 2. Matches the popped sequence against grammar rules
- * 3. Replaces the matched handle with nonterminal E
- * 4. Frees the tokens that were reduced
- *
- * Grammar rules:
- * - E → i (operand becomes expression)
- * - E → E (nonterminal - for final reductions)
- * - E → (E) (parenthesized expression)
- * - E → E op E (binary operation)
- *
- * @param stack Pointer to the parsing stack
- */
-void precedence_reduce_func(Stack *stack)
+/* ------------------------------------------------------------------------
+ *  Precedenčná tabuľka
+ * ------------------------------------------------------------------------ */
+
+static const precedence_relation precedence_table[OP_END + 1][OP_END + 1] = {
+    //          +,−         *,/         <           >           <=          >=          ==          !=          (           )              i           is           ..          ...         $
+    /* +,− */ {psa_reduce, psa_shift, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_reduce, psa_reduce, psa_reduce, psa_reduce},
+    /* *,/ */ {psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_reduce, psa_reduce, psa_reduce, psa_reduce},
+    /* <   */ {psa_shift, psa_shift, psa_error, psa_error, psa_error, psa_error, psa_reduce, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_shift, psa_reduce},
+    /* >   */ {psa_shift, psa_shift, psa_error, psa_error, psa_error, psa_error, psa_reduce, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_shift, psa_reduce},
+    /* <=  */ {psa_shift, psa_shift, psa_error, psa_error, psa_error, psa_error, psa_reduce, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_shift, psa_reduce},
+    /* >=  */ {psa_shift, psa_shift, psa_error, psa_error, psa_error, psa_error, psa_reduce, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_shift, psa_reduce},
+    /* ==  */ {psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_error, psa_error, psa_shift, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_shift, psa_reduce},
+    /* !=  */ {psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_error, psa_error, psa_shift, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_shift, psa_reduce},
+    /* (   */ {psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_eq_reduce, psa_shift, psa_shift, psa_shift, psa_shift, psa_error},
+    /* )   */ {psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_error, psa_reduce, psa_error, psa_reduce, psa_reduce, psa_reduce, psa_reduce},
+    /* i   */ {psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_shift, psa_reduce, psa_error, psa_reduce, psa_reduce, psa_reduce, psa_reduce},
+    /* is  */ {psa_shift, psa_shift, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_error, psa_reduce, psa_reduce, psa_reduce},
+    /* ..  */ {psa_shift, psa_shift, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_reduce, psa_error, psa_error, psa_reduce},
+    /* ... */ {psa_shift, psa_shift, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_reduce, psa_error, psa_error, psa_reduce},
+    /* $   */ {psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_error, psa_shift, psa_shift, psa_shift, psa_shift, psa_finish}};
+
+/* ------------------------------------------------------------------------
+ *  FUNEXP – volanie funkcie ako operand (user aj Ifj.*)
+ * ------------------------------------------------------------------------ */
+
+ASTNode_ptr parse_expression(token_ptr recognition_token);
+
+/* Rozhodne, či tento token je začiatkom volania funkcie (FUNEXP). */
+static bool psa_fun_call_starts_here(token_ptr first_token)
 {
-    // Check if stack is empty (should never happen)
+    token_ptr la;
+
+    /* User funkcia: foo(...) */
+    if (first_token->type == IDENT)
+    {
+        /* pozrieme sa na ďalší token zo scanneru */
+        la = get_token();
+
+        if (la->type == LEFT_PAR)
+        {
+            /* je to foo( ... ) → volanie funkcie */
+            push_token(la);
+            return true;
+        }
+
+        /* nie je to volanie, vrátime token späť a berieme to ako obyčajný ident */
+        push_token(la);
+        return false;
+    }
+
+    /* Built-in: Ifj.something(...) */
+    if (token_is_ifj_keyword(first_token)) /* KEY_WORD "Ifj" */
+    {
+        la = get_token();
+
+        if (la->type == DOT)
+        {
+            /* Ifj . ... → začiatok built-in volania */
+            push_token(la);
+            return true;
+        }
+
+        push_token(la);
+        return false;
+    }
+
+    return false;
+}
+
+/* <arg_list> ::= ε | <expression> ( "," <expression> )* */
+static void psa_parse_call_args(ASTNode_ptr call_node)
+{
+    unsigned arg_count = 0;
+
+    /* sme už za menom a za '(' */
+    consume_eols();
+    token_ptr la = get_token();
+
+    if (la->type == RIGHT_PAR)
+    {
+        /* volanie bez argumentov: foo() / Ifj.read_str() */
+        free_token(la);
+        call_node->data.function_call.param_count = 0;
+        return;
+    }
+
+    /* nie je hneď ')', vrátime token späť a čítame prvý výraz */
+    push_token(la);
+
+    while (1)
+    {
+        /* každý argument je výraz – PSA, bez špeciálneho recognition tokenu */
+        ASTNode_ptr arg = parse_expression(NULL);
+        add_child(call_node, arg);
+        arg_count++;
+
+        consume_eols();
+        token_ptr t = get_token();
+
+        if (t->type == COMMA)
+        {
+            /* ďalší argument */
+            free_token(t);
+            consume_eols();
+            continue;
+        }
+        else if (t->type == RIGHT_PAR)
+        {
+            /* koniec argumentov */
+            free_token(t);
+            break;
+        }
+        else
+        {
+            /* čokoľvek iné je syntaktická chyba */
+            free_token(t);
+            error_exit(ERR_SYNTACTIC);
+        }
+    }
+
+    call_node->data.function_call.param_count = arg_count;
+}
+
+/* Parsuje volanie funkcie (user aj built-in Ifj.*) ako operand. */
+static ASTNode_ptr psa_parse_fun_call_operand(token_ptr first_token)
+{
+    bool is_builtin = false;
+    char *func_name = NULL;
+    token_ptr t;
+
+    if (first_token->type == IDENT)
+    {
+        /* user funkcia: foo(...) */
+        func_name = first_token->value.str_value;
+        is_builtin = false;
+
+        t = get_token();
+        if (t->type != LEFT_PAR)
+        {
+            free_token(t);
+            error_exit(ERR_SYNTACTIC);
+        }
+        free_token(t);
+    }
+    else if (token_is_ifj_keyword(first_token))
+    {
+        /* built-in: Ifj.read_str(...) */
+        t = get_token();
+        if (t->type != DOT)
+        {
+            free_token(t);
+            error_exit(ERR_SYNTACTIC);
+        }
+        free_token(t);
+
+        t = get_token();
+        if (t->type != IDENT)
+        {
+            free_token(t);
+            error_exit(ERR_SYNTACTIC);
+        }
+        func_name = str_copy(t->value.str_value); /* meno built-inu (read_str, write, ...) */
+
+        free_token(t);
+
+        t = get_token();
+        if (t->type != LEFT_PAR)
+        {
+            free_token(t);
+            error_exit(ERR_SYNTACTIC);
+        }
+        free_token(t);
+
+        is_builtin = true;
+    }
+    else
+    {
+        /* sem by sme sa nemali dostať, ak psa_fun_call_starts_here funguje správne */
+        error_exit(ERR_INTERNAL);
+    }
+
+    /* vytvor CALL node, počet parametrov doplníme po parsovaní arg listu */
+    ASTNode_ptr call = ast_create_call(func_name, 0, is_builtin);
+
+    /* naparsuj argumenty a nastav param_count */
+    psa_parse_call_args(call);
+
+    return call;
+}
+
+/* Vráti operand pre PSA – buď obyčajný literal/ident, alebo volanie funkcie. */
+static ASTNode_ptr psa_parse_operand(token_ptr first_token)
+{
+    if (psa_fun_call_starts_here(first_token))
+    {
+        return psa_parse_fun_call_operand(first_token);
+    }
+    else
+    {
+        return ast_from_operand_token(first_token);
+    }
+}
+
+/* ------------------------------------------------------------------------
+ *  Redukcia – handle → NONTERMINAL_E + AST
+ * ------------------------------------------------------------------------ */
+
+static void psa_reduce_fun(Stack *stack, token_ptr recognition_token)
+{
     if (stack_is_empty(stack))
     {
         stack_free(stack);
-        // printf("Sem som sa dostal 1 \n");
+        if (recognition_token)
+            free_token(recognition_token);
         error_exit(ERR_SYNTACTIC);
     }
 
-    // Buffer for collecting tokens to reduce (max 5 for any grammar rule)
     token_ptr items[5];
-    int count = 0; // Number of tokens in the handle
+    int count = 0;
 
-    // Pop tokens from stack until MARKER is found
-    // Use stack_pop_no_free() to avoid freeing tokens prematurely
     while (!stack_is_empty(stack))
     {
-        token_ptr top = stack_top(stack);
+        token_ptr t = stack_top(stack);
+        stack_pop_no_free(stack);
 
-        // Found marker - stop popping and free the marker
-        if (top->type == MARKER)
+        if (t->type == MARKER)
         {
-            stack_pop(stack); // Marker can be freed normally
+            free_token(t);
             break;
         }
 
-        // Sanity check: no grammar rule needs more than 5 tokens
         if (count >= 5)
         {
-            //  NOW free the tokens that were reduced
-            // Don't free nonterminals (they will be used in further reductions)
             for (int i = 0; i < count; i++)
-            {
                 free_token(items[i]);
-            }
-
             stack_free(stack);
-            // printf("Sem som sa dostal 2 \n");
-            error_exit(ERR_SYNTACTIC);
+            if (recognition_token)
+                free_token(recognition_token);
+            error_exit(ERR_INTERNAL);
         }
 
-        // Save token and pop from stack WITHOUT freeing the token
-        items[count++] = top;
-        stack_pop_no_free(stack); //  Don't free token yet - we need it
+        items[count++] = t;
     }
 
-    // Reverse the order of popped items for easier pattern matching
-    // Items were popped right-to-left, we need them left-to-right
-    token_ptr first_stack_item = (count >= 1) ? items[count - 1] : NULL;
+    if (count == 0)
+    {
+        stack_free(stack);
+        if (recognition_token)
+            free_token(recognition_token);
+        error_exit(ERR_SYNTACTIC);
+    }
+
+    token_ptr first_stack_item = items[count - 1];
     token_ptr second_stack_item = (count >= 2) ? items[count - 2] : NULL;
     token_ptr third_stack_item = (count >= 3) ? items[count - 3] : NULL;
 
-    bool matched = false; // Flag to check if any grammar rule matched
     ASTNode_ptr reduced_ast = NULL;
+    bool matched = false;
 
-    // Grammar rule: E → i (single operand)
-    if (!matched && count == 1 && first_stack_item->type != OPERATOR &&
+    /* E -> i */
+    if (!matched &&
+        count == 1 &&
         first_stack_item->type != MARKER &&
         first_stack_item->type != NONTERMINAL_E)
     {
-        reduced_ast = ast_from_operand_token(first_stack_item);
+        reduced_ast = psa_parse_operand(first_stack_item);
         matched = true;
     }
 
-    // Grammar rule: E → E (nonterminal - for final reductions)
-    if (!matched && count == 1 && first_stack_item->type == NONTERMINAL_E)
+    /* E -> E */
+    if (!matched &&
+        count == 1 &&
+        first_stack_item->type == NONTERMINAL_E)
     {
         reduced_ast = (ASTNode_ptr)first_stack_item->ast;
         matched = true;
     }
 
-    // Grammar rule: E → (E) (parenthesized expression)
-    if (!matched && count == 3 &&
+    /* E -> (E) */
+    if (!matched &&
+        count == 3 &&
         first_stack_item->type == LEFT_PAR &&
         second_stack_item->type == NONTERMINAL_E &&
         third_stack_item->type == RIGHT_PAR)
@@ -278,67 +543,73 @@ void precedence_reduce_func(Stack *stack)
         matched = true;
     }
 
-    // Grammar rule: E → E op E (binary operation)
-    if (!matched && count == 3 &&
+    /* E -> E op E (binárne + is + .. + ...) */
+    if (!matched &&
+        count == 3 &&
         first_stack_item->type == NONTERMINAL_E &&
-        third_stack_item->type == NONTERMINAL_E &&
-        second_stack_item->type == OPERATOR)
+        third_stack_item->type == NONTERMINAL_E)
     {
-        // Verify the operator is a valid binary operator
-        switch (second_stack_item->value.other_value)
+        token_ptr op_tok = second_stack_item;
+        ASTNode_ptr lhs = (ASTNode_ptr)first_stack_item->ast;
+        ASTNode_ptr rhs = (ASTNode_ptr)third_stack_item->ast;
+
+        if (op_tok->type == OPERATOR)
         {
-        case PLUS_V:               // +
-        case MINUS_V:              // -
-        case STAR_V:               // *
-        case SLASH_V:              // /
-        case LESS_THAN_V:          //
-        case GREATER_THAN_V:       // >
-        case LESS_OR_EQ_THAN_V:    // <=
-        case GREATER_OR_EQ_THAN_V: // >=
-        case LOGICAL_EQUAL_V:      // ==
-        case LOGICAL_NOT_EQUAL_V:
-        { // !=
-
-            operator_types op = map_op_to_ast(second_stack_item->value.other_value);
-
-            ASTNode_ptr lhs = (ASTNode_ptr)first_stack_item->ast;
-            ASTNode_ptr rhs = (ASTNode_ptr)third_stack_item->ast;
-
-            reduced_ast = ast_create_binary(lhs, rhs, op);
-            matched = true;
-            break;
+            switch (op_tok->value.other_value)
+            {
+            case PLUS_V:
+            case MINUS_V:
+            case STAR_V:
+            case SLASH_V:
+            case LESS_THAN_V:
+            case GREATER_THAN_V:
+            case LESS_OR_EQ_THAN_V:
+            case GREATER_OR_EQ_THAN_V:
+            case LOGICAL_EQUAL_V:
+            case LOGICAL_NOT_EQUAL_V:
+            {
+                operator_types op = map_op_to_ast(op_tok->value.other_value);
+                reduced_ast = ast_create_binary(lhs, rhs, op);
+                matched = true;
+                break;
+            }
+            default:
+                break;
+            }
         }
-        default:
-            break;
+        else if (token_is_is_operator(op_tok))
+        {
+            reduced_ast = ast_create_binary(lhs, rhs, OP_IS);
+            matched = true;
+        }
+        else if (op_tok->type == DOUBLE_DOT || op_tok->type == TRIPLE_DOT)
+        {
+            bool inclusive = (op_tok->type == DOUBLE_DOT);
+            reduced_ast = ast_create_range(lhs, rhs, inclusive);
+            matched = true;
         }
     }
 
-    // If no grammar rule matched, it's a syntax error
+    /* TODO: E -> -E (unárny mínus) */
+
     if (!matched)
     {
-        //  NOW free the tokens that were reduced
-        // Don't free nonterminals (they will be used in further reductions)
         for (int i = 0; i < count; i++)
-        {
             free_token(items[i]);
-        }
-
         stack_free(stack);
-        // printf("Sem som sa dostal  3 \n");
+        if (recognition_token)
+            free_token(recognition_token);
         error_exit(ERR_SYNTACTIC);
     }
 
-    // Create new nonterminal E to represent the reduced expression
     token_ptr newE = malloc(sizeof(token_t));
     if (!newE)
     {
-        //  NOW free the tokens that were reduced
-        // Don't free nonterminals (they will be used in further reductions)
         for (int i = 0; i < count; i++)
-        {
             free_token(items[i]);
-        }
         stack_free(stack);
+        if (recognition_token)
+            free_token(recognition_token);
         error_exit(ERR_INTERNAL);
     }
 
@@ -346,54 +617,39 @@ void precedence_reduce_func(Stack *stack)
     newE->type = NONTERMINAL_E;
     newE->ast = reduced_ast;
 
-    // Push the nonterminal E back onto stack
     stack_push(stack, newE);
 
-    //  NOW free the tokens that were reduced
-    // Don't free nonterminals (they will be used in further reductions)
     for (int i = 0; i < count; i++)
-    {
         free_token(items[i]);
-    }
 }
 
-/**
- * @brief Performs one comparison step between stack top terminal and current token.
- *
- * Uses the precedence table to determine action:
- * - precedence_shift: Insert marker '<' after top terminal, push current token
- * - precedence_reduce: Call reduction function to reduce handle on stack
- * - precedence_equal_reduce: Push current token without marker (for parentheses)
- * - precedence_finish: End of expression reached ($ compared with $)
- * - precedence_error: Invalid token combination
- *
- * @param stack Pointer to the parsing stack
- * @param current_token Current input token to process
- * @param top_terminal Pointer to store the top terminal from stack
- * @return true if token was shifted, false if reduction occurred
- */
-bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *top_terminal)
-{
+/* ------------------------------------------------------------------------
+ *  Porovnanie podľa precedenčnej tabuľky
+ * ------------------------------------------------------------------------ */
 
-    // Get the topmost item from stack
+static bool psa_table_compare(Stack *stack,
+                              token_ptr current_token,
+                              token_ptr *top_terminal,
+                              token_ptr recognition_token)
+{
     token_ptr top_token = stack_top(stack);
-    if (top_token == NULL)
+    if (!top_token)
     {
         stack_free(stack);
         free_token(current_token);
-        // printf("Sem som sa dostal  4\n");
-        error_exit(ERR_SYNTACTIC); // Stack should never be empty during parsing
+        if (recognition_token)
+            free_token(recognition_token);
+        error_exit(ERR_SYNTACTIC);
     }
 
-    // Find the topmost terminal on the stack (skip nonterminals and markers)
     *top_terminal = NULL;
     StackItem *tmp = stack->head;
     StackItem *last_terminal_item = NULL;
 
-    // Traverse stack to find the topmost terminal
     while (tmp != NULL)
     {
-        if (tmp->token->type != NONTERMINAL_E && tmp->token->type != MARKER)
+        if (tmp->token->type != NONTERMINAL_E &&
+            tmp->token->type != MARKER)
         {
             *top_terminal = tmp->token;
             last_terminal_item = tmp;
@@ -401,28 +657,25 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
         tmp = tmp->next;
     }
 
-    // Top terminal should always exist (at minimum, '$' is on stack)
     if (*top_terminal == NULL)
     {
         stack_free(stack);
         free_token(current_token);
-        // printf("Sem som sa dostal 5 \n");
+        if (recognition_token)
+            free_token(recognition_token);
         error_exit(ERR_SYNTACTIC);
     }
 
-    // Set pointer to top terminal for marker insertion
     if (last_terminal_item != NULL)
-    {
         stack_set_top_terminal_pointer(stack, last_terminal_item);
-    }
 
-    // Convert tokens to precedence table indices
     precedence_index top_index = token_to_index(*top_terminal);
     if (top_index == OP_UNRECOGNISED)
     {
         stack_free(stack);
         free_token(current_token);
-        // printf("Sem som sa dostal 6 \n");
+        if (recognition_token)
+            free_token(recognition_token);
         error_exit(ERR_SYNTACTIC);
     }
 
@@ -431,330 +684,393 @@ bool precedence_table_compare(Stack *stack, token_ptr current_token, token_ptr *
     {
         stack_free(stack);
         free_token(current_token);
-        // printf("Sem som sa dostal  7 \n");
+        if (recognition_token)
+            free_token(recognition_token);
         error_exit(ERR_SYNTACTIC);
     }
 
-    // Look up the precedence relation in the table
     precedence_relation rel = precedence_table[top_index][curr_index];
 
-    // Execute action based on precedence relation
     switch (rel)
     {
-    case precedence_shift:
+    case psa_shift:
     {
-        // Shift action: insert marker after top terminal, then push current token
         token_ptr marker = malloc(sizeof(token_t));
         if (!marker)
         {
             stack_free(stack);
             free_token(current_token);
+            if (recognition_token)
+                free_token(recognition_token);
             error_exit(ERR_INTERNAL);
         }
-        marker->type = MARKER; // Special internal token type
+        memset(marker, 0, sizeof(token_t));
+        marker->type = MARKER;
         marker->value.other_value = '<';
 
-        // Insert marker after the top terminal
         stack_push_after(stack, marker);
-        // Push current token on top
         stack_push(stack, current_token);
         return true;
     }
-    case precedence_equal_reduce:
-        // Equal precedence: push current token without marker (used for parentheses)
+    case psa_eq_reduce:
         stack_push(stack, current_token);
         return true;
-    case precedence_reduce:
-        // Reduce action: call reduction function to reduce handle
-        precedence_reduce_func(stack);
+
+    case psa_reduce:
+        psa_reduce_fun(stack, recognition_token);
         return false;
-    case precedence_finish:
-        // Comparing $ with $ means end of expression
+
+    case psa_finish:
         return true;
-    case precedence_error:
+
+    case psa_error:
     default:
-        // Invalid token combination according to precedence table
-        // printf("DEBUG: current_token type=%d\n", current_token->type);
         stack_free(stack);
         free_token(current_token);
-
-        // printf("Sem som sa dostal 8\n");
+        if (recognition_token)
+            free_token(recognition_token);
         error_exit(ERR_SYNTACTIC);
     }
+
     return true;
 }
 
-/**
- * @brief Main expression parsing function using precedence analysis.
- *
- * Parses expressions in different contexts (assignment, condition, return) based on
- * the recognition token. Handles operator precedence, associativity, and
- * special cases like newlines after operators.
- *
- * Algorithm:
- * 1. Initialize stack with $ marker
- * 2. Process tokens based on context (assignment/return vs condition)
- * 3. Use precedence table to shift/reduce
- * 4. After expression ends, reduce remaining items until $E is on stack
- *
- * @param recognition_token Token that indicates context (= for assignment, ( for condition, return keyword)
- * @return true if expression is syntactically valid, exits with error otherwise
- */
+/* ------------------------------------------------------------------------
+ *  Hlavná funkcia – parse_expression
+ * ------------------------------------------------------------------------ */
+
 ASTNode_ptr parse_expression(token_ptr recognition_token)
 {
-
-    // Initialize the parsing stack
     Stack stack;
     stack_init(&stack);
 
-    // Push special end marker ($) onto stack as bottom marker
     token_ptr special_char = malloc(sizeof(token_t));
     if (!special_char)
     {
-        free_token(recognition_token);
-        // we dont have to call stack free since this stack is initialized localy and not allocated on heap
-        // stack_free(stack);
+        if (recognition_token)
+            free_token(recognition_token);
         error_exit(ERR_INTERNAL);
     }
-
+    memset(special_char, 0, sizeof(token_t));
     special_char->type = END_OF_FILE;
     special_char->value.other_value = '$';
+    special_char->ast = NULL;
     stack_push(&stack, special_char);
 
-    // Get first token from input
     token_ptr current_token = get_token();
-
-    // Pointer to track the topmost terminal on stack (for precedence comparison)
     token_ptr top_terminal = NULL;
 
-    // Determine parsing context based on recognition token
-    switch (recognition_token->type)
+    /* ─────────────── základný (NULL) kontext ─────────────── */
+    if (recognition_token == NULL)
     {
-    // Return context: return expression
-    case KEY_WORD:
-    { // ← Otvárajúca zátvorka, ale ZATIAĽ NEUZATVÁRAJ!
-        // Check if the keyword is "return"
-        if (recognition_token->value.str_value != NULL &&
-            strcmp(recognition_token->value.str_value, "return") == 0)
+        while (true)
         {
-            // Parse assignment expression until EOL after non-operator
-            while (true)
+            /* 1) Konec výrazu – tieto tokeny už PSA nesmie spotrebovať */
+            if (current_token->type == END_OF_LINE ||
+                current_token->type == END_OF_FILE ||
+                current_token->type == COMMA ||
+                current_token->type == RIGHT_PAR)
             {
-
-                bool should_advance = precedence_table_compare(&stack, current_token, &top_terminal);
-
-                if (should_advance)
-                {
-                    if (current_token->type == OPERATOR)
-                    {
-                        consume_eols();
-                    }
-                    else if (eol_end_expr(current_token))
-                    {
-                        token_ptr peek_token = get_token();
-
-                        if (peek_token->type == END_OF_LINE)
-                        {
-                            push_token(peek_token);
-                            break;
-                        }
-
-                        push_token(peek_token);
-                    }
-
-                    current_token = get_token();
-                    precedence_index curr_index = token_to_index(current_token);
-
-                    if (curr_index == OP_UNRECOGNISED)
-                    {
-                        // printf("Sem som sa dostal 9 \n");
-
-                        stack_free(&stack);
-                        free_token(current_token);
-                        free_token(recognition_token);
-
-                        error_exit(ERR_SYNTACTIC);
-                    }
-                }
+                push_token(current_token);
+                break;
             }
-        }
-        break;
-    }
-    case OPERATOR:
-        switch (recognition_token->value.other_value)
-        {
-        // Assignment context: var = expression
-        case EQUAL_SIGN_V:
-        {
 
-            // Parse assignment expression until EOL after non-operator
-            while (true)
+            top_terminal = find_top_terminal(&stack);
+
+            /* 2a) FUNEXP heuristika – built-in: Ifj . something(...) */
+            if (current_token->type == DOT &&
+                top_terminal &&
+                token_is_ifj_keyword(top_terminal))
             {
-                // printf("DEBUG: current_token type=%d\n", current_token->type);
-
-                // Process current token with precedence comparison
-                bool should_advance = precedence_table_compare(&stack, current_token, &top_terminal);
-                // free(current_token); // erase ??
-
-                // If we should advance (shift or equal operation)
-                if (should_advance)
-                {
-                    // If current_token is OPERATOR , we check if there are any EOF
-                    // IF there are not then it does nothing
-                    if (current_token->type == OPERATOR)
-                    {
-                        consume_eols();
-                    }
-                    else if (eol_end_expr(current_token))
-                    {
-                        token_ptr peek_token = get_token();
-
-                        if (peek_token->type == END_OF_LINE)
-                        {
-                            push_token(peek_token);
-                            break;
-                        }
-                        // expression ended, the rest of precedence analysis will terminate
-
-                        push_token(peek_token);
-                    }
-
-                    // reading next token
-                    current_token = get_token();
-                    precedence_index curr_index = token_to_index(current_token);
-
-                    if (curr_index == OP_UNRECOGNISED)
-                    {
-                        // printf("DEBUG: current_token type=%d\n", current_token->type);
-                        // printf("Sem som sa dostal 10 \n");
-
-                        stack_free(&stack);
-                        free_token(current_token);
-                        free_token(recognition_token);
-
-                        error_exit(ERR_SYNTACTIC);
-                    }
-                }
+                /* '.' nemá ísť do PSA – necháme ho na psa_parse_fun_call_operand() */
+                push_token(current_token);
+                break;
             }
-            break;
-        }
-        default:
-            break;
-        }
-        break;
 
-        // Condition context: if (expression) or while (expression)
-    case LEFT_PAR:
-    {
-        int left_par_count = 1;
-        int right_par_count = 0;
+            /* 2b) FUNEXP heuristika – user/built-in volanie: ident/Ifj + '(' */
+            if (current_token->type == LEFT_PAR &&
+                top_terminal &&
+                (top_terminal->type == IDENT ||
+                 token_is_ifj_keyword(top_terminal)))
+            {
+                /* '(' nemá ísť do PSA – necháme ju na psa_parse_fun_call_operand() */
+                push_token(current_token);
+                break;
+            }
 
-        bool should_advance = precedence_table_compare(&stack, recognition_token, &top_terminal);
-
-        while (left_par_count > right_par_count)
-        {
-            consume_eols();
-
-            should_advance = precedence_table_compare(&stack, current_token, &top_terminal);
+            /* 3) Normálny PSA režim */
+            bool should_advance =
+                psa_table_compare(&stack, current_token, &top_terminal, NULL);
 
             if (should_advance)
             {
-                if (current_token->type == LEFT_PAR)
-                    left_par_count++;
-                else if (current_token->type == RIGHT_PAR){
-                    right_par_count++;
+                current_token = get_token();
+            }
+            else
+            {
+                precedence_index curr_index = token_to_index(current_token);
+                if (curr_index == OP_UNRECOGNISED)
+                {
+                    stack_free(&stack);
+                    free_token(current_token);
+                    error_exit(ERR_SYNTACTIC);
                 }
-
-                if(left_par_count != right_par_count)
-                    current_token = get_token();
             }
         }
-        break;
-    }
-    default:
-        break;
     }
 
-    // printf("Dostal som sa az po kontrolu s $ (Vysiel som z pytania si tokenov) \n ");
-    // After main expression parsing, create end token for final reductions
+    /* ─────────────── špeciálne kontexty (return, =, in, '(') ─────────────── */
+    else
+    {
+        switch (recognition_token->type)
+        {
+        case KEY_WORD:
+            /* return <expr> */
+            if (recognition_token->value.str_value != NULL &&
+                strcmp(recognition_token->value.str_value, "return") == 0)
+            {
+
+                while (true)
+                {
+                    bool should_advance =
+                        psa_table_compare(&stack, current_token, &top_terminal, recognition_token);
+
+                    if (should_advance)
+                    {
+                        if (current_token->type == OPERATOR ||
+                            current_token->type == DOUBLE_DOT ||
+                            current_token->type == TRIPLE_DOT ||
+                            token_is_is_operator(current_token))
+                        {
+                            consume_eols();
+                        }
+                        else if (psa_eol_end_expr(current_token))
+                        {
+                            token_ptr peek_token = get_token();
+                            if (peek_token->type == END_OF_LINE)
+                            {
+                                push_token(peek_token);
+                                break;
+                            }
+                            push_token(peek_token);
+                        }
+
+                        current_token = get_token();
+                    }
+                    else
+                    {
+                        precedence_index curr_index = token_to_index(current_token);
+                        if (curr_index == OP_UNRECOGNISED)
+                        {
+                            stack_free(&stack);
+                            free_token(current_token);
+                            free_token(recognition_token);
+                            error_exit(ERR_SYNTACTIC);
+                        }
+                    }
+                }
+            }
+            /* for (... in <expr>) */
+            else if (strcmp(recognition_token->value.str_value, "in") == 0)
+            {
+                while (true)
+                {
+                    bool should_advance =
+                        psa_table_compare(&stack, current_token, &top_terminal, recognition_token);
+
+                    if (should_advance)
+                    {
+                        current_token = get_token();
+                        if (current_token->type == RIGHT_PAR)
+                        {
+                            push_token(current_token);
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        precedence_index curr_index = token_to_index(current_token);
+                        if (curr_index == OP_UNRECOGNISED)
+                        {
+                            stack_free(&stack);
+                            free_token(current_token);
+                            free_token(recognition_token);
+                            error_exit(ERR_SYNTACTIC);
+                        }
+                    }
+                }
+            }
+            break;
+
+        case OPERATOR:
+            /* assignment RHS: = <expr> */
+            if (recognition_token->value.other_value == EQUAL_SIGN_V)
+            {
+                while (true)
+                {
+                    /* FUNEXP heuristika – rovnaká ako hore v NULL kontexte */
+
+                    top_terminal = find_top_terminal(&stack);
+
+                    /* 2a) built-in: Ifj . something(...) */
+                    if (current_token->type == DOT &&
+                        top_terminal &&
+                        token_is_ifj_keyword(top_terminal))
+                    {
+                        /* '.' nemá ísť do PSA – necháme ho na psa_parse_fun_call_operand() */
+                        push_token(current_token);
+                        break;
+                    }
+
+                    /* 2b) user/built-in volanie: ident/Ifj + '(' */
+                    if (current_token->type == LEFT_PAR &&
+                        top_terminal &&
+                        (top_terminal->type == IDENT ||
+                         token_is_ifj_keyword(top_terminal)))
+                    {
+                        /* '(' nemá ísť do PSA – necháme ju na psa_parse_fun_call_operand() */
+                        push_token(current_token);
+                        break;
+                    }
+
+                    /* 3) Normálny PSA režim */
+                    bool should_advance =
+                        psa_table_compare(&stack, current_token, &top_terminal, recognition_token);
+
+                    if (should_advance)
+                    {
+                        if (current_token->type == OPERATOR ||
+                            current_token->type == DOUBLE_DOT ||
+                            current_token->type == TRIPLE_DOT ||
+                            token_is_is_operator(current_token))
+                        {
+                            consume_eols();
+                        }
+                        else if (psa_eol_end_expr(current_token))
+                        {
+                            token_ptr peek_token = get_token();
+                            if (peek_token->type == END_OF_LINE)
+                            {
+                                push_token(peek_token);
+                                break;
+                            }
+                            push_token(peek_token);
+                        }
+
+                        current_token = get_token();
+                    }
+                    else
+                    {
+                        precedence_index curr_index = token_to_index(current_token);
+                        if (curr_index == OP_UNRECOGNISED)
+                        {
+                            stack_free(&stack);
+                            free_token(current_token);
+                            free_token(recognition_token);
+                            error_exit(ERR_SYNTACTIC);
+                        }
+                    }
+                }
+            }
+            break;
+
+        case LEFT_PAR:
+        {
+            int left_par_count = 1;
+            int right_par_count = 0;
+
+            (void)psa_table_compare(&stack, recognition_token, &top_terminal, NULL);
+            recognition_token = NULL; /* už je v zásobníku */
+
+            while (left_par_count > right_par_count)
+            {
+                consume_eols();
+
+                bool should_advance =
+                    psa_table_compare(&stack, current_token, &top_terminal, NULL);
+
+                if (should_advance)
+                {
+                    if (current_token->type == LEFT_PAR)
+                        left_par_count++;
+                    else if (current_token->type == RIGHT_PAR)
+                        right_par_count++;
+
+                    if (left_par_count != right_par_count)
+                        current_token = get_token();
+                }
+                else
+                {
+                    precedence_index curr_index = token_to_index(current_token);
+                    if (curr_index == OP_UNRECOGNISED)
+                    {
+                        stack_free(&stack);
+                        free_token(current_token);
+                        error_exit(ERR_SYNTACTIC);
+                    }
+                }
+            }
+            break;
+        }
+
+        default:
+            break;
+        }
+
+        if (recognition_token)
+        {
+            free_token(recognition_token);
+            recognition_token = NULL;
+        }
+    }
+
+    /* ─────────────── finálne doredukovanie pomocou '$' ─────────────── */
+
     token_ptr end_token = malloc(sizeof(token_t));
     if (!end_token)
     {
-        free_token(recognition_token);
         free_token(current_token);
         stack_free(&stack);
         error_exit(ERR_INTERNAL);
     }
 
+    memset(end_token, 0, sizeof(token_t));
     end_token->type = END_OF_FILE;
     end_token->value.other_value = '$';
+    end_token->ast = NULL;
 
     token_ptr top_terminal_final = NULL;
 
-    // Final reduction phase: reduce all remaining handles until only $E remains
     while (true)
     {
-        // Find the topmost terminal on stack
-        StackItem *tmp = stack.head;
-        top_terminal_final = NULL;
-        while (tmp)
-        {
-            if (tmp->token->type != NONTERMINAL_E && tmp->token->type != MARKER)
-                top_terminal_final = tmp->token;
-            tmp = tmp->next;
-        }
+        top_terminal_final = find_top_terminal(&stack);
+        psa_table_compare(&stack, end_token, &top_terminal_final, NULL);
+        top_terminal_final = find_top_terminal(&stack);
 
-        // Compare top terminal with $ (end marker)
-        precedence_table_compare(&stack, end_token, &top_terminal_final);
-
-        // Update top terminal after potential reduction
-        tmp = stack.head;
-        top_terminal_final = NULL;
-        while (tmp)
-        {
-            if (tmp->token->type != NONTERMINAL_E && tmp->token->type != MARKER)
-                top_terminal_final = tmp->token;
-            tmp = tmp->next;
-        }
-
-        // Check if we reached final state ($ on top)
         if (top_terminal_final && top_terminal_final->type == END_OF_FILE)
         {
             break;
         }
     }
 
-    // Verify final stack state: should be exactly $E
     if (stack.stack_size == 2 &&
         stack.head &&
         stack.head->token->type == END_OF_FILE &&
         stack.top &&
         stack.top->token->type == NONTERMINAL_E)
     {
-        // Success: expression is syntactically valid
 
-        // root pre PSA
         ASTNode_ptr psa_root = (ASTNode_ptr)stack.top->token->ast;
 
-        // printf("Everything went fine (precedence analysis) \n ");
-
         free(end_token);
-        // free(recognition_token);
-        // free(current_token);
         stack_free(&stack);
         return psa_root;
     }
     else
     {
-
-        // Error: stack not in expected final state
         free(end_token);
         stack_free(&stack);
-        free(recognition_token);
-        free(current_token);
-        // printf("Sem som sa dostal 11 \n");
         error_exit(ERR_SYNTACTIC);
     }
-
     return NULL;
 }
