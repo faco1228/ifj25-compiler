@@ -375,8 +375,8 @@ void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *sco
         }
         else // ident is a variable
         {
-            key_dispose(key); // we need to free the setter key
-            key = st_create_variable_key(exp_root->data.identifier.name);// new key is created
+            key_dispose(key);                                             // we need to free the setter key
+            key = st_create_variable_key(exp_root->data.identifier.name); // new key is created
 
             if (!IS_GLOB_VAR(key->name)) // we only need to look for local variables
             {
@@ -538,7 +538,16 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, Scope
         if (search_result) // setter was found, so idents type is set to SETTER
             assign_target->data.identifier.id_type = SETTER;
 
-        free(key);
+        key_dispose(key);
+
+        // we check if user did not assign into a getter
+        key = st_create_function_key(assign_target->data.identifier.name, 0, GETTER);
+        search_result = st_search(func_symtable, key);
+
+        if (search_result) // assign target was a getter
+            error_exit(ERR_SEM_OTHER);
+
+        key_dispose(key);
 
         // now we can check if a new global variable was not defined
         if (IS_GLOB_VAR(assign_target->data.identifier.name))

@@ -60,7 +60,8 @@ typedef struct Builtin_Function
     (((op1) == NODE_INT_LIT && \
     (op2) == NODE_STR_LIT) || \
     ((op1) == NODE_STR_LIT && \
-    (op2) == NODE_FLOAT_LIT))
+    (op2) == NODE_FLOAT_LIT) || \
+    (op2) == NODE_STR_LIT)
 
 // macro to determine if an ident is a GV
 #define IS_GLOB_VAR(name) \
