@@ -578,6 +578,15 @@ static void psa_reduce_fun(Stack *stack, token_ptr recognition_token)
         }
         else if (token_is_is_operator(op_tok))
         {
+            if (rhs->type != NODE_STR_LIT ||
+                (strcmp(rhs->data.literal.data.str_value, "Num") != 0 &&
+                 strcmp(rhs->data.literal.data.str_value, "String") != 0 &&
+                 strcmp(rhs->data.literal.data.str_value, "Null") != 0))
+            {
+                // semnatic error - rhs must be Num/String/Null
+                error_exit(ERR_SEM_TYPE_MISMATCH);
+            }
+
             reduced_ast = ast_create_binary(lhs, rhs, OP_IS);
             matched = true;
         }

@@ -374,7 +374,7 @@ static ASTNode_ptr parse_function_def(token_ptr id) // parse parameter list
  * @param id Identifier token of the setter (already read by caller).
  * @return PARSE_OK on success, otherwise volá error_exit(ERR_SYNTACTIC).
  */
-static ASTNode_ptr parse_setter_def(token_ptr id)
+static ASTNode_ptr parse_setter_def(token_ptr id) // segfault, node
 {
     token_ptr token;
 
@@ -392,18 +392,22 @@ static ASTNode_ptr parse_setter_def(token_ptr id)
     free_token(token);
     consume_eols();
 
+    // setter segfault fix
+    ASTNode_ptr fun = ast_create_function(id->value.str_value, 1, FUN_S, NULL);
+    
     token = expect_ident();
+    ASTNode_ptr param = ast_create_ident(token->value.str_value);
+    add_child(fun, param);
     free_token(token);
 
     token = expect_type(RIGHT_PAR);
     free_token(token);
 
     ASTNode_ptr body = parse_block();
+    add_child(fun, body);
 
     // token = expect_type(END_OF_LINE);
     // free_token(token);
-
-    ASTNode_ptr fun = ast_create_function(id->value.str_value, 1, FUN_S, body);
 
     // adds new setter to func symtable
     Key *key = st_create_function_key(id->value.str_value, 1, SETTER);
