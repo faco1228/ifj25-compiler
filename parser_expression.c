@@ -87,9 +87,8 @@ static ASTNode_ptr ast_from_operand_token(token_ptr t) // is token pre num str n
     case ONE_L_STRING:
     case MUL_L_STRING:
         return ast_create_str(t->value.str_value);
-
-    // case NULL_LIT:
-    //     return ast_create_null();
+    case NULL_LIT:
+        return ast_create_null();
 
     case KEY_WORD:
         if (token_is_type_keyword(t))
@@ -98,7 +97,7 @@ static ASTNode_ptr ast_from_operand_token(token_ptr t) // is token pre num str n
         }
         else
         {
-            /* jiný keyword tu být nesmí */
+            // different tokens cannot be accepted
             free_token(t);
             error_exit(ERR_SYNTACTIC);
             return NULL;
@@ -168,7 +167,7 @@ static bool psa_eol_end_expr(token_ptr current_token)
     case GLOB_VAR:
     case INT_LIT:
     case FLOAT_LIT:
-    // case NULL_LIT:
+    case NULL_LIT:
     case ONE_L_STRING:
     case MUL_L_STRING:
     case RIGHT_PAR:
@@ -231,7 +230,7 @@ static precedence_index token_to_index(token_ptr token)
     case GLOB_VAR:
     case INT_LIT:
     case FLOAT_LIT:
-    // case NULL_LIT:
+    case NULL_LIT:
     case ONE_L_STRING:
     case MUL_L_STRING:
         return OP_OPERAND;

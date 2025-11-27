@@ -57,11 +57,13 @@ typedef struct Builtin_Function
 
 // this macro is used when type checking string iteration
 #define STR_ITER_INVALID(op1, op2) \
-    (((op1) == NODE_INT_LIT && \
-    (op2) == NODE_STR_LIT) || \
-    ((op1) == NODE_STR_LIT && \
-    (op2) == NODE_FLOAT_LIT) || \
+    (((op1) == NODE_INT_LIT && (op2) == NODE_STR_LIT) || \
+    ((op1) == NODE_STR_LIT && (op2) == NODE_FLOAT_LIT) || \
     (op2) == NODE_STR_LIT)
+
+// this macro determines if a string iteration is present 
+#define IS_STR_ITER(op1, op2) \
+    ((op1) == NODE_STR_LIT && (op2) == NODE_INT_LIT)
 
 // macro to determine if an ident is a GV
 #define IS_GLOB_VAR(name) \

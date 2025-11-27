@@ -400,7 +400,9 @@ void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *sco
             has_only_plus_op = false;
 
         if (exp_root->data.binary_operator.op_type == OP_DIV || exp_root->data.binary_operator.op_type == OP_MINUS)
+        {
             has_minus_or_slash = true;
+        }
 
         if (!IS_REL_OP(exp_root->data.binary_operator.op_type)) // has any arit operators
             has_arit_op = true;
@@ -414,9 +416,16 @@ void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *sco
         if (exp_root->data.binary_operator.op_type == OP_DIV && zero_division(exp_root->children[1]))
             zero_divison_detected = true;
 
-        if (exp_root->data.binary_operator.op_type == OP_MUL && STR_ITER_INVALID(exp_root->children[0]->type, exp_root->children[1]->type))
-            error_exit(ERR_SEM_TYPE_MISMATCH);
+        if (exp_root->data.binary_operator.op_type == OP_MUL)
+        {
+            if (STR_ITER_INVALID(exp_root->children[0]->type, exp_root->children[1]->type))
+                error_exit(ERR_SEM_TYPE_MISMATCH);
 
+            if (IS_STR_ITER(exp_root->children[0]->type, exp_root->children[1]->type))
+            {
+                has_string_lit = true;
+            }
+        }
         break;
     case NODE_NULL_LIT:
         has_null_lit = true;
@@ -450,8 +459,6 @@ void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *sco
  */
 bool eval_exp_flags(ASTNode_ptr exp_root)
 {
-    //! tato funkcia moze ostat pretoze code gen funkcia pre generovanie vyrazu si prejde ten podstrom sama a tato funkcia ziadny prechod nerobi
-    //! v code gen sa nam zmensi logika o tu co sa nachadza tu a mozeme asi rovno pracovat len s tymi expressions
     if (has_arit_op) // type checks that are specific for arit operators
     {
         // handle error flag combinations
@@ -459,15 +466,15 @@ bool eval_exp_flags(ASTNode_ptr exp_root)
             return false;
         else if (has_null_lit && has_arit_op) // null literal inside
             return false;
-        else if (has_num_lit && has_string_lit && has_only_plus_op)
+        else if (has_num_lit && has_string_lit && has_only_plus_op) //
             return false;
 
         // handle prediction of exp operand restrictions
-        if (has_minus_or_slash || has_unary_minus)
-            // these operands cannot be used with strings
+        if (has_minus_or_slash) // these operands cannot be used with strings
             exp_root->data.exp_statement.restriction = ONLY_NUM;
-        else if (has_only_plus_op && has_string_lit)
-            // when string literal is present here, + operator can only be used as concat
+        else if (has_only_plus_op && has_num_lit) // when number literal is present here, + operator can only be used as addition
+            exp_root->data.exp_statement.restriction = ONLY_NUM;
+        else if (has_only_plus_op && has_string_lit) // when string literal is present here, + operator can only be used as concat
             exp_root->data.exp_statement.restriction = ONLY_STR;
         else // could not predict any restrictions
             exp_root->data.exp_statement.restriction = UNDETERMINED;
@@ -478,6 +485,9 @@ bool eval_exp_flags(ASTNode_ptr exp_root)
             return false;
 
         if (has_null_lit && has_comp_op) // null literal can only be used with ==, != rel operators
+            return false;
+
+        if (has_null_lit && (has_num_lit || has_string_lit)) // cannot compare null with other data types
             return false;
     }
 
