@@ -960,8 +960,6 @@ void process_number(token_ptr token, int first_char){
         error_exit(ERR_LEXICAL);
     }    
 
-    //printf("Velkost temp_bufferu = %lu\n", strlen(temp_buffer));
-
     //Strings have to be null terminated
     temp_buffer[index] = '\0';
 
