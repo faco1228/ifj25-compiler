@@ -393,12 +393,14 @@ static ASTNode_ptr parse_setter_def(token_ptr id) // segfault, node
     consume_eols();
 
     // setter segfault fix
-    ASTNode_ptr fun = ast_create_function(id->value.str_value, 1, FUN_S, NULL);
+    ASTNode_ptr fun = ast_create_function(id->value.str_value, 0, FUN_S, NULL);
     
     token = expect_ident();
     ASTNode_ptr param = ast_create_ident(token->value.str_value);
     add_child(fun, param);
     free_token(token);
+
+    fun->data.function_def.arg_count = 1;
 
     token = expect_type(RIGHT_PAR);
     free_token(token);

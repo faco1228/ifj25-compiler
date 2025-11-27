@@ -91,6 +91,7 @@ typedef enum
     NODE_FLOAT_LIT,
     NODE_STR_LIT,
     NODE_NULL_LIT,
+    NODE_TYPE_LIT,
 } NodeType;
 
 // Forward declaration and pointer alias for the ASTNode structure
@@ -262,3 +263,4 @@ ASTNode_ptr ast_create_int(long long int val);
 ASTNode_ptr ast_create_float(long double val);
 ASTNode_ptr ast_create_str(const char *string);
 ASTNode_ptr ast_create_null(void);
+ASTNode_ptr ast_create_type_lit(const char *type_name);
