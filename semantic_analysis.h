@@ -124,7 +124,7 @@ bool verify_var_existence(Key *key);
  * @param key Pointer to the key of the glob variable.
  * @param func_symtable Pointer to the symtable of all setter, getters and functions.
  */
-void verify_func_redef(Key *key, ST_Node *func_symtable);
+void verify_func_redef(Key *key);
 
 /**
  * @brief Checks if main function with no args exists inside the programs body.
@@ -133,7 +133,7 @@ void verify_func_redef(Key *key, ST_Node *func_symtable);
  *
  * @return True if main exists, false otherwise.
  */
-bool main_exists(ST_Node *func_symtable);
+bool main_exists();
 
 //! po tieto funkcie su tie, ktore samo zavola este v parser
 
@@ -154,7 +154,7 @@ bool zero_division(ASTNode_ptr divider);
  * @param call_node Node of the function call.
  * @param func_symtable Pointer to the symtable of functions.
  */
-void handle_function_call(ASTNode_ptr call_node, ST_Node *func_symtable);
+void handle_function_call(ASTNode_ptr call_node);
 
 /**
  * @brief Verifies whether the args count inside the function call matches the function
@@ -194,7 +194,7 @@ bool builtin_args_count_correct(char *name, unsigned args_count);
  * @param name Name of the built-in function.
  * @param args_count Num of args inside the function call.
  */
-bool builtin_args_type_check(ASTNode_ptr call_node, char *name, unsigned args_count, ST_Node *func_symtable);
+bool builtin_args_type_check(ASTNode_ptr call_node, char *name, unsigned args_count);
 
 /**
  * @brief While traversing the expression subtree, differnt expression flags are set. These flags are later used
@@ -205,16 +205,13 @@ bool builtin_args_type_check(ASTNode_ptr call_node, char *name, unsigned args_co
  * @param func_symtable Pointer to the symtable of all setter, getters and functions.
  * @param glob_var_symtable Pointer to the symtable of all glob variables.
  */
-void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable);
+void exp_analysis(ASTNode_ptr exp_root);
 
 /**
  * @brief Traverses the tree and calls semantic functions based on the current node type.
  *
- * @param root Pointer to the root node of AST, needed so we can free the AST at anytime during the recursion
  * @param node_to_handle Helper pointer that will be used in recursive calls.
- * @param func_symtable Pointer to function symtable.
- * @param glob_var_symtable Pointer to a global variable symtable.
  */
-void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable);
+void semantic_analysis(ASTNode_ptr node_to_handle);
 
 #endif

@@ -86,7 +86,7 @@ bool verify_var_redec(Key *key, ST_Node *symtable)
  * @param key Pointer to the key of the symbol.
  * @param scope_stack Pointer to the scope stack to look for the symbol inside higher level scopes.
  */
-bool verify_var_existence(Key *key)
+bool verify_var_existence(Key *key) // todo : premenovat na var_declared a vyuzivat vsade kde nejakym sposobom overujem existenciu premennej
 {
     ST_Node *search_result = scope_stack_var_lookup(g_scope_stack,key);
 
@@ -101,11 +101,10 @@ bool verify_var_existence(Key *key)
  *        does not already exist inside the function symtable. If it does, error_exit() is called.
  *
  * @param key Pointer to the key of the glob variable.
- * @param func_symtable Pointer to the symtable of all setter, getters and functions.
  */
-void verify_func_redef(Key *key, ST_Node *func_symtable)
+void verify_func_redef(Key *key)
 {
-    ST_Node *search_result = st_search(func_symtable, key);
+    ST_Node *search_result = st_search(g_func_symtable, key);
 
     if (search_result) // function found inside the function symtable
         error_exit(ERR_SEM_REDEFINITION);
@@ -114,26 +113,20 @@ void verify_func_redef(Key *key, ST_Node *func_symtable)
 /**
  * @brief Checks if main function with no args exists inside the programs body.
  *
- * @param func_symtable Pointer to the symtable of all setter, getters and functions.
- *
  * @return True if main exists, false otherwise.
  */
-bool main_exists(ST_Node *func_symtable)
+bool main_exists()
 {
-    if (!func_symtable) // mainly for debugging
-    {
-        return false;
-    }
+    // if (!g_func_symtable) // no function were present inside the class body
+    //     return false;
 
     // key init to search for main with no args
     Key *key = st_create_function_key("main", 0, FUNCTION);
 
     if (!key)
-    {
         error_exit(ERR_INTERNAL);
-    }
 
-    ST_Node *search_result = st_search(func_symtable, key);
+    ST_Node *search_result = st_search(g_func_symtable, key);
     key_dispose(key);
 
     return search_result != NULL;
@@ -160,12 +153,12 @@ bool zero_division(ASTNode_ptr divider)
 
 /**
  * @brief Verifies whether the args count inside the function call matches the function
- *        definition inside func_symtable.
+ *        definition inside g_func_symtable.
  *
- * @param func_symtable Pointer to the symtable of all setter, getters and functions.
- * @param key Pointer to a key containing function info.
+ * @param func_node Pointer to the function of which args count we want to check.
+ * @param args_count Number of args that was passed inside the function call
  *
- * @return True if args count is correct, return false otherwise.
+ * @return True if args count is correct, false otherwise.
  */
 bool args_count_check(ST_Node *func_node, int args_count)
 {
@@ -177,19 +170,18 @@ bool args_count_check(ST_Node *func_node, int args_count)
  *
  * @param root Root of the whole AST.
  * @param call_node Node of the function call.
- * @param func_symtable Pointer to the function symtable.
  * @param scope_stack Pointer to the scope stack.
  *
  */
-void args_symbols_check(ASTNode_ptr call_node, ST_Node *func_symtable)
+void args_exist(ASTNode_ptr call_node)
 {
     unsigned args_count = call_node->data.function_call.param_count;
 
     for (unsigned idx = 0; idx < args_count; idx++)
     {
-        if (call_node->children[idx]->type == NODE_CALL) // function call passed as arg
+        if (call_node->children[idx]->type == NODE_CALL) // function call passed as an argument of the function call
         {
-            handle_function_call(call_node, func_symtable);
+            handle_function_call(call_node);
         }
         else if (call_node->children[idx]->type == NODE_IDENTIFIER)
         {
@@ -209,10 +201,9 @@ void args_symbols_check(ASTNode_ptr call_node, ST_Node *func_symtable)
  *
  * @param root Root of the whole AST so it can be freed if needed.
  * @param call_node Node of the function call.
- * @param func_symtable Pointer to the symtable of functions.
  * @param scope_stack Pointer to the scope stack.
  */
-void handle_function_call(ASTNode_ptr call_node, ST_Node *func_symtable)
+void handle_function_call(ASTNode_ptr call_node)
 {
     if (call_node->data.function_call.is_builtin) // built-in function called
     {
@@ -227,7 +218,7 @@ void handle_function_call(ASTNode_ptr call_node, ST_Node *func_symtable)
         if (!builtin_args_count_correct(call_node->data.function_call.name, args_count))
             error_exit(ERR_SEM_ARG_COUNT);
 
-        if (!builtin_args_type_check(call_node, call_node->data.function_call.name, args_count, func_symtable))
+        if (!builtin_args_type_check(call_node, call_node->data.function_call.name, args_count))
             error_exit(ERR_SEM_TYPE_MISMATCH);
     }
     else // user-defined function call
@@ -238,7 +229,7 @@ void handle_function_call(ASTNode_ptr call_node, ST_Node *func_symtable)
                                           call_node->data.function_call.param_count,
                                           FUNCTION);
 
-        ST_Node *search_result = st_search(func_symtable, key);
+        ST_Node *search_result = st_search(g_func_symtable, key);
 
         if (!search_result) // function called does not exist
         {
@@ -251,7 +242,7 @@ void handle_function_call(ASTNode_ptr call_node, ST_Node *func_symtable)
         }
 
         // if an error occurs
-        args_symbols_check(call_node, func_symtable);
+        args_exist(call_node);
     }
 }
 
@@ -304,7 +295,7 @@ bool builtin_args_count_correct(char *name, unsigned args_count)
  * @param name Name of the built-in function.
  * @param args_count Num of args inside the function call.
  */
-bool builtin_args_type_check(ASTNode_ptr call_node, char *name, unsigned args_count, ST_Node *func_symtable)
+bool builtin_args_type_check(ASTNode_ptr call_node, char *name, unsigned args_count)
 {
     builtin_function_t *search_result = NULL;
 
@@ -328,7 +319,7 @@ bool builtin_args_type_check(ASTNode_ptr call_node, char *name, unsigned args_co
         }
         else if (current_param->type == NODE_CALL) // param is a function call
         {
-            handle_function_call(current_param, func_symtable);
+            handle_function_call(current_param);
         }
 
         // types only need to be checked if the current arg has any type restrictions
@@ -350,11 +341,10 @@ bool builtin_args_type_check(ASTNode_ptr call_node, char *name, unsigned args_co
  *        Function also handles identification of getters inside an expression or verifying that an ident exists.
  *
  * @param exp_root Root of the expression subtree.
- * @param func_symtable Pointer to the symtable of all setter, getters and functions.
  * @param glob_var_symtable Pointer to the symtable of all glob variables.
  * @param scope_stack Pointer to the scope stack.
  */
-void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable)
+void exp_analysis(ASTNode_ptr exp_root)
 {
     if (!exp_root)
         return;
@@ -365,7 +355,7 @@ void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable)
     {
         // when ident is found inside an expression we verify whether it is a getter which will later help during code gen
         Key *key = st_create_function_key(exp_root->data.identifier.name, 0, GETTER);
-        ST_Node *search_result = st_search(func_symtable, key);
+        ST_Node *search_result = st_search(g_func_symtable, key);
 
         if (search_result) // if a getter is found, ident is assigned the GETTER id_type
         {
@@ -391,7 +381,7 @@ void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable)
         break;
     }
     case NODE_CALL: // function call used as a term inside an expression
-        handle_function_call(exp_root, func_symtable);
+        handle_function_call(exp_root);
         break;
     case NODE_BINARY_OP:
 
@@ -444,10 +434,10 @@ void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable)
     // we agreed on a convention that children[0] is the left child and children[1] the right child inside the exp subtree
 
     if (exp_root->children) // seg fault prevention
-        exp_analysis(exp_root->children[0], func_symtable);
+        exp_analysis(exp_root->children[0]);
 
     if (exp_root->children) // seg fault prevention
-        exp_analysis(exp_root->children[1], func_symtable);
+        exp_analysis(exp_root->children[1]);
 }
 
 /**
@@ -498,16 +488,15 @@ bool eval_exp_flags(ASTNode_ptr exp_root)
  *
  * @param root Pointer to the root node of AST, needed so we can free the AST at anytime during the recursion
  * @param node_to_handle Helper pointer that will be used in recursive calls.
- * @param func_symtable Pointer to function symtable.
  * @param scope_stack Pointer to the scope_stack.
  */
-void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable)
+void semantic_analysis(ASTNode_ptr node_to_handle)
 {
     switch (node_to_handle->type)
     {
     case NODE_PROGRAM:
     {
-        if (!main_exists(func_symtable))
+        if (!main_exists())
         {
             error_exit(ERR_SEM_UNDEFINED);
         }
@@ -541,7 +530,7 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable)
         ASTNode_ptr assign_target = node_to_handle->children[0]; // first child inside NODE_ASSINGN is always the assign target
 
         Key *key = st_create_function_key(assign_target->data.identifier.name, 1, SETTER);
-        ST_Node *search_result = st_search(func_symtable, key);
+        ST_Node *search_result = st_search(g_func_symtable, key);
 
         if (search_result) // setter was found, so idents type is set to SETTER
             assign_target->data.identifier.id_type = SETTER;
@@ -550,7 +539,7 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable)
 
         // we check if user did not assign into a getter
         key = st_create_function_key(assign_target->data.identifier.name, 0, GETTER);
-        search_result = st_search(func_symtable, key);
+        search_result = st_search(g_func_symtable, key);
 
         if (search_result) // assign target was a getter
             error_exit(ERR_SEM_OTHER);
@@ -617,7 +606,7 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable)
     }
     case NODE_EXPR_STMNT:
 
-        exp_analysis(node_to_handle->children[0], func_symtable);
+        exp_analysis(node_to_handle->children[0]);
 
         if (!eval_exp_flags(node_to_handle))
             error_exit(ERR_SEM_TYPE_MISMATCH);
@@ -639,7 +628,7 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable)
         break;
     }
     case NODE_CALL:
-        handle_function_call(node_to_handle, func_symtable);
+        handle_function_call(node_to_handle);
         break;
     default:
         break;
@@ -647,7 +636,7 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable)
 
     for (unsigned idx = 0; idx < node_to_handle->child_count; idx++)
     {
-        semantic_analysis(node_to_handle->children[idx], func_symtable);
+        semantic_analysis(node_to_handle->children[idx]);
     }
 
     // block and all its statements processed - safe to pop scope from stack
