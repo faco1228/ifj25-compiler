@@ -2,6 +2,10 @@
  * @file code_gen_funs.c
  * @author xracekm00, xmezeim00
  * @brief Code generator for Wren-like programming language
+ * 
+ * @note Code is being printed to stdout
+ *       We decided to use Pascal convetion for function calls
+ * 
  * @version 0.1
  * @date 2025-11-28
  * 
@@ -14,12 +18,15 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include <symtable.h>
+#include "symtable.h"
+#include "ast.h"
+#include "code_gen_funs.h"
+#include "error.h"
+
 
 /*
-KOD sa printuje na stdout
 
-Flagy, ktore mam aktualne pre jednotlive expression subtrees:
+Flags available for each Expression subtree:
 
 bool has_only_plus_op = true;
 bool has_string_lit = false;
@@ -33,141 +40,184 @@ bool zero_divison_detected = false;
 bool has_comp_op = false;
 
 RUNTIME SEMANTIC:
-zero_division: menzi odhali iba ked tam je vyslovene 0 ale ked tam je co i len 1/(2-2) tak to nedohali.
-exp_type_check:...
+zero_division:
+exp_type_check:
 
 EXTENSTION
-cycles a funexp
+cycles
+funexp
 
 NOTE:
 Pri kazdej jednej operacii treba robit typove kontroly, jednak kvoli tomu, ze ADD potrebuje 2 int alebo 2 float
 ale aj ci to sedi ked niekotra premenna je return value funkcie a niektora moze byt napr read at runtime
 
 NOTE:
-Pravdepocobne budem musiet uchovavat informaciu o tom, kolko ramcov je na zasobniku
-lebo ked chcem POPFRAME pouzit na prazdnom zasobniku tak dojde k chybe.
-
-NOTE: 
-Nie je problem, ze sa k hexadecimalnym cislam spravame ako ku floatom?
-V ukazke pre zapis premennej je deklaracia hexa premennej, ale nam sa to potom
-nebude v codegene zhodovat s ich kodom, kedze to prevadzam na float.
+Budem musiet uchovavat informaciu o tom, kolko ramcov je na zasobniku resp kolko dat je na datovom zasobniku,
+lebo ked chcem citat z prazdneho zasobniku tak dojde k chybe.
 
 */
 
+void codegen(ASTNode_ptr node, name_generator_ptr name_gen){
+    // Recursion end
+    if (!node){
+        return;
+    }
+    
+    // Recursivelly processing nodes
+    switch (node->type){
+    case NODE_PROGRAM:
+        // Each code in IFJcode25 starts with this line
+        printf(".IFJcode25\n"); 
+        
+        // Iterate throuh all children
+        for (unsigned i = 0; i < node->child_count; i++){
+            codegen(node->children[i], name_gen);
+        }
+        break;
+    case NODE_FUNCTION_DEF:
+        break;
+    case NODE_BLOCK:
+        break;
+    case NODE_VAR_DECL:
+        break;
+    case NODE_ASSIGN:
+        break;
+    case NODE_IF:
+        break;
+    case NODE_RETURN:
+        break;
+    case NODE_WHILE:
+        break;
+    case NODE_FOR:
+        break;
+    case NODE_BREAK:
+        break;
+    case NODE_CONTINUE:
+        break;
+    case NODE_EXPR_STMNT:
+        break;
+    case NODE_IDENTIFIER:
+        break;
+    case NODE_BINARY_OP:
+        break;
+    case NODE_RANGE:
+        break;
+    case NODE_INT_LIT:
+        break;
+    case NODE_FLOAT_LIT:
+        break;
+    case NODE_STR_LIT:
+        break;
+    case NODE_NULL_LIT:
+        break;
+    default:
+        break;
+    }
+
+}
+
+//Global varialbe - its content will be alterred when entering a new function node
+name_generator_t global_name_gen;
+
+/**
+ * @note to prevent unnecesary memory allocation and freeing
+ * 
+ * The function that will perfrom the AST traversing has to call malloc
+ * at global_name_gen.label and global_name_gen.curr_function.
+ * This functions also need to clear this memory after it's finished.
+ */
 
 
-/*
-FUNS TO IMPLEMENT
-gen_type_check             ; nejako pomocou TYPE
-gen_zero_division_check
-gen_create_literal  -str
-                    -int
-                    -float
-                    -hexa
-gen_create_variable
+/**
+ * @brief Initializes/Resets name generator attributes
+ * 
+ * @note This function is called every time when entering new function subtree
+ *       during seconf AST traversal
+ * 
+ * @param mnglr 
+ */
+void name_gen_init(name_generator_ptr name_gen, ASTNode_ptr node){
+    name_gen->label_counter = 0;
+    name_gen->temp_var_counter = 0;
 
-gen_clean_up_frames
-gen_jump_if_grater      ; Tieto dve funkcie treba preto, aby sme vedeli ci pri loopoch alebo if
-gen_jump_if_lowet       ; mame ci nemame previest skok (nejako pomocou LT(S), GT(S), EQ(S))
-gen_string_iter         ; CONCAT niekolko krat
+    strcpy(name_gen->curr_function, node->data.function_def.name);
+    name_gen->label = "\0";
 
-funkcie pre generovanie built in funkcii
-...
+    name_gen->in_function = true;
+    name_gen->in_loop = false;
 
-NODY pre ktore treba este vymysliet funkcie:
-NODE_BLOCK
-NODE_ASSIGN
-NODE_BINARY_OP
-NODE_IF
-NODE_RETURN
-NODE_WHILE
-NODE_FOR
-NODE_RANGE
-NODE_BREAK
-NODE_CONTINUE
-*/
+    name_gen->stakck_depth = 0;
+}
 
-typedef struct {
-    unsigned long long label_counter;
-    unsigned long long temp_var_counter;
-} name_mnglr_t, *name_mnglr_t_ptr;
 
-//Tato premenna je sice globalna ale jej obsah sa bude menit podla toho v akej sa nachazdas funkcii
-name_mnglr_t global_mnglr;
-
-//Pre "a" * 3 (iterácia):
+/**
+ * @brief Function simulating string iteration using IFJcode25 instructions
+ * 
+ */
 void string_iter(){
-    // Tu sa bude z nejakeho ramcu alebo z niekadial cerpat premenna, ktora bude ako 
-    // druhy argument printu, zatial pre ukazku to nechavam takto nech to neskor chapem
-
-    printf("%s %s", "MOVE GF@result string@\n");
-    printf("%s %s", "MOVE GF@counter int@0\n");
-    printf("%s %s", "LABEL $loop\n");
-    printf("%s %s", "JUMPIFEQ $end GF@counter int@3\n");
-    printf("%s %s", "CONCAT GF@result GF@result string@a\n");
-    printf("%s %s", "ADD GF@counter GF@counter int@1\n");
-    printf("%s %s", "JUMP $loop\n");
-    printf("%s %s", "LABEL $end\n");
 }
 
-void nmg_label(char *label, name_mnglr_t_ptr mnglr){
-    // Bude robit name mangeling labelu
-    // Prida predponu podla toho v akej je funkcii, to zistime z symtable
-    // zakomponuje tam cislo z objektu typu name_mnglr_t
+/**
+ * @brief Generates unieque label name using name-mangeling
+ * 
+ * @param label
+ * @param name_gen
+ */
+void gen_label(name_generator_ptr name_gen){
+
 }
 
-void nmg_variable(char* variable, name_mnglr_t_ptr mnglr){
-    // Bude robit name mangeling premennej
-    // Prida predponu podla toho v akej je funkcii, to zistime z symtable
-    // zakomponuje tam cislo z objektu typu name_mnglr_t
+/**
+ * @brief Generates unieque variable name using name-mangeling
+ * 
+ * @param variable 
+ * @param mnglr 
+ */
+void gen_temp_var(char* variable, name_generator_ptr name_gen){
+
 }
 
-// Will be called when entered new function
-void nmg_init(name_mnglr_t_ptr mnglr){
-    mnglr->label_counter = 0;
-    mnglr->temp_var_counter = 0;
+
+/**
+ * @brief Handles stert of function
+ * 
+ * @note Called after entering NODE_FUNCTION_DEF node
+ */
+void func_start(ASTNode_ptr node){
+    // Reset the name generator
+    name_gen_init(&global_name_gen, node);
+
+    // Creates unique function label name
+    gen_label(&global_name_gen);
+
+    // Instructions for function start
+    printf("LABEL %s\n", global_name_gen.label);
+    printf("CREATEFRAME\n");
+    printf("PUSHFRAME\n");
 }
 
-// Ked sa dostaneme do node function def
-void func_start(){
+/**
+ * @brief Handles return values of a function
+ * 
+ * @note uses data stack to store returne value
+ * 
+ */
+void gen_return(){
 
-    char *label = NULL;
-    nmg_init(&global_mnglr);
-
-    generate_label(&label, &global_mnglr);
-
-
-
-    printf("%s %s\n", "LABEL", label);
-    printf("%s\n", "CREATEFRAME");
-    printf("%s\n", "PUSHFRAME");
 }
 
-//Called after the return node was processed and child array is empty
+/**
+ * @brief Handles end of function
+ * 
+ * @note Called when childeren array is empty
+ * 
+ */
 void func_end(){
+    // This function will handle return value
+    gen_return();
 
-    //Tuto treba este ale poriesit to, ze return moze mat nejaku hodnotu
-    //Ak tam bdue tak sa zavolafunkcia eval expression
-    //Vysledok sa priradi do nejakej temporary premennej
-    //To sa pushne na datovy zasobnik
-    //Az potom sa vykonaju tieto 2 instrukcie
-
+    // Instructions for function end
     printf("%s\n", "POPFRAME");
     printf("%s\n", "RETURN");
 }
 
-
-void func_return(){
-
-}
-
-/*
-POZNAMKY K EXPRESSION
-prechadzam binarny strom postorederom, co mi simuluje postfix
-vzdy mam na konci prechodu na stack-top vysledok
-pocas prechodu su prve 2 veci na stacku op1 a op2
-Ked narazim na node operator popnem zo stacku operandy a pomocou switcha urcim co sa ma vykonat
-na to by mohla byt dobra pomocna funkcia riesiaca switch operatoru
-
-
-*/

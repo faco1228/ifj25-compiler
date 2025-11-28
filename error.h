@@ -21,19 +21,29 @@ typedef enum
     ERR_SEM_OTHER = 10,
     ERR_RUNTIME_PARAM_TYPE = 25,
     ERR_RUNTIME_TYPE_MISMATCH = 26,
+    ERR_CG_UNEXPECTED_INPUT = 50,
+    ERR_CG_LEX_OR_SYNT,
+    ERR_CG_SEMANTIC,
+    ERR_CG_OP_TYPES_MISMATCH,
+    ERR_CG_UNEXISTING_VAR,
+    ERR_CG_UNEXISTING_FRAME,
+    ERR_CG_MISSING_VAL,
+    ERR_CG_INVALID_OP_VAL,
+    ERR_CG_INVALID_STR_OP,
+    ERR_CG_INTERNAL,
     ERR_INTERNAL = 99,
     UNKNOWN_ERR_CODE = 100
 } ERROR_CODES;
 
-// /**
-//  * @brief Prints a warning messages based on the provided warning code. 
-//  * 
-//  * @param warning Warning code.
-//  * @param format Format of the warning message.
-//  * 
-//  * @note In some cases, other arguments might be provided.
-//  */
-// void warnings(int warning, const char *format, ...);
+/**
+ * @brief Prints a warning messages based on the provided warning code. 
+ * 
+ * @param warning Warning code.
+ * @param format Format of the warning message.
+ * 
+ * @note In some cases, other arguments might be provided.
+ */
+void warnings(int warning, const char *format, ...);
 
 /**
  * @brief Handles exiting the program with a corresponding error code
