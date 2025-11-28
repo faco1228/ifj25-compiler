@@ -178,8 +178,7 @@ ASTNode_ptr ast_create_exp_statement(ASTNode_ptr exp) {
 
     add_child(new_node, exp);
 
-    new_node->data.exp_statement.result_type = TYPE_UNKNOWN;
-    new_node->data.exp_statement.restriction = UNDETERMINED;
+    new_node->data.exp_statement.exp_type = TYPE_UNKNOWN;
 
     return new_node;
 }
