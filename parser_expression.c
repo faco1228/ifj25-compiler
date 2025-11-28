@@ -353,8 +353,9 @@ static void psa_parse_call_args(ASTNode_ptr call_node)
     while (1)
     {
         /* každý argument je výraz – PSA, bez špeciálneho recognition tokenu */
-        ASTNode_ptr arg = parse_expression(NULL);
-        add_child(call_node, arg);
+        ASTNode_ptr arg_expr = parse_expression(NULL);
+        ASTNode_ptr arg_stmt = ast_create_exp_statement(arg_expr); // NODE_EXPR_STMNT
+        add_child(call_node, arg_stmt); // do CALL uklozit expr_stmt
         arg_count++;
 
         consume_eols();

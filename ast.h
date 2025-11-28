@@ -10,6 +10,7 @@
  */
 
 #pragma once
+//ifindef, komentare, refactor, pridat kika do psa autor
 
 #include "error.h"
 #include "symtable.h"
@@ -121,7 +122,7 @@ struct ASTNode
         {
             char *name;
             unsigned arg_count;
-            function_type type;
+            function_type type; // 
             // ASTNode_ptr body; // do children [0]
         } function_def;
 
