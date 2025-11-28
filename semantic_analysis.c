@@ -1,6 +1,6 @@
 /**
  * @file semantic_analysis.c
- * @authors xmezeim00, xracekm00
+ * @author xmezeim00
  * @brief Impelements function used during the semantic analysis.
  * @version 0.1
  * @date 2025-11-14
@@ -86,9 +86,9 @@ bool verify_var_redec(Key *key, ST_Node *symtable)
  * @param key Pointer to the key of the symbol.
  * @param scope_stack Pointer to the scope stack to look for the symbol inside higher level scopes.
  */
-bool verify_var_existence(Key *key, Scope_Stack *scope_stack)
+bool verify_var_existence(Key *key)
 {
-    ST_Node *search_result = scope_stack_var_lookup(scope_stack, key);
+    ST_Node *search_result = scope_stack_var_lookup(g_scope_stack,key);
 
     if (search_result) // local variable found
         return true;
@@ -181,7 +181,7 @@ bool args_count_check(ST_Node *func_node, int args_count)
  * @param scope_stack Pointer to the scope stack.
  *
  */
-void args_symbols_check(ASTNode_ptr call_node, ST_Node *func_symtable, Scope_Stack *scope_stack)
+void args_symbols_check(ASTNode_ptr call_node, ST_Node *func_symtable)
 {
     unsigned args_count = call_node->data.function_call.param_count;
 
@@ -189,13 +189,13 @@ void args_symbols_check(ASTNode_ptr call_node, ST_Node *func_symtable, Scope_Sta
     {
         if (call_node->children[idx]->type == NODE_CALL) // function call passed as arg
         {
-            handle_function_call(call_node, func_symtable, scope_stack);
+            handle_function_call(call_node, func_symtable);
         }
         else if (call_node->children[idx]->type == NODE_IDENTIFIER)
         {
 
             Key *key = st_create_variable_key(call_node->children[idx]->data.identifier.name);
-            if (!verify_var_existence(key, scope_stack))
+            if (!verify_var_existence(key))
             {
                 free(key);
                 error_exit(ERR_SEM_UNDEFINED);
@@ -212,7 +212,7 @@ void args_symbols_check(ASTNode_ptr call_node, ST_Node *func_symtable, Scope_Sta
  * @param func_symtable Pointer to the symtable of functions.
  * @param scope_stack Pointer to the scope stack.
  */
-void handle_function_call(ASTNode_ptr call_node, ST_Node *func_symtable, Scope_Stack *scope_stack)
+void handle_function_call(ASTNode_ptr call_node, ST_Node *func_symtable)
 {
     if (call_node->data.function_call.is_builtin) // built-in function called
     {
@@ -227,7 +227,7 @@ void handle_function_call(ASTNode_ptr call_node, ST_Node *func_symtable, Scope_S
         if (!builtin_args_count_correct(call_node->data.function_call.name, args_count))
             error_exit(ERR_SEM_ARG_COUNT);
 
-        if (!builtin_args_type_check(call_node, call_node->data.function_call.name, args_count, scope_stack, func_symtable))
+        if (!builtin_args_type_check(call_node, call_node->data.function_call.name, args_count, func_symtable))
             error_exit(ERR_SEM_TYPE_MISMATCH);
     }
     else // user-defined function call
@@ -251,7 +251,7 @@ void handle_function_call(ASTNode_ptr call_node, ST_Node *func_symtable, Scope_S
         }
 
         // if an error occurs
-        args_symbols_check(call_node, func_symtable, scope_stack);
+        args_symbols_check(call_node, func_symtable);
     }
 }
 
@@ -304,8 +304,7 @@ bool builtin_args_count_correct(char *name, unsigned args_count)
  * @param name Name of the built-in function.
  * @param args_count Num of args inside the function call.
  */
-bool builtin_args_type_check(ASTNode_ptr call_node, char *name, unsigned args_count,
-                             Scope_Stack *scope_stack, ST_Node *func_symtable)
+bool builtin_args_type_check(ASTNode_ptr call_node, char *name, unsigned args_count, ST_Node *func_symtable)
 {
     builtin_function_t *search_result = NULL;
 
@@ -325,11 +324,11 @@ bool builtin_args_type_check(ASTNode_ptr call_node, char *name, unsigned args_co
         if (current_param->type == NODE_IDENTIFIER) // var passed as param
         {
             Key *key = st_create_variable_key(current_param->data.identifier.name);
-            verify_var_existence(key, scope_stack);
+            verify_var_existence(key);
         }
         else if (current_param->type == NODE_CALL) // param is a function call
         {
-            handle_function_call(current_param, func_symtable, scope_stack);
+            handle_function_call(current_param, func_symtable);
         }
 
         // types only need to be checked if the current arg has any type restrictions
@@ -355,7 +354,7 @@ bool builtin_args_type_check(ASTNode_ptr call_node, char *name, unsigned args_co
  * @param glob_var_symtable Pointer to the symtable of all glob variables.
  * @param scope_stack Pointer to the scope stack.
  */
-void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *scope_stack)
+void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable)
 {
     if (!exp_root)
         return;
@@ -380,7 +379,7 @@ void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *sco
 
             if (!IS_GLOB_VAR(key->name)) // we only need to look for local variables
             {
-                if (!verify_var_existence(key, scope_stack))
+                if (!verify_var_existence(key))
                 {
                     key_dispose(key);
                     error_exit(ERR_SEM_UNDEFINED);
@@ -392,7 +391,7 @@ void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *sco
         break;
     }
     case NODE_CALL: // function call used as a term inside an expression
-        handle_function_call(exp_root, func_symtable, scope_stack);
+        handle_function_call(exp_root, func_symtable);
         break;
     case NODE_BINARY_OP:
 
@@ -445,10 +444,10 @@ void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *sco
     // we agreed on a convention that children[0] is the left child and children[1] the right child inside the exp subtree
 
     if (exp_root->children) // seg fault prevention
-        exp_analysis(exp_root->children[0], func_symtable, scope_stack);
+        exp_analysis(exp_root->children[0], func_symtable);
 
     if (exp_root->children) // seg fault prevention
-        exp_analysis(exp_root->children[1], func_symtable, scope_stack);
+        exp_analysis(exp_root->children[1], func_symtable);
 }
 
 /**
@@ -502,7 +501,7 @@ bool eval_exp_flags(ASTNode_ptr exp_root)
  * @param func_symtable Pointer to function symtable.
  * @param scope_stack Pointer to the scope_stack.
  */
-void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, Scope_Stack *scope_stack)
+void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable)
 {
     switch (node_to_handle->type)
     {
@@ -518,8 +517,8 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, Scope
     {
         // creates a separate symtable for the function arguments
         // this symtable is always going to be on the bottom of the stack, so all args will be visible to lower level scopes
-        scope_stack_push(scope_stack, NULL);
-        ST_Node **arg_symtable = scope_stack_top(scope_stack);
+        scope_stack_push(g_scope_stack, NULL);
+        ST_Node **arg_symtable = scope_stack_top(g_scope_stack);
 
         if (node_to_handle->child_count == 0)
             break;
@@ -577,7 +576,7 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, Scope
     case NODE_VAR_DECL:
     {
         Key *key = st_create_variable_key(node_to_handle->data.identifier.name);
-        ST_Node **current_scope = scope_stack_top(scope_stack);
+        ST_Node **current_scope = scope_stack_top(g_scope_stack);
 
         if (verify_var_redec(key, *current_scope)) // redec detected
         {
@@ -595,7 +594,7 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, Scope
     }
     case NODE_BLOCK: // creates new empty scope
     {
-        scope_stack_push(scope_stack, NULL);
+        scope_stack_push(g_scope_stack, NULL);
         break;
     }
     case NODE_IDENTIFIER: // can only be a local or global var, because function nodes have a separate node type
@@ -607,7 +606,7 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, Scope
 
         if (!IS_GLOB_VAR(var_key->name)) // we only need to search if the variable is not global
         {
-            if (!verify_var_existence(var_key, scope_stack))
+            if (!verify_var_existence(var_key))
             {
                 free(var_key);
                 error_exit(ERR_SEM_UNDEFINED);
@@ -618,7 +617,7 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, Scope
     }
     case NODE_EXPR_STMNT:
 
-        exp_analysis(node_to_handle->children[0], func_symtable, scope_stack);
+        exp_analysis(node_to_handle->children[0], func_symtable);
 
         if (!eval_exp_flags(node_to_handle))
             error_exit(ERR_SEM_TYPE_MISMATCH);
@@ -640,7 +639,7 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, Scope
         break;
     }
     case NODE_CALL:
-        handle_function_call(node_to_handle, func_symtable, scope_stack);
+        handle_function_call(node_to_handle, func_symtable);
         break;
     default:
         break;
@@ -648,12 +647,12 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, Scope
 
     for (unsigned idx = 0; idx < node_to_handle->child_count; idx++)
     {
-        semantic_analysis(node_to_handle->children[idx], func_symtable, scope_stack);
+        semantic_analysis(node_to_handle->children[idx], func_symtable);
     }
 
     // block and all its statements processed - safe to pop scope from stack
     if (node_to_handle->type == NODE_BLOCK)
-        scope_stack_pop(scope_stack);
+        scope_stack_pop(g_scope_stack);
 
     // loops processed - we can decrement loop nesting tracker
     if (node_to_handle->type == NODE_FOR || node_to_handle->type == NODE_WHILE)
