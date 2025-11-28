@@ -3,12 +3,10 @@ import "ifj25" for Ifj
 class Program {
     static main() {
         var x
-        x = 2
-        if (x == 2) {
-
-        }
-        else {
-            
-        }
+        var y
+        var z
+        x = (Ifj.read_str() + 2)
+        z = (2+3*4-(Ifj.read_str()))
+        y = (3*3)+((Ifj.read_str()) - (Ifj.read_str()) + 2)
     }
 }

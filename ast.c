@@ -70,7 +70,7 @@ void ast_free(ASTNode_ptr node) {
     else if (type == NODE_FOR) {
         free(node->data.for_statement.name_iter);
     }
-    else if (type == NODE_STR_LIT) {
+    else if (type == NODE_STR_LIT || type == NODE_TYPE_LIT) {
         free(node->data.literal.data.str_value);
     }
     else if (type == NODE_CALL) {
@@ -178,8 +178,7 @@ ASTNode_ptr ast_create_exp_statement(ASTNode_ptr exp) {
 
     add_child(new_node, exp);
 
-    new_node->data.exp_statement.result_type = TYPE_UNKNOWN;
-    new_node->data.exp_statement.restriction = UNDETERMINED;
+    new_node->data.exp_statement.exp_type = TYPE_UNKNOWN;
 
     return new_node;
 }
@@ -274,6 +273,14 @@ ASTNode_ptr ast_create_str(const char *string) {
 
 ASTNode_ptr ast_create_null(void) {
     return ast_create(NODE_NULL_LIT);
+}
+
+ASTNode_ptr ast_create_type_lit(const char *type_name) {
+    ASTNode_ptr new_node = ast_create(NODE_TYPE_LIT);
+
+    new_node->data.literal.data.str_value = ast_strcpy(type_name);
+
+    return new_node;
 }
 
 

@@ -245,6 +245,14 @@ void process_ident(token_ptr token){
     for (int i = 0; key_words_arr[i] != NULL; i++){
         //When match was found
         if (!strcmp(token->value.str_value, key_words_arr[i])){
+            
+            // !tu som pridal detekciu pre null literal
+            if (!strcmp(token->value.str_value, "null")) // null literal detected
+            {
+                token->type = NULL_LIT;
+                return;
+            } 
+            
             //Sets token's parameteres
             token->type = KEY_WORD;
             strcpy(token->value.str_value, key_words_arr[i]);

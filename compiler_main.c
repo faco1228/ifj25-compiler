@@ -53,7 +53,7 @@ int main()
     scope_stack_init(g_scope_stack); // if stack array allocation fails, error_exit() is called inside the function and all memory is freed
 
     // performes semantic_analysis and generates code after every successful semantic action
-    semantic_analysis(ast, g_func_symtable, g_scope_stack);
+    semantic_analysis(ast);
 
     // free all allocated structures
     scope_stack_dispose(g_scope_stack);

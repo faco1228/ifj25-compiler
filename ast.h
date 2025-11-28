@@ -18,13 +18,6 @@
 #include <stdbool.h>
 #include <string.h>
 
-typedef enum
-{
-    ONLY_NUM,
-    ONLY_STR,
-    UNDETERMINED
-} exp_restriction_t;
-
 // Data type representing values of logical and aritmetical operators
 typedef enum
 {
@@ -57,7 +50,7 @@ typedef enum
     TYPE_NUM,
     TYPE_STRING,
     TYPE_BOOL
-} ValueType;
+} value_type;
 
 // Data type representing different types of AST nodes
 typedef enum
@@ -91,6 +84,7 @@ typedef enum
     NODE_FLOAT_LIT,
     NODE_STR_LIT,
     NODE_NULL_LIT,
+    NODE_TYPE_LIT,
 } NodeType;
 
 // Forward declaration and pointer alias for the ASTNode structure
@@ -187,8 +181,7 @@ struct ASTNode
         struct
         { // 0-left 1-right
             // ASTNode_ptr exp; // children [0]
-            ValueType result_type;
-            exp_restriction_t restriction; 
+            value_type exp_type; // if we are able to determine what the result of the expression is we save it here
         } exp_statement;
 
         // RANGE
@@ -262,3 +255,4 @@ ASTNode_ptr ast_create_int(long long int val);
 ASTNode_ptr ast_create_float(long double val);
 ASTNode_ptr ast_create_str(const char *string);
 ASTNode_ptr ast_create_null(void);
+ASTNode_ptr ast_create_type_lit(const char *type_name);

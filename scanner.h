@@ -18,7 +18,7 @@
 //Note: Subtraction operator has separate type, since it can be used as unary operator (extension)
 enum token_type {
     IDENT, KEY_WORD, GLOB_VAR, 
-    INT_LIT, FLOAT_LIT,
+    INT_LIT, FLOAT_LIT, NULL_LIT,
     ONE_L_STRING, MUL_L_STRING, 
     OPERATOR, MINUS,
     LEFT_PAR, RIGHT_PAR, LEFT_DOM_PAR, RIGHT_DOM_PAR, 
