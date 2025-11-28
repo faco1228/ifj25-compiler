@@ -3,7 +3,7 @@
  * @author xracekm00
  * @brief Contains functions for partial token processing
  * @version 0.4
- * @date 2025-11-17
+ * @date 2025-11-28
  * 
  * @copyright Copyright (c) 2025
  */
@@ -1019,6 +1019,13 @@ void process_float(token_ptr token, char *buffer, unsigned *buf_index){
         buffer[*buf_index] = digit;
         (*buf_index)++;
         count++;
+    }
+
+    // If dot was read as the first character either doubledot or tripledot occured
+    if (digit == '.'){
+        ungetc(digit, stdin);
+        token->type = INT_LIT;
+        return;
     }
 
    // After decimal point, there must be at least one digit
