@@ -500,7 +500,6 @@ bool eval_exp_flags(ASTNode_ptr exp_root)
  * @param root Pointer to the root node of AST, needed so we can free the AST at anytime during the recursion
  * @param node_to_handle Helper pointer that will be used in recursive calls.
  * @param func_symtable Pointer to function symtable.
- * @param glob_var_symtable Pointer to a global variable symtable.
  * @param scope_stack Pointer to the scope_stack.
  */
 void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, Scope_Stack *scope_stack)
@@ -602,7 +601,7 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, Scope
     case NODE_IDENTIFIER: // can only be a local or global var, because function nodes have a separate node type
     {
         if (node_to_handle->data.identifier.id_type == SETTER || node_to_handle->data.identifier.id_type == GETTER)
-            break; // node has already been identified a we know that it exists
+            break; // node was already checked because id_type was assigned
 
         Key *var_key = st_create_variable_key(node_to_handle->data.identifier.name);
 
@@ -627,9 +626,7 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, Scope
         if (zero_divison_detected)
             error_exit(ERR_SEM_OTHER);
 
-        // todo : add exp code gen function when exp is ok
-
-        reset_flags(); //! musi byt uplne na konci tohoto case
+        reset_flags();
         break;
     case NODE_FOR:
     case NODE_WHILE:
@@ -642,10 +639,9 @@ void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, Scope
             error_exit(ERR_SEM_OTHER);
         break;
     }
-
-    // case NODE_CALL:
-    //     handle_function_call(node_to_handle, func_symtable, scope_stack);
-    //     break;
+    case NODE_CALL:
+        handle_function_call(node_to_handle, func_symtable, scope_stack);
+        break;
     default:
         break;
     }
