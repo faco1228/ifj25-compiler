@@ -1,8 +1,8 @@
 /**
  * @file semantic_analysis.h
- * @authors xmezeim00, xracekm00
- * @brief Contains function prototypes of semantic analysis used by the parser. // todo : upravit podla potreby
- * @version 0.1
+ * @author xmezeim00
+ * @brief Contains function prototypes of the semantic analysis module.
+ * @version 0.2
  * @date 2025-11-14
  *
  * @copyright Copyright (c) 2025
@@ -12,7 +12,6 @@
 #define SEMANTIC_ANALYSIS_H
 
 #include "symtable.h"
-#include "scope_stack.h"
 #include "ast.h"
 #include <stdbool.h>
 
@@ -115,9 +114,8 @@ bool verify_var_redec(Key *key, ST_Node *symtable);
  *        used. If an undeclared variable was used, error_exit() is called.
  *
  * @param key Pointer to the key of the symbol.
- * @param scope_stack Pointer to the scope stack to look for the symbol inside higher level scopes.
  */
-bool verify_var_existence(Key *key, Scope_Stack *scope_stack);
+bool verify_var_existence(Key *key);
 
 /**
  * @brief Called by the parser when function definition is detected. Verifies if a function, getter or a setter
@@ -155,9 +153,8 @@ bool zero_division(ASTNode_ptr divider);
  * @param root Root of the whole AST so it can be freed if needed.
  * @param call_node Node of the function call.
  * @param func_symtable Pointer to the symtable of functions.
- * @param scope_stack Pointer to the scope stack.
  */
-void handle_function_call(ASTNode_ptr call_node, ST_Node *func_symtable, Scope_Stack *scope_stack);
+void handle_function_call(ASTNode_ptr call_node, ST_Node *func_symtable);
 
 /**
  * @brief Verifies whether the args count inside the function call matches the function
@@ -197,8 +194,7 @@ bool builtin_args_count_correct(char *name, unsigned args_count);
  * @param name Name of the built-in function.
  * @param args_count Num of args inside the function call.
  */
-bool builtin_args_type_check(ASTNode_ptr call_node, char *name, unsigned args_count,
-                        Scope_Stack *scope_stack, ST_Node *func_symtable);
+bool builtin_args_type_check(ASTNode_ptr call_node, char *name, unsigned args_count, ST_Node *func_symtable);
 
 /**
  * @brief While traversing the expression subtree, differnt expression flags are set. These flags are later used
@@ -208,9 +204,8 @@ bool builtin_args_type_check(ASTNode_ptr call_node, char *name, unsigned args_co
  * @param exp_root Root of the expression subtree.
  * @param func_symtable Pointer to the symtable of all setter, getters and functions.
  * @param glob_var_symtable Pointer to the symtable of all glob variables.
- * @param scope_stack Pointer to the scope stack.
  */
-void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *scope_stack);
+void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable);
 
 /**
  * @brief Traverses the tree and calls semantic functions based on the current node type.
@@ -219,8 +214,7 @@ void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *sco
  * @param node_to_handle Helper pointer that will be used in recursive calls.
  * @param func_symtable Pointer to function symtable.
  * @param glob_var_symtable Pointer to a global variable symtable.
- * @param scope_stack Pointer to the scope_stack.
  */
-void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, Scope_Stack *scope_stack);
+void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable);
 
 #endif
