@@ -32,6 +32,7 @@ typedef enum
     OP_GT,
     OP_GTE,
     OP_IS,
+    OP_RANGE,
     OP_ERROR
 } operator_types;
 
