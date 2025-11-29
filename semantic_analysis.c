@@ -566,8 +566,26 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
         break;
     }
     case NODE_FOR:
+    {
+        // we have push the iterator to a symtable so we can access it inside the for cycle
+        ST_Node *iterator = node_to_handle->children[0];
+        scope_stack_push(g_scope_stack, iterator);
+
+        /* NOTE:
+        node_to_handle->children[1] == expression
+        node_to_handle->children[1]->children[0] == range operator
+        */
+        ASTNode_ptr range_operator = node_to_handle->children[1]->children[0];
+
+        // we check that the expression inside the for cycle definition is really a range expression
+        if (range_operator->data.binary_operator.op_type != OP_RANGE)
+            error_exit(ERR_SEM_OTHER);
+
+        loop_nesting_tracker++; // gets incremented each time a for loop is entered
+        break;
+    }
     case NODE_WHILE:
-        loop_nesting_tracker++; // gets incremented each time a loop is entered
+        loop_nesting_tracker++; // gets incremented each time a while loop is entered
         break;
     case NODE_BREAK: // break and continue keyword usage check
     case NODE_CONTINUE:
