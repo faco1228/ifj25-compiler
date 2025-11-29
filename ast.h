@@ -109,6 +109,7 @@ struct ASTNode
         { // bool is_initialized
             char *name;
             ID_Type id_type;
+            bool is_global;
         } identifier;
 
         // FUNCTION_DEF
@@ -245,7 +246,7 @@ ASTNode_ptr ast_create_for(const char *name, ASTNode_ptr iter, ASTNode_ptr body)
 ASTNode_ptr ast_create_break(void);
 ASTNode_ptr ast_create_continue(void);
 ASTNode_ptr ast_create_exp_statement(ASTNode_ptr exp);
-ASTNode_ptr ast_create_ident(const char *name);
+ASTNode_ptr ast_create_ident(const char *name, bool is_global);
 
 // builders - PSA
 ASTNode_ptr ast_create_binary(ASTNode_ptr lhs, ASTNode_ptr rhs, operator_types op);

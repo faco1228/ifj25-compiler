@@ -396,7 +396,7 @@ static ASTNode_ptr parse_setter_def(token_ptr id) // segfault, node
     ASTNode_ptr fun = ast_create_function(id->value.str_value, 0, FUN_S, NULL);
     
     token = expect_ident();
-    ASTNode_ptr param = ast_create_ident(token->value.str_value);
+    ASTNode_ptr param = ast_create_ident(token->value.str_value, false);
     add_child(fun, param);
     free_token(token);
 
@@ -483,7 +483,7 @@ int parse_param_list(ASTNode_ptr node, unsigned *arg_count)
     token_ptr token = expect_ident();
     (*arg_count)++;
 
-    param = ast_create_ident(token->value.str_value);
+    param = ast_create_ident(token->value.str_value, false);
     add_child(node, param);
     free_token(token);
 
@@ -499,7 +499,7 @@ int parse_param_list(ASTNode_ptr node, unsigned *arg_count)
             token = expect_ident();
             (*arg_count)++;
             
-            param = ast_create_ident(token->value.str_value);
+            param = ast_create_ident(token->value.str_value, false);
             add_child(node, param);
             free_token(token);
 
@@ -757,14 +757,14 @@ static ASTNode_ptr parse_assign_target(void)
     if (token_ahead->type == IDENT)
     {
         token = expect_ident();
-        ASTNode_ptr id = ast_create_ident(token->value.str_value);
+        ASTNode_ptr id = ast_create_ident(token->value.str_value, false);
         free_token(token);
         return id;
     }
     else if (token_ahead->type == GLOB_VAR)
     {
         token = expect_type(GLOB_VAR);
-        ASTNode_ptr id = ast_create_ident(token->value.str_value);
+        ASTNode_ptr id = ast_create_ident(token->value.str_value, true);
 
         free_token(token);
         return id;

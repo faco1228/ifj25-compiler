@@ -159,7 +159,7 @@ ASTNode_ptr ast_create_for(const char *name, ASTNode_ptr iter, ASTNode_ptr body)
 
     new_node->data.for_statement.name_iter = ast_strcpy(name);
 
-    ASTNode_ptr iter_ident = ast_create_ident(name);
+    ASTNode_ptr iter_ident = ast_create_ident(name, false);
     add_child(new_node, iter_ident);
 
     add_child(new_node, iter);
@@ -186,11 +186,12 @@ ASTNode_ptr ast_create_exp_statement(ASTNode_ptr exp) {
     return new_node;
 }
 
-ASTNode_ptr ast_create_ident(const char *name) {
+ASTNode_ptr ast_create_ident(const char *name, bool is_global) {
     ASTNode_ptr new_node = ast_create(NODE_IDENTIFIER);
 
     new_node->data.identifier.name = ast_strcpy(name);
-    new_node->data.identifier.id_type = VAR; // todo ID_UNDEFINED ??
+    new_node->data.identifier.id_type = VAR;
+    new_node->data.identifier.is_global = false;
 
     return new_node;
 }

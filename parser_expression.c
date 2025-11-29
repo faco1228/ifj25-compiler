@@ -81,9 +81,9 @@ static ASTNode_ptr ast_from_operand_token(token_ptr t) // is token pre num str n
             return (ASTNode_ptr)t->ast;
         }
         // bezny ident: premenna, meno fcie
-        return ast_create_ident(t->value.str_value);
+        return ast_create_ident(t->value.str_value, false);
     case GLOB_VAR:
-        return ast_create_ident(t->value.str_value);
+        return ast_create_ident(t->value.str_value, true);
 
     case INT_LIT:
         return ast_create_int(t->value.int_value);
