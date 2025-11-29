@@ -571,11 +571,13 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
         ST_Node *iterator = node_to_handle->children[0];
         scope_stack_push(g_scope_stack, iterator);
 
-        // node_to_handle->children[1] == expression
-        // node_to_handle->children[1]->children[0] == range operator
+        /* NOTE:
+        node_to_handle->children[1] == expression
+        node_to_handle->children[1]->children[0] == range operator
+        */
         ASTNode_ptr range_operator = node_to_handle->children[1]->children[0];
 
-        // we check that the correct expression is at the place where a range expression should be
+        // we check that the expression inside the for cycle definition is really a range expression
         if (range_operator->data.binary_operator.op_type != OP_RANGE)
             error_exit(ERR_SEM_OTHER);
 
