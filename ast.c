@@ -191,7 +191,7 @@ ASTNode_ptr ast_create_ident(const char *name, bool is_global) {
 
     new_node->data.identifier.name = ast_strcpy(name);
     new_node->data.identifier.id_type = VAR;
-    new_node->data.identifier.is_global = false;
+    new_node->data.identifier.is_global = is_global;
 
     return new_node;
 }
