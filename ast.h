@@ -113,6 +113,7 @@ struct ASTNode
         { // bool is_initialized
             char *name;
             ID_Type id_type;
+            bool is_global;
         } identifier;
 
         // FUNCTION_DEF
