@@ -466,6 +466,9 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
             Key *key = st_create_variable_key(node_to_handle->children[idx]->data.identifier.name);
             ST_Node *arg_node = st_create_node(key);
 
+            if (!arg_node)
+                error_exit(ERR_INTERNAL);
+
             // symbol is inserted
             *arg_symtable = st_insert_node(*arg_symtable, arg_node);
             free(key);
@@ -503,6 +506,10 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
             if (!search_result) // new global variable defined
             {
                 ST_Node *new_glob_var = st_create_node(key);
+
+                if(!new_glob_var)
+                    error_exit(ERR_INTERNAL);
+
                 g_global_symtable = st_insert_node(g_global_symtable, new_glob_var);
             }
 
@@ -523,6 +530,10 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
         else // new local var needs to be added to current_scope
         {
             ST_Node *new_node = st_create_node(key);
+
+            if (!new_node)
+                error_exit(ERR_INTERNAL);
+
             *current_scope = st_insert_node(*current_scope, new_node);
             free(key);
         }
@@ -568,8 +579,15 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
     case NODE_FOR:
     {
         // we have push the iterator to a symtable so we can access it inside the for cycle
-        ST_Node *iterator = node_to_handle->children[0];
-        scope_stack_push(g_scope_stack, iterator);
+        ASTNode_ptr iterator = node_to_handle->children[0];
+
+        Key *iter_key = st_create_variable_key(iterator->data.identifier.name);
+        ST_Node *iter_node = st_create_node(iter_key);
+
+        if (!iter_node) 
+            error_exit(ERR_INTERNAL);
+        
+        scope_stack_push(g_scope_stack, iter_node);
 
         /* NOTE:
         node_to_handle->children[1] == expression
@@ -578,7 +596,7 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
         ASTNode_ptr range_operator = node_to_handle->children[1]->children[0];
 
         // we check that the expression inside the for cycle definition is really a range expression
-        if (range_operator->data.binary_operator.op_type != OP_RANGE)
+        if (range_operator->type != NODE_RANGE)
             error_exit(ERR_SEM_OTHER);
 
         loop_nesting_tracker++; // gets incremented each time a for loop is entered
