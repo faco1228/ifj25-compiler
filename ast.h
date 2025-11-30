@@ -1,16 +1,18 @@
 /**
  * @file ast.h
  * @author Samuel Facka (xfackas00)
- * @brief
- * @version 0.1
- * @date 2025-11-10
+ * @brief Abstract Syntax Tree (AST) structures and builder functions.
  *
- * @copyright Copyright (c) 2025
- *
+ * The AST represents the parsed IFJ25 program in a structured tree form.
+ * Each node has:
+ *  - a NodeType describing its role (statement, expression, literal, ...),
+ *  - an array of children (for tree structure),
+ *  - a union with node-specific data.
  */
 
-#pragma once
-//ifindef, komentare, refactor, pridat kika do psa autor
+#ifndef AST_H
+#define AST_H
+// komentare, refactor, pridat kika do psa autor
 
 #include "error.h"
 #include "symtable.h"
@@ -259,3 +261,5 @@ ASTNode_ptr ast_create_float(long double val);
 ASTNode_ptr ast_create_str(const char *string);
 ASTNode_ptr ast_create_null(void);
 ASTNode_ptr ast_create_type_lit(const char *type_name);
+
+#endif

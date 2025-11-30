@@ -43,7 +43,7 @@ int main()
     // syntactic analysis and creation of ast
     ASTNode_ptr ast = parse_program(); //! bude vobec treba vratit ast ak je globalne? nestaci poslat ten globalny ptr? len na zamyslenie
     
-    print_ast(ast); //! vymazat - volanie pomocnej funkcie pre print ast cez pre order
+    // print_ast(ast); //! vymazat - volanie pomocnej funkcie pre print ast cez pre order
 
     // scope_stack init
     g_scope_stack = malloc(sizeof(Scope_Stack));
