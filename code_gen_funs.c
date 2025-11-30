@@ -664,7 +664,7 @@ void choose_operation(ASTNode_ptr operator)
     case OP_DIV:
         break;
 
-        //todo : logicke operatory
+        // todo : logicke operatory
 
     default:
         break;
@@ -672,9 +672,76 @@ void choose_operation(ASTNode_ptr operator)
 }
 
 /**
+ * @brief Generates instructions to type check and evaluate an operation that uses logical operators.
+ *        Based on the provided type of the logical operator, different versions of this function can be generated
+ *        that are specific for the current logical operator.
+ *
+ * @param op_type Pointer to an enum value of the current operator.
+ *
+ * @note Helper variables that are used in instructions generated in this function are going to
+ *       be defined outside these helper functions a will have a separate frame made for them.
+ */
+void gen_eval_logical_op(operator_types *op_type)
+{
+    // retrieve both operands from the data stack
+    printf("POPS LF@op2\n"); // second operand
+    printf("POPS LF@op1\n"); // first operand
+
+    // todo: bude vhodne spravit zvlast funkciu pre print EQ a NEQ, zvlast pre GT, GTE, ..., zvlast pre is aby v tejto nebolo zbytocne vela kodu
+
+    switch (*op_type)
+    {
+    case OP_EQ:
+        break;
+    case OP_NEQ:
+        break;
+    case OP_GT:
+        break;
+    case OP_GTE:
+        break;
+    case OP_LT:
+        break;
+    case OP_LTE:
+        break;
+    case OP_IS:
+        break;
+
+    default:
+        break;
+    }
+}
+
+/**
+ * @brief Generates instructions to type check and evaluate an operation that uses the range operator
+ *
+ * @note Helper variables that are used in instructions generated in this function are going to
+ *       be defined outside these helper functions a will have a separate frame made for them.
+ */
+void gen_eval_range_op()
+{
+    // retrieve both operands from the data stack
+    printf("POPS LF@op2\n"); // second operand
+    printf("POPS LF@op1\n"); // first operand
+
+    // get the data types of both operands
+    printf("TYPE LF@type1 LF@op1\n"); // data type of the first operand
+    printf("TYPE LF@type2 LF@op2\n"); // data type of the second operand
+
+    // check if both sides of the expression are an int value
+    printf("EQ LF@op_check1 LF@type1 string@int\n");
+    printf("EQ LF@op_check2 LF@type2 string@int\n");
+    printf("JUMPIFNEQ !ERROR_EXP_L LF@op_check1 LF@op_check2\n");
+
+    // todo : vyhodnoti pocet iteracii cyklu a ziskat pociatocnu hodnotu iteratoru
+    // todo : zistit ako mam na stack pushnut tieto hodnoty pre Martina
+
+    printf("RETURN\n");
+}
+
+/**
  * @brief Generates instructions to type check and evaluate an operation that uses the * operator
  *
- * @note Helper variables that start with & and are used in instructions generated in this function are going to
+ * @note Helper variables that are used in instructions generated in this function are going to
  *       be defined outside these helper functions a will have a separate frame made for them.
  */
 void gen_eval_star_op()
@@ -747,7 +814,7 @@ void gen_eval_star_op()
 /**
  * @brief Generates instructions to type check and evaluate an operation that uses the / operator.
  *
- * @note Helper variables that start with & and are used in instructions generated in this function are going to
+ * @note Helper variables that are used in instructions generated in this function are going to
  *       be defined outside these helper functions a will have a separate frame made for them.
  */
 void gen_eval_slash_op()
@@ -817,7 +884,7 @@ void gen_eval_slash_op()
 /**
  * @brief Generates instructions to type check and evaluate an operation that uses the - operator.
  *
- * @note Helper variables that start with & and are used in instructions generated in this function are going to
+ * @note Helper variables that are used in instructions generated in this function are going to
  *       be defined outside these helper functions a will have a separate frame made for them.
  */
 void gen_eval_minus_op()
@@ -876,7 +943,7 @@ void gen_eval_minus_op()
 /**
  * @brief Generates instructions to type check and evaluate an operation that uses the + operator.
  *
- * @note Helper variables that start with & and are used in instructions generated in this function are going to
+ * @note Helper variables that are used in instructions generated in this function are going to
  *       be defined outside these helper functions a will have a separate frame made for them.
  */
 void gen_eval_plus_op()
