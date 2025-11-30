@@ -644,12 +644,31 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
 }
 
 /**
- * @brief Chooses the operation to generate based on the provided operator.
+ * @brief Decides what binary op eval function to call based on the provided operator.
  *
  * @param operator Pointer to the operator node.
  */
 void choose_operation(ASTNode_ptr operator)
 {
+    switch (operator->data.binary_operator.op_type)
+    {
+    case OP_PLUS:
+        // todo: zavola prislusnu funkciu a na datovy zasobnik pushne operandy / operand
+        // todo: treba kontrolovat ci su obe strany pod bin operaciou operandy a generovat kod pre push na stack
+        // len v pripade ze naozaj ide o operandy
+        break;
+    case OP_MINUS:
+        break;
+    case OP_MUL:
+        break;
+    case OP_DIV:
+        break;
+
+        //todo : logicke operatory
+
+    default:
+        break;
+    }
 }
 
 /**
@@ -778,7 +797,7 @@ void gen_eval_slash_op()
     printf("LABEL &zero_div_check_float\n");
     printf("EQ LF@op_check2 LF@op2 float@0x0p+0\n");
     printf("JUMP &zero_check_done\n");
-    
+
     // zero divison check for ints
     printf("LABEL &zero_div_check_int\n");
     printf("EQ LF@op_check2 LF@op2 int@0\n");
