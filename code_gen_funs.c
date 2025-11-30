@@ -654,26 +654,96 @@ void choose_operation(ASTNode_ptr operator)
 }
 
 /**
+ * @brief Generates instructions to type check and evaluate an operation that uses the * operator
+ *
+ * @note Helper variables that start with & and are used in instructions generated in this function are going to
+ *       be defined outside these helper functions a will have a separate frame made for them.
+ */
+void gen_eval_star_op()
+{
+    // retrieve both operands from the data stack
+    printf("POPS LF@#op2\n"); // second operand
+    printf("POPS LF@#op1\n"); // first operand
+
+    // get the data types of both operands
+    printf("TYPE LF@#type1 LF@#op1\n"); // data type of the first operand
+    printf("TYPE LF@#type2 LF@#op2\n"); // data type of the second operand
+
+    // check for nill values
+    printf("EQ LF@#type_check1 LF@_type1 string@nill\n");
+    prinft("EQ LF@#type_check2 LF@_type2 string@nill\n");
+    printf("OR LF@#nill_check LF@#type_check1 LF@#type_check2\n");
+    printf("JUMPIFEQ !ERROR_EXP_L LF@#nill_check bool@true\n");
+
+    // here we compare the two operands and try to match a valid operation scenario
+
+    // float * float scenario
+    printf("EQ LF@#type_check1 LF@_type1 string@float\n");
+    prinft("EQ LF@#type_check2 LF@_type2 string@float\n");
+    printf("JUMPIFEQ &mul LF@#type_check1 LF@#type_check2\n");
+
+    // int * int scenarion
+    printf("EQ LF@#type_check1 LF@_type1 string@int\n");
+    prinft("EQ LF@#type_check2 LF@_type2 string@int\n");
+    printf("JUMPIFEQ &mul LF@#type_check1 LF@#type_check2\n");
+
+    // string * int scenario
+    printf("EQ LF@#type_check1 LF@_type1 string@string\n");
+    prinft("EQ LF@#type_check2 LF@_type2 string@int\n");
+    printf("JUMPIFEQ &str_iter LF@#type_check1 LF@#type_check2\n");
+
+    // float * int scenario
+    printf("EQ LF@#type_check1 LF@_type1 string@flaot\n");
+    prinft("EQ LF@#type_check2 LF@_type2 string@int\n");
+    printf("JUMPIFEQ &right_to_float LF@#type_check1 LF@#type_check2\n");
+
+    // int * float scenario
+    printf("EQ LF@#type_check1 LF@_type1 string@int\n");
+    prinft("EQ LF@#type_check2 LF@_type2 string@float\n");
+    printf("JUMPIFEQ &left_to_float LF@#type_check1 LF@#type_check2\n");
+
+    // none of valid the scenarios was matched, type error occured
+    printf("JUMP !ERROR_EXP_L\n");
+
+    // int to float conversions - right op
+    printf("&right_to_float\n"); // label
+    printf("INT2FLOAT op2 op2\n");
+    printf("JUMP &mul\n");
+
+    // int to float conversions - left op
+    printf("&left_to_float\n"); // label
+    printf("INT2FLOAT op1 op1\n");
+
+    // no need to jump here
+
+    // multiplication
+    printf("&mul\n"); // lable
+    printf("MUL LF@#result LF@#op1 LF@#op2\n");
+    printf("PUSHS LF@#result\n");
+    printf("JUMP &mul_end\n");
+
+    // string iter
+    //  todo: sem vlozit kod pre string iter ale este si to chcem prejst s Martinom
+
+    // no need to jump here
+    // end of the function that handles the * operator
+    printf("&mul_end\n");
+    printf("RETURN\n");
+}
+
+/**
  * @brief Generates instructions to type check and evaluate an operation that uses the + operator.
  *
- * @param
+ * @note Helper variables that start with & and are used in instructions generated in this function are going to
+ *       be defined outside these helper functions a will have a separate frame made for them.
  */
 void gen_eval_plus_op()
 {
-    // todo : vyriesit vytvorenie docasnych premennych a nacitanie hodnoty do tychto premennych
-    // NOTE : v ramci celej funkcie mi staci definovat tie premenne ktore potrebujem pre eval len raz a ja ich uz pri
-    // vyhodnocovani vyrazov budem len prepisovat. je to kvoli tomu ze vzdy vyhodnotim len binarnu operaciu a vysledok potom
-    // vlozim na stack, cize sa nemusim bat ze nieco stratim a pod
-    // NOTE: mozno na zaciatku kazdej funkcie vytvorit tieto premenne a mat ich ready? vytvorit local frame pre premenne
-    // ktore pouzivam pri vyhodnoteni vyrazu? to ale za kazdym pre kazdu bin operaciu musim vytvorit novy local frame
-    // a znova si v nom definovat tie premenne takze to asi nebude uplne efektivne
-    // NOTE: kedze kazda funkcia a blok vzdy vytvoria svoj local frame tak premenne ktore pouzivam pre ucel vyhodnotenia
-    // vyrazu sa mozu vzdy volat tak isto (asi teda, treba to este premysliet)
     // NOTE: printnem to podobne ako built in funckie, potom sa pushne na stack operand lavy, potom pravy a ja si ich uz ziskam
     // v ramci tej "funkcie" pre add a ulozim si ich
     // todo: na zaciatku programu este pred tym nez sa zacne realne generovat kod si len vygenerujem cez defvar tie pomocne premenne
     // todo: vytvorim si aj premennu LF@#nill_check pre kontrolu toho ci v aritmentickom vyraze nie je nill hodnota
-    // todo: potrebujme premennu pre ulozenie vysledku
+    // todo: potrebujem premennu pre ulozenie vysledku
 
     // creates the label
     // todo: vymysliet nejaky label nazov ktory bude vhodny
@@ -745,7 +815,7 @@ void gen_eval_plus_op()
     printf("PUSHS LF@#result\n");
 
     // no need to use jump here
-    
+
     // end of the function that handles the + operator
     printf("&add_end\n");
     printf("RETURN\n");
