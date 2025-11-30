@@ -21,7 +21,7 @@
 
 // Enum representing different options for unique name creation via create_unique_name function
 typedef enum {
-    LABEL, LOOP_START_L, LOOP_END_L, IF_TRUE, IF_FALSE, TEMP_VAR
+    LABEL, LOOP_START_L, LOOP_END_L, IF_TRUE, IF_FALSE, TEMP_VAR, ADD_L
 }name_option_t;
 
 // Enum representing different options of literals to create
@@ -53,6 +53,7 @@ typedef struct {
     unsigned long long temp_var_counter;
     unsigned long long loop_counter;
     unsigned long long if_counter;
+    unsigned long long add_counter;
 
     // Location in AST
     char *curr_function;
@@ -67,6 +68,7 @@ typedef struct {
     char* if_label;         // Temp variable
     char* loop_start_label; // Loop start
     char* loop_end_label;   // Loop end
+    char* add_label;        // Addition
 
     // How many thing are on data stack, so reading from an empty stack can be prevented
     unsigned stakck_depth;
@@ -271,6 +273,14 @@ void gen_binary_op();
 void gen_infix_to_postfix();
 
 void gen_postfix_eval_fun();
+
+
+/**
+ * @brief Chooses the operation to generate based on the provided operator.
+ * 
+ * @param operator Pointer to the operator node.
+ */
+void choose_operation(ASTNode_ptr operator);
 
 /**
  * @brief We will create this one together at the very end.

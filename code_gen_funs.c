@@ -2,16 +2,16 @@
  * @file code_gen_funs.c
  * @author xracekm00, xmezeim00
  * @brief Code generating functions for Wren-like programming language
- * 
+ *
  * @note Code is being printed to stdout.
  *       For testing purposes the stream will be redirected into log.txt file.
  *       We decided to use Pascal convetion for function calls.
- * 
+ *
  * @version 0.1
  * @date 2025-11-28
- * 
+ *
  * @copyright Copyright (c) 2025
- * 
+ *
  */
 
 #include <stdio.h>
@@ -56,27 +56,30 @@ Budem musiet uchovavat informaciu o tom, kolko ramcov je na zasobniku resp kolko
 lebo ked chcem citat z prazdneho zasobniku tak dojde k chybe.
 */
 
-//Global varialbe necesary for almost all functions below
+// Global varialbe necesary for almost all functions below
 name_generator_ptr global_name_gen = NULL;
-//Global flag, holds information whether the function contained return node
+// Global flag, holds information whether the function contained return node
 bool return_occured = false;
 
 /**
  * @brief The main code-gen function - contains switch for all different types of nodes
- * 
- * @param node 
+ *
+ * @param node
  */
-void codegen(ASTNode_ptr node){
+void codegen(ASTNode_ptr node)
+{
     // End of reccursion
-    if (!node){
+    if (!node)
+    {
         return;
     }
-    
+
     // Recursivelly processing each node of AST
-    switch (node->type){
+    switch (node->type)
+    {
     case NODE_PROGRAM:
         // Each code in IFJcode25 starts with this line
-        printf(".IFJcode25\n"); 
+        printf(".IFJcode25\n");
 
         // Skipping built in functions defined at the beginning of each program
         printf("JUMP _program_start\n");
@@ -94,7 +97,7 @@ void codegen(ASTNode_ptr node){
         gen_built_in_strcmp();
         gen_built_in_ord();
         gen_built_in_chr();
-        
+
         // This is where actuall compilation begins
         printf("\n");
         printf("LABEL _program_start\n");
@@ -141,35 +144,36 @@ void codegen(ASTNode_ptr node){
     }
 
     // Iterate throuh all children
-    for (unsigned i = 0; i < node->child_count; i++){
+    for (unsigned i = 0; i < node->child_count; i++)
+    {
         codegen(node->children[i]);
     }
 
     // TO DO: just wrote down the idea
     /**
-     * @brief 
-     * 
+     * @brief
+     *
      */
-    if (node->type == NODE_FUNCTION_DEF){
+    if (node->type == NODE_FUNCTION_DEF)
+    {
         gen_func_end();
     }
-    
-
 }
 
 /**
  * @brief sets all name_generator_t attributes to default values
- * 
+ *
  * @note used for reset when entering new function_def node
- * 
- * @param node 
+ *
+ * @param node
  */
-void name_gen_init(ASTNode_ptr node){
+void name_gen_init(ASTNode_ptr node)
+{
     global_name_gen->label_counter = 0;
     global_name_gen->temp_var_counter = 0;
     global_name_gen->loop_counter = 0;
     global_name_gen->if_counter = 0;
-
+    global_name_gen->add_counter = 0;
 
     strcpy(global_name_gen->curr_function, node->data.function_def.name);
     memset(global_name_gen->label, 0, MAX_LABEL_NAME);
@@ -177,6 +181,7 @@ void name_gen_init(ASTNode_ptr node){
     memset(global_name_gen->loop_start_label, 0, MAX_LABEL_NAME);
     memset(global_name_gen->temp_var, 0, MAX_LABEL_NAME);
     memset(global_name_gen->if_label, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->add_label, 0, MAX_LABEL_NAME);
 
     global_name_gen->curr_param_count = node->data.function_def.arg_count;
 
@@ -186,161 +191,168 @@ void name_gen_init(ASTNode_ptr node){
     global_name_gen->stakck_depth = 0;
 }
 
-
 /**
  * @brief Generates code for string iteration (string * num)
- * 
+ *
  * @param name_gen
- * 
+ *
  * @note Expects arguments on data stack (Pascal convention)
  *       Returns result-string on stack
  */
-void gen_string_iter(ASTNode_ptr node){
+void gen_string_iter(ASTNode_ptr node)
+{
     // Generates unique variable name
     create_unique_name(node, TEMP_VAR);
     char count[MAX_LABEL_NAME];
     strcpy(count, global_name_gen->temp_var);
-    
+
     create_unique_name(global_name_gen, TEMP_VAR);
     char string[MAX_LABEL_NAME];
     strcpy(string, global_name_gen->temp_var);
-    
+
     create_unique_name(global_name_gen, TEMP_VAR);
     char result[MAX_LABEL_NAME];
     strcpy(result, global_name_gen->temp_var);
-    
+
     create_unique_name(global_name_gen, TEMP_VAR);
     char counter[MAX_LABEL_NAME];
     strcpy(counter, global_name_gen->temp_var);
-    
+
     // Generates loop
     create_unique_name(global_name_gen, LOOP_START_L);
     char loop_start[MAX_LABEL_NAME];
     strcpy(loop_start, global_name_gen->loop_start_label);
-    
+
     create_unique_name(global_name_gen, LOOP_END_L);
     char loop_end[MAX_LABEL_NAME];
     strcpy(loop_end, global_name_gen->loop_end_label);
-    
+
     // Define variables necesary to perform string iteration
     printf("DEFVAR LF@%s\n", count);
     printf("DEFVAR LF@%s\n", string);
     printf("DEFVAR LF@%s\n", result);
     printf("DEFVAR LF@%s\n", counter);
-    
+
     // Assigns values of the two parameters from data stack to corresponding variables
-    printf("POPS LF@%s\n", count);    // count
-    printf("POPS LF@%s\n", string);   // string
-    
+    printf("POPS LF@%s\n", count);  // count
+    printf("POPS LF@%s\n", string); // string
+
     // Initialize result as empty string
     printf("MOVE LF@%s string@\n", result);
-    
+
     // Initialize counter to 0
     printf("MOVE LF@%s int@0\n", counter);
-    
+
     // Loop start
     printf("LABEL %s\n", loop_start);
-    
+
     // If counter == count, jump to end
     printf("JUMPIFEQ %s LF@%s LF@%s\n", loop_end, counter, count);
-    
+
     // Concatenate result with string
     printf("CONCAT LF@%s LF@%s LF@%s\n", result, result, string);
-    
+
     // Increment counter
     printf("ADD LF@%s LF@%s int@1\n", counter, counter);
-    
+
     // Repeat loop
     printf("JUMP %s\n", loop_start);
-    
+
     // Loop end
     printf("LABEL %s\n", loop_end);
-    
+
     // Push result on stack
     printf("PUSHS LF@%s\n", result);
 }
 
 /**
  * @brief Generates unieque label name using name-mangeling
- * 
+ *
  * @note These options can be used LABEL, LOOP_START_L, LOOP_END_L, IF_TRUE, IF_FALSE
- * 
+ *
  * @param option
  */
-void gen_label(name_option_t option){
+void gen_label(name_option_t option)
+{
     create_unique_name(global_name_gen, option);
-    switch (option){
-        case LABEL:
-            printf("LABEL %s\n", global_name_gen->label);
-            break;
-        case TEMP_VAR:
-            printf("LABEL %s\n", global_name_gen->temp_var);
-            break;
-        case LOOP_START_L:
-            printf("LABEL %s\n", global_name_gen->loop_start_label);
-            break;
-        case LOOP_END_L:
-            printf("LABEL %s\n", global_name_gen->loop_end_label);
-            break;
-        case IF_TRUE:
-        case IF_FALSE:
-            printf("LABEL %s\n", global_name_gen->if_label);
-            break;
-        default:
-            break;
+    switch (option)
+    {
+    case LABEL:
+        printf("LABEL %s\n", global_name_gen->label);
+        break;
+    case TEMP_VAR:
+        printf("LABEL %s\n", global_name_gen->temp_var);
+        break;
+    case LOOP_START_L:
+        printf("LABEL %s\n", global_name_gen->loop_start_label);
+        break;
+    case LOOP_END_L:
+        printf("LABEL %s\n", global_name_gen->loop_end_label);
+        break;
+    case IF_TRUE:
+    case IF_FALSE:
+        printf("LABEL %s\n", global_name_gen->if_label);
+        break;
+    default:
+        break;
     }
 }
 
 /**
  * @brief Generates unieque variable name using name-mangeling
- * 
+ *
  * @note These options can be used TEMP_VAR
- * 
+ *
  * @param option
  */
-void gen_variable(ASTNode_ptr node){
-    if (node->data.identifier.is_global){
+void gen_variable(ASTNode_ptr node)
+{
+    if (node->data.identifier.is_global)
+    {
         printf("PUSHS GF@%s\n", node->data.identifier.name);
     }
-    else{
+    else
+    {
         printf("PUSHS LF@%s\n", node->data.identifier.name);
     }
-    
+
     global_name_gen->stakck_depth++;
-
 }
-
 
 /**
  * @brief Handles stert of function
- * 
+ *
  * @note Called after entering NODE_FUNCTION_DEF node
- * 
+ *
  * @param node
  */
-void gen_func_start(ASTNode_ptr node){
+void gen_func_start(ASTNode_ptr node)
+{
     // Reset the name generator
     name_gen_init(node);
 
     // Generate function start
 
-    gen_label(LABEL);        // Creates and print unique function label name, 
+    gen_label(LABEL); // Creates and print unique function label name,
     printf("CREATEFRAME\n");
     printf("PUSHFRAME\n");
 }
 
 /**
  * @brief Handles end of function
- * 
+ *
  * @note Called when childeren array is empty
- * 
+ *
  */
-void gen_func_end(){
+void gen_func_end()
+{
     // Handeling return value via data stack
-    if (return_occured){
-        gen_return();   
+    if (return_occured)
+    {
+        gen_return();
     }
-    else{
+    else
+    {
         printf("pushs nil@nil\n");
     }
 
@@ -351,23 +363,25 @@ void gen_func_end(){
 
 /**
  * @brief Handles return values of a function
- * 
+ *
  * @note uses data stack to retrun the result
- * 
+ *
  */
-void gen_return(){
-
+void gen_return()
+{
 }
 
 /**
  * @brief Calls functions generating literals based on the option
- * 
- * @param option 
- * @param value 
+ *
+ * @param option
+ * @param value
  */
-void gen_literal(literal_option_t option, literal_values_t value){
+void gen_literal(literal_option_t option, literal_values_t value)
+{
     // Different options that can be used as argument
-    switch (option){
+    switch (option)
+    {
     case INTEGER:
         gen_lit_int(value.int_value);
         break;
@@ -390,68 +404,78 @@ void gen_literal(literal_option_t option, literal_values_t value){
 
 /**
  * @brief Generates code for integer literal
- * 
+ *
  * @param value
  */
-void gen_lit_int(long long value) {
+void gen_lit_int(long long value)
+{
     printf("PUSHS int@%lld\n", value);
 }
 
 /**
  * @brief Generates code for float literal
- * 
+ *
  * @param value
  */
-void gen_lit_float(long double value) {
+void gen_lit_float(long double value)
+{
     printf("PUSHS float@%a\n", value);
 }
 
 /**
  * @brief Generates code for float literal
- * 
+ *
  * @param value
  */
-void gen_lit_null(){
+void gen_lit_null()
+{
     printf("PUSHS nil@nil\n");
 }
 
 /**
  * @brief Generates code for float literal
- * 
+ *
  * @param value The float value to push on stack
  */
-void gen_lit_bool(bool value){
-    if (value){
+void gen_lit_bool(bool value)
+{
+    if (value)
+    {
         printf("PUSHS bool@true\n");
     }
-    else{
+    else
+    {
         printf("PUSHS bool@false\n");
     }
 }
 
 /**
  * @brief Generates code for float literal
- * 
+ *
  * @param value The float value to push on stack
  */
-void gen_lit_string(char* value){
+void gen_lit_string(char *value)
+{
     // First, lets make sure the string format is valid
 
     char *correct_value = calloc(MAX_STRING_LEN, sizeof(char));
-    if (correct_value == NULL){
+    if (correct_value == NULL)
+    {
         // NOTE: handle freeing later
         error_exit(ERR_INTERNAL);
     }
-    
+
     // Iterating throgh the string
     unsigned new_str_index = 0;
 
-    for (int i = 0; value[i] != '\0'; i++){
-        if (is_invalid_char(value[i])){
+    for (int i = 0; value[i] != '\0'; i++)
+    {
+        if (is_invalid_char(value[i]))
+        {
             new_str_index += sprintf(&correct_value[new_str_index], "\\0%d", value[i]);
-            
         }
-        else{
+        else
+        {
             correct_value[new_str_index] = value[i];
             new_str_index++;
         }
@@ -466,134 +490,263 @@ void gen_lit_string(char* value){
 
 /**
  * @brief Generates code for built in functions
- * 
+ *
  * @note will be called when entered function call node and is_built_in == true
- * 
- * @param node 
+ *
+ * @param node
  */
-void gen_jmp_builtin(ASTNode_ptr node){
+void gen_jmp_builtin(ASTNode_ptr node)
+{
     // Based on the current node, jump will be performed
 
-    if (!strcmp(node->data.function_call.name, "Ifj.read_str")){
+    if (!strcmp(node->data.function_call.name, "Ifj.read_str"))
+    {
         printf("CALL %%*Ifj.read_str\n");
     }
-    else if (!strcmp(node->data.function_call.name, "Ifj.read_num")){
+    else if (!strcmp(node->data.function_call.name, "Ifj.read_num"))
+    {
         printf("CALL %%*Ifj.read_num\n");
     }
-    else if (!strcmp(node->data.function_call.name, "Ifj.write")){
+    else if (!strcmp(node->data.function_call.name, "Ifj.write"))
+    {
         printf("CALL %%*Ifj.write\n");
     }
-    else if (!strcmp(node->data.function_call.name, "Ifj.floor")){
+    else if (!strcmp(node->data.function_call.name, "Ifj.floor"))
+    {
         printf("CALL %%*Ifj.floor\n");
     }
-    else if (!strcmp(node->data.function_call.name, "Ifj.str")){
+    else if (!strcmp(node->data.function_call.name, "Ifj.str"))
+    {
         printf("CALL %%*Ifj.str\n");
     }
-    else if (!strcmp(node->data.function_call.name, "Ifj.length")){
+    else if (!strcmp(node->data.function_call.name, "Ifj.length"))
+    {
         printf("CALL %%*Ifj.length\n");
     }
-    else if (!strcmp(node->data.function_call.name, "Ifj.substring")){
-       printf("CALL %%*Ifj.substring\n");
+    else if (!strcmp(node->data.function_call.name, "Ifj.substring"))
+    {
+        printf("CALL %%*Ifj.substring\n");
     }
-    else if (!strcmp(node->data.function_call.name, "Ifj.strcmp")){
+    else if (!strcmp(node->data.function_call.name, "Ifj.strcmp"))
+    {
         printf("CALL %%*Ifj.strcmp\n");
     }
-    else if (!strcmp(node->data.function_call.name, "Ifj.ord")){
+    else if (!strcmp(node->data.function_call.name, "Ifj.ord"))
+    {
         printf("CALL %%*Ifj.ord\n");
     }
-    else{
+    else
+    {
         printf("CALL %%*Ifj.chr\n");
     }
 };
 
 /**
- * @brief Create a unique string which is stored in 
- * 
- * @param node 
- * @param option 
+ * @brief Create a unique string which is stored in
+ *
+ * @param node
+ * @param option
  */
-void create_unique_name(ASTNode_ptr node, name_option_t option) {
+void create_unique_name(ASTNode_ptr node, name_option_t option)
+{
     // Name mangeling variable to differentiate between function a gett/setter
     char fun_type;
 
     // Different options that can be used as argument
-    switch (option){
-        case LABEL:
+    switch (option)
+    {
+    case LABEL:
 
-            if (node->data.function_def.type == FUN_F){
-                fun_type = 'f';
-            }else if (node->data.function_def.type == FUN_G){
-                fun_type = 'g';
-            }
-            else{
-                fun_type = 's';
-            }
+        if (node->data.function_def.type == FUN_F)
+        {
+            fun_type = 'f';
+        }
+        else if (node->data.function_def.type == FUN_G)
+        {
+            fun_type = 'g';
+        }
+        else
+        {
+            fun_type = 's';
+        }
 
-            snprintf(global_name_gen->label, MAX_LABEL_NAME, 
-            "%%*%s_%u_%s_%llu", 
-            global_name_gen->curr_function, 
-            global_name_gen->curr_param_count,
-            fun_type,
-            global_name_gen->label_counter);
+        snprintf(global_name_gen->label, MAX_LABEL_NAME,
+                 "%%*%s_%u_%s_%llu",
+                 global_name_gen->curr_function,
+                 global_name_gen->curr_param_count,
+                 fun_type,
+                 global_name_gen->label_counter);
 
-            global_name_gen->label_counter++;
+        global_name_gen->label_counter++;
 
-            break;
-        case TEMP_VAR:
-            snprintf(global_name_gen->temp_var, MAX_LABEL_NAME, 
-            "__temp_var_%s_%u_%llu", 
-            global_name_gen->curr_function, 
-            global_name_gen->curr_param_count,
-            global_name_gen->temp_var_counter);
+        break;
+    case TEMP_VAR:
+        snprintf(global_name_gen->temp_var, MAX_LABEL_NAME,
+                 "__temp_var_%s_%u_%llu",
+                 global_name_gen->curr_function,
+                 global_name_gen->curr_param_count,
+                 global_name_gen->temp_var_counter);
 
-            global_name_gen->temp_var_counter++;
-            
-            break;
-        case LOOP_START_L:
-            snprintf(global_name_gen->loop_start_label, MAX_LABEL_NAME, 
-            "#_loop_start_%s_%u_%llu", 
-            global_name_gen->curr_function, 
-            global_name_gen->curr_param_count,
-            global_name_gen->loop_counter);
+        global_name_gen->temp_var_counter++;
 
-            global_name_gen->loop_counter++;
-            
-            break;
-        case LOOP_END_L:
-            snprintf(global_name_gen->loop_end_label, MAX_LABEL_NAME, 
-            "#_loop_end_%s_%u_%llu", 
-            global_name_gen->curr_function, 
-            global_name_gen->curr_param_count,
-            global_name_gen->loop_counter);
+        break;
+    case LOOP_START_L:
+        snprintf(global_name_gen->loop_start_label, MAX_LABEL_NAME,
+                 "#_loop_start_%s_%u_%llu",
+                 global_name_gen->curr_function,
+                 global_name_gen->curr_param_count,
+                 global_name_gen->loop_counter);
 
-            // dont have to increment since loop_start already incremented the counter
-            // global_name_gen->label_counter++;
-            
-            break;
-        case IF_TRUE:
-            snprintf(global_name_gen->if_label, MAX_LABEL_NAME, 
-            "#_if_true_%s_%u_%llu", 
-            global_name_gen->curr_function, 
-            global_name_gen->curr_param_count,
-            global_name_gen->if_counter);
+        global_name_gen->loop_counter++;
 
-            global_name_gen->if_counter++;
-            
-            break;
+        break;
+    case LOOP_END_L:
+        snprintf(global_name_gen->loop_end_label, MAX_LABEL_NAME,
+                 "#_loop_end_%s_%u_%llu",
+                 global_name_gen->curr_function,
+                 global_name_gen->curr_param_count,
+                 global_name_gen->loop_counter);
 
-        case IF_FALSE:
-            snprintf(global_name_gen->if_label, MAX_LABEL_NAME, 
-            "#_else_%s_%u_%llu", 
-            global_name_gen->curr_function, 
-            global_name_gen->curr_param_count,
-            global_name_gen->if_counter);
+        // dont have to increment since loop_start already incremented the counter
+        // global_name_gen->label_counter++;
 
-            // dont have to increment since if_true already incremented the counter
-            // name_gen->if_counter++;
-            
-            break;
+        break;
+    case IF_TRUE:
+        snprintf(global_name_gen->if_label, MAX_LABEL_NAME,
+                 "#_if_true_%s_%u_%llu",
+                 global_name_gen->curr_function,
+                 global_name_gen->curr_param_count,
+                 global_name_gen->if_counter);
 
-        default:
-            break;
+        global_name_gen->if_counter++;
+
+        break;
+
+    case IF_FALSE:
+        snprintf(global_name_gen->if_label, MAX_LABEL_NAME,
+                 "#_else_%s_%u_%llu",
+                 global_name_gen->curr_function,
+                 global_name_gen->curr_param_count,
+                 global_name_gen->if_counter);
+
+        // dont have to increment since if_true already incremented the counter
+        // name_gen->if_counter++;
+
+        break;
+    case ADD_L:
+        snprintf(global_name_gen->add_label, MAX_LABEL_NAME,
+                 "&add%llu",
+                 global_name_gen->add_counter);
+
+    default:
+        break;
     }
+}
+
+/**
+ * @brief Chooses the operation to generate based on the provided operator.
+ *
+ * @param operator Pointer to the operator node.
+ */
+void choose_operation(ASTNode_ptr operator)
+{
+    printf("");
+}
+
+/**
+ * @brief Generates instructions to type check and evaluate an operation that uses the + operator.
+ *
+ * @param
+ */
+void gen_eval_plus_op()
+{
+    // todo : vyriesit vytvorenie docasnych premennych a nacitanie hodnoty do tychto premennych
+    // NOTE : v ramci celej funkcie mi staci definovat tie premenne ktore potrebujem pre eval len raz a ja ich uz pri
+    // vyhodnocovani vyrazov budem len prepisovat. je to kvoli tomu ze vzdy vyhodnotim len binarnu operaciu a vysledok potom
+    // vlozim na stack, cize sa nemusim bat ze nieco stratim a pod
+    // NOTE: mozno na zaciatku kazdej funkcie vytvorit tieto premenne a mat ich ready? vytvorit local frame pre premenne
+    // ktore pouzivam pri vyhodnoteni vyrazu? to ale za kazdym pre kazdu bin operaciu musim vytvorit novy local frame
+    // a znova si v nom definovat tie premenne takze to asi nebude uplne efektivne
+    // NOTE: kedze kazda funkcia a blok vzdy vytvoria svoj local frame tak premenne ktore pouzivam pre ucel vyhodnotenia
+    // vyrazu sa mozu vzdy volat tak isto (asi teda, treba to este premysliet)
+    // NOTE: printnem to podobne ako built in funckie, potom sa pushne na stack operand lavy, potom pravy a ja si ich uz ziskam
+    // v ramci tej "funkcie" pre add a ulozim si ich
+    // todo: na zaciatku programu este pred tym nez sa zacne realne generovat kod si len vygenerujem cez defvar tie pomocne premenne
+    // todo: vytvorim si aj premennu LF@#nill_check pre kontrolu toho ci v aritmentickom vyraze nie je nill hodnota
+    // todo: potrebujme premennu pre ulozenie vysledku
+
+    // creates the label
+    // todo: vymysliet nejaky label nazov ktory bude vhodny
+
+    // retrieve both operands from the data stack
+    printf("POPS LF@#op2\n"); // second operand
+    printf("POPS LF@#op1\n"); // first operand
+
+    // get the data types of both operands
+    printf("TYPE LF@#type1 LF@#op1\n"); // data type of the first operand
+    printf("TYPE LF@#type2 LF@#op2\n"); // data type of the second operand
+
+    // check for nill values
+    printf("EQ LF@#type_check1 LF@_type1 string@nill\n");
+    prinft("EQ LF@#type_check2 LF@_type2 string@nill\n");
+    printf("OR LF@#nill_check LF@#type_check1 LF@#type_check2\n");
+    printf("JUMPIFEQ !ERROR_EXP_L LF@#nill_check bool@true\n");
+
+    // here we compare the two operands and try to match a valid operation scenario
+
+    // float + float scenario
+    printf("EQ LF@#type_check1 LF@_type1 string@float\n");
+    prinft("EQ LF@#type_check2 LF@_type2 string@float\n");
+    printf("JUMPIFEQ &add LF@#type_check1 LF@#type_check2\n");
+
+    // int + int scenarion
+    printf("EQ LF@#type_check1 LF@_type1 string@int\n");
+    prinft("EQ LF@#type_check2 LF@_type2 string@int\n");
+    printf("JUMPIFEQ &add LF@#type_check1 LF@#type_check2\n");
+
+    // string + string scenario
+    printf("EQ LF@#type_check1 LF@_type1 string@string\n");
+    prinft("EQ LF@#type_check2 LF@_type2 string@string\n");
+    printf("JUMPIFEQ &concat LF@#type_check1 LF@#type_check2\n");
+
+    // float + int scenario
+    printf("EQ LF@#type_check1 LF@_type1 string@float\n");
+    prinft("EQ LF@#type_check2 LF@_type2 string@int\n");
+    printf("JUMPIFEQ &right_to_float LF@#type_check1 LF@#type_check2\n");
+
+    // int + float scenario
+    printf("EQ LF@#type_check1 LF@_type1 string@int\n");
+    prinft("EQ LF@#type_check2 LF@_type2 string@float\n");
+    printf("JUMPIFEQ &left_to_float LF@#type_check1 LF@#type_check2\n");
+
+    // none of valid the scenarios was matched, type error occured
+    printf("JUMP !ERROR_EXP_L\n");
+
+    // int to float conversions - right op
+    printf("&right_to_float\n"); // label
+    printf("INT2FLOAT op2 op2\n");
+    printf("JUMP &add\n");
+
+    // int to float conversions - left op
+    printf("&left_to_float\n"); // label
+    printf("INT2FLOAT op1 op1\n");
+
+    // no need to use jump here
+
+    // addition
+    printf("&add\n"); // lable
+    printf("ADD LF@#result LF@#op1 LF@#op2\n");
+    printf("PUSHS LF@#result\n");
+    printf("JUMP &add_end\n");
+
+    // concat
+    printf("&concat\n"); // lable
+    printf("CONCAT LF@#result LF@#op1 LF@#op2\n");
+    printf("PUSHS LF@#result\n");
+
+    // no need to use jump here
+    
+    // end of the function that handles the + operator
+    printf("&add_end\n");
+    printf("RETURN\n");
 }
