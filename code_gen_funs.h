@@ -1,6 +1,6 @@
 /**
  * @file code_gen_funs.h
- * @author xracekm00, xmezeim00
+ * @author xracekm00, xmezeim00, xcillik00
  * @brief Header file for code generating functions
  * @version 0.1
  * @date 2025-11-28
@@ -19,9 +19,9 @@
 #define MAX_FUNCTION_NAME 512
 #define MAX_STRING_LEN 1024
 
-// Enum representing different options for unique name creation via create_unique_name function
+// Enum representing different options for unique name creation
 typedef enum {
-    FUN_LABEL, LOOP_START_L, LOOP_END_L, IF_TRUE_L, IF_FALSE_L, VAR, TEMP_VAR, CALL
+    FUN_LABEL, LOOP_START_L, LOOP_END_L, IF_TRUE_L, IF_FALSE_L, CALL
 }name_option_t;
 
 // Enum representing different options of literals to create
@@ -32,45 +32,39 @@ typedef enum {
 // Data type holding all different kinds of information nececssary for code-gen
 typedef struct {
     /**                           IMPORTANT
-     * @note to prevent unnecesary memory allocation and freeing
+     * @note to prevent unnecesary memory allocation and freeing:
      * 
-     * The function that will perfrom the AST traversing has to call a malloc
-     * at global_name_gen as well its string attributes: global_name_gen.label, ...
-     * This functions also need to clear this memory after it's finished.
+     * The function that will perfrom the AST traversing (probably main) has to allocate
+     * memory for global_name_gen as well its string attributes.
+     * This functions also need to clean this memory after it's finished executing.
      */
 
     // Name mangeling
-    unsigned long long temp_var_counter;
     unsigned long long loop_counter;
     unsigned long long if_counter;
-    unsigned long long block_depth_counter;
-
-    // Location in AST
-    char *curr_function;
-    unsigned curr_param_count;
-
-    // Helpers for call
-    char *called_function;
-
-    bool in_function;
-    bool in_getter;
-    bool in_setter;
-    bool in_loop;
-
-    // Will store a unique names
+    // Prevents reading from an empty stack
+    unsigned stack_depth;
+    
+    // Stores a unique names
     char* fun_label;        // Function def
-    char* temp_var;         // Temp variable
     char* if_true_label;    // When condition is true
     char* if_false_label;   // When condition is false
     char* loop_start_label; // Loop start
     char* loop_end_label;   // Loop end
 
-    // How many thing are on data stack, so reading from an empty stack can be prevented
-    unsigned stack_depth;
+    // Location in AST
+    char *curr_function;
+    unsigned curr_param_count;
 
+    // Variables necessary to generate a call
+    char *called_function;
+    bool in_function;
+    bool in_getter;
+    bool in_setter;
+    bool in_loop;
 } name_generator_t, *name_generator_ptr;
 
-//Global varialbe necesary for almost all functions below
+//Global instance of Data type holding all different kinds of information nececssary for code-gen
 extern name_generator_ptr global_name_gen;
 //Global flag, holds information whether the function contained return node
 extern bool return_occured;
@@ -82,32 +76,21 @@ extern bool return_occured;
 /************************************ FUNCTION PROTOTYPES ************************************/
 
 /**
- * @brief The main code-gen function - contains switch for all different types of nodes
+ * @brief The main code generating function - contains switch for all different types of nodes.
+ *        Traverses the AST via inorder and expression subtrees via postorder.
  * 
  * @param node 
  */
 void codegen(ASTNode_ptr node);
 
-/*----------------- HELPER FUNCTIONS -----------------*/
-
 /**
- * @brief sets all name_generator_t attributes to default values
+ * @brief sets all attributes of global instance of name_gen_t to default values
  * 
  * @note used for reset when entering new function_def node
  * 
  * @param node 
  */
 void name_gen_init(ASTNode_ptr node);
-
-/**
- * @brief Create a unique string which is stored in 
- * 
- * @param node 
- * @param option 
- */
-void create_unique_name(ASTNode_ptr node, name_option_t option);
-
-/*----------------- PATTERNS -----------------*/
 
 /**
  * @brief Generates unieque label name using name-mangeling
@@ -119,31 +102,29 @@ void create_unique_name(ASTNode_ptr node, name_option_t option);
 void gen_label(name_option_t option);
 
 /**
- * @brief Pushes variable on data stack
+ * @brief Pushes variable on data stack, used by expression processing functions
  * 
- * @note Used by expression processing functions.
- *       These options can be used VAR, TEMP_VAR.
+ * @param node 
  * 
- * @param option
  */
-void gen_variable(ASTNode_ptr node);
+void gen_push_variable(ASTNode_ptr node);
 
 /**
- * @brief Generates variable declaration
+ * @brief Generates user defined variable declaration
  * 
  * @param node 
  */
 void gen_var_decl(ASTNode_ptr node);
 
 /**
- * @brief Assigns value to the variable 
+ * @brief Assigns value to the variable stored in left node child
  * 
  * @param node 
  */
 void gen_assign(ASTNode_ptr node);
 
 /**
- * @brief Handles stert of function
+ * @brief Handles start of function
  * 
  * @note Called after entering NODE_FUNCTION_DEF node
  * 
@@ -154,7 +135,7 @@ void gen_func_start(ASTNode_ptr node);
 /**
  * @brief Handles end of function
  * 
- * @note Called when childeren array is empty
+ * @note Called reccursion reaches NODE_FUNCTION_DEF node while returning
  * 
  */
 void gen_func_end();
@@ -184,9 +165,9 @@ void gen_lit_float(long double value);
 /**
  * @brief Generates code for float literal
  * 
- * @param value The float value to push on stack
+ * @param value
  */
-void gen_lit_string(char *value);
+void gen_lit_null();
 
 /**
  * @brief Generates code for float literal
@@ -194,12 +175,13 @@ void gen_lit_string(char *value);
  * @param value
  */
 void gen_lit_bool(bool value);
+
 /**
  * @brief Generates code for float literal
  * 
- * @param value
+ * @param value The float value to push on stack
  */
-void gen_lit_null();
+void gen_lit_string(char *value);
 
 /**
  * @brief These will be used to handle if,else statements
@@ -214,20 +196,29 @@ void gen_jump_if_lower();
 
 void gen_if();
 
-void gen_while();
+void gen_while_start();
 
-void gen_for();
+void gen_while_end();
 
-void gen_call();
+void gen_for_start();
+
+void gen_for_end();
 
 /**
- * @brief Generates code for built in functions
- * 
- * @note will be called when entered function call node and is_built_in == true
+ * @brief Jumps on corresponding built in function
  * 
  * @param node 
  */
 void gen_jmp_builtin(ASTNode_ptr node);
+
+/**
+ * @brief Creates a unique label name
+ * 
+ * @param node 
+ * @param option 
+ */
+void create_unique_name(ASTNode_ptr node, name_option_t option);
+
 
 /*----------------- BUILTIN FUNCTIONS -----------------*/
 

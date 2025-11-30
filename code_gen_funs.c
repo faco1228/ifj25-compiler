@@ -1,6 +1,6 @@
 /**
  * @file code_gen_funs.c
- * @author xracekm00, xmezeim00
+ * @author xracekm00, xmezeim00, xcillik00
  * @brief Code generating functions for Wren-like programming language
  * 
  * @note Code is being printed to stdout.
@@ -25,44 +25,19 @@
 #include "code_gen_funs.h"
 #include "error.h"
 
-/* NOTES with useful information
+/**
+ * @brief Budeme musiet uchovavat informaciu o tom, kolko ramcov je na zasobniku resp kolko dat je na 
+ *        datovom zasobniku, lebo ked chcem citat z prazdneho zasobniku tak dojde k chybe.
+ */
 
-Flags available for each Expression subtree:
-    bool has_only_plus_op = true;
-    bool has_string_lit = false;
-    bool has_num_lit = false;
-    bool has_minus_or_slash = false;
-    bool has_null_lit = false;
-    bool has_unary_minus = false;
-    bool has_arit_op = false;
-    bool has_rel_op = false;
-    bool zero_divison_detected = false;
-    bool has_comp_op = false;
-
-RUNTIME SEMANTIC:
-    zero_division:
-    exp_type_check:
-
-EXTENSTION
-    cycles
-    funexp
-
-NOTE:
-Pri kazdej jednej operacii treba robit typove kontroly, jednak kvoli tomu, ze ADD potrebuje 2 int alebo 2 float
-ale aj ci to sedi ked niekotra premenna je return value funkcie a niektora moze byt napr read at runtime
-
-NOTE:
-Budem musiet uchovavat informaciu o tom, kolko ramcov je na zasobniku resp kolko dat je na datovom zasobniku,
-lebo ked chcem citat z prazdneho zasobniku tak dojde k chybe.
-*/
-
-//Global varialbe necesary for almost all functions below
+//Global instance of Data type holding all different kinds of information nececssary for code-gen
 name_generator_ptr global_name_gen = NULL;
 //Global flag, holds information whether the function contained return node
 bool return_occured = false;
 
 /**
- * @brief The main code-gen function - contains switch for all different types of nodes
+ * @brief The main code generating function - contains switch for all different types of nodes.
+ *        Traverses the AST via inorder and expression subtrees via postorder.
  * 
  * @param node 
  */
@@ -72,143 +47,140 @@ void codegen(ASTNode_ptr node){
         return;
     }
     
-    // Recursivelly processing each node of AST
+    // Recursivelly processes each AST node
     switch (node->type){
-    case NODE_PROGRAM:
-        // Each code in IFJcode25 starts with this line
-        printf(".IFJcode25\n"); 
+        case NODE_PROGRAM:
+            // IFJcode25 code starts with this line
+            printf(".IFJcode25\n"); 
 
-        // Skipping built in functions defined at the beginning of each program
-        printf("JUMP _program_start\n");
-        printf("\n");
-
-        // At the beginning of the program, there will be created builtin functions
-        // NOTE: kristian, labels should have format "%*Ifj.<name>", just dont use $
-        gen_built_in_read_str();
-        gen_built_in_read_num();
-        gen_built_in_write();
-        gen_built_in_floor();
-        gen_built_in_str();
-        gen_built_in_length();
-        gen_built_in_substring();
-        gen_built_in_strcmp();
-        gen_built_in_ord();
-        gen_built_in_chr();
-        
-        // This is where actuall compilation begins
-        printf("\n");
-        printf("LABEL _program_start\n");
-
-        break;
-    case NODE_FUNCTION_DEF:
-        // Reset name_gen objects attributes
-        name_gen_init(node);
-
-        // Sets flags
-        if (node->data.function_def.type == FUN_F){
-            global_name_gen->in_function = true;
-        }
-        else if (node->data.function_def.type == FUN_G){
-            global_name_gen->in_getter = true;
-        }
-        else{
-            global_name_gen->in_setter = true;
-        }
-
-        // Calls corresponding code generating function
-        gen_func_start(node);
-        break;
-    case NODE_BLOCK:
-        // Update block depth counter
-        global_name_gen->block_depth_counter++;
-
-        break;
-    case NODE_VAR_DECL:
-        // Calls corresponding code generating function
-        gen_var_decl(node);
-
-        break;
-    case NODE_ASSIGN:
-        // Calls corresponding code generating function
-        gen_assign(node);
-
-        break;
-    case NODE_IF:
-
-        break;
-    case NODE_RETURN:
-
-        break;
-    case NODE_WHILE:
-
-        break;
-    case NODE_FOR:
-
-        break;
-    case NODE_BREAK:
-
-        break;
-    case NODE_CONTINUE:
-
-        break;
-    case NODE_EXPR_STMNT:
-
-        break;
-    case NODE_IDENTIFIER:
-        // Calls corresponding code generating function based on whether it is variable or getter
-        if (node->data.identifier.id_type == VAR){
-            gen_variable(node);
-        }
-        else{
+            // Skipping built in functions defined at the beginning of each program
+            printf("JUMP _program_start_\n");
             printf("\n");
-            create_unique_name(node, CALL);
-            printf("%s\n", global_name_gen->called_function);
-        }
-        
-        break;
-    case NODE_BINARY_OP:
 
-        break;
-    case NODE_CALL:
-        // Based on the function name and whether its builtin or not, corresponding JUMP will be generated
-        if (node->data.function_call.is_builtin){
-            gen_jmp_builtin(node);
-        }
-        else{
+            // At the beginning of the program, there will implementations of builtin functions 
+            gen_built_in_read_str();
+            gen_built_in_read_num();
+            gen_built_in_write();
+            gen_built_in_floor();
+            gen_built_in_str();
+            gen_built_in_length();
+            gen_built_in_substring();
+            gen_built_in_strcmp();
+            gen_built_in_ord();
+            gen_built_in_chr();
+            
+            // This is where actuall compilation begins
             printf("\n");
-            create_unique_name(node, CALL);
-            printf("%s\n", global_name_gen->called_function);
-        }
+            printf("LABEL _program_start_\n");
 
-        break;
-    case NODE_RANGE:
+            break;
+        case NODE_FUNCTION_DEF:
+            // Reset global name_gen_t object
+            name_gen_init(node);
 
-        break;
-    case NODE_INT_LIT:
-        // Calls corresponding code generating function
-        gen_lit_int(node->data.literal.data.int_val);
+            // Set flags
+            if (node->data.function_def.type == FUN_F){
+                global_name_gen->in_function = true;
+            }
+            else if (node->data.function_def.type == FUN_G){
+                global_name_gen->in_getter = true;
+            }
+            else{
+                global_name_gen->in_setter = true;
+            }
 
-        break;
-    case NODE_FLOAT_LIT:
-        // Calls corresponding code generating function
-        gen_lit_int(node->data.literal.data.float_val);
+            // Call corresponding code generating function
+            gen_func_start(node);
+            break;
+        case NODE_BLOCK:
 
-        break;
-    case NODE_STR_LIT:
-        // Calls corresponding code generating function
-        gen_lit_int(node->data.literal.data.str_value);
+            break;
+        case NODE_VAR_DECL:
+            // Call corresponding code generating function
+            gen_var_decl(node);
 
-        break;
-    case NODE_NULL_LIT:
-        // Calls corresponding code generating function
-        gen_lit_null();
+            break;
+        case NODE_ASSIGN:
+            // Call corresponding code generating function
+            gen_assign(node);
 
-        break;
-    default:
-        break;
+            break;
+        case NODE_IF:
+
+            break;
+        case NODE_RETURN:
+
+            break;
+        case NODE_WHILE:
+
+            break;
+        case NODE_FOR:
+
+            break;
+        case NODE_BREAK:
+
+            break;
+        case NODE_CONTINUE:
+
+            break;
+        case NODE_EXPR_STMNT:
+
+            break;
+        case NODE_IDENTIFIER:
+            // Call corresponding code generating function based on whether it is variable or getter
+            if (node->data.identifier.id_type == VAR){
+                gen_variable(node);
+            }
+            else{
+                printf("\n");
+                create_unique_name(node, CALL);
+                printf("CALL %s\n", global_name_gen->called_function);
+            }
+
+            break;
+        case NODE_BINARY_OP:
+
+            break;
+        case NODE_CALL:
+            // Based on the function name and whether its builtin or not, corresponding JUMP will be generated
+            if (node->data.function_call.is_builtin){
+                gen_jmp_builtin(node);
+            }
+            else{
+                printf("\n");
+                create_unique_name(node, CALL);
+                printf("CALL %s\n", global_name_gen->called_function);
+            }
+
+            break;
+        case NODE_RANGE:
+
+            break;
+        case NODE_INT_LIT:
+            // Pushes integer literal on data stack
+            gen_lit_int(node->data.literal.data.int_val);
+
+            break;
+        case NODE_FLOAT_LIT:
+            // Pushes float literal on data stack
+            gen_lit_int(node->data.literal.data.float_val);
+
+            break;
+        case NODE_STR_LIT:
+            // Pushes string literal on data stack
+            gen_lit_int(node->data.literal.data.str_value);
+
+            break;
+        case NODE_NULL_LIT:
+            // Pushes bull literal on data stack
+            gen_lit_null();
+
+            break;
+        default:
+            break;
     }
 
-    // Iterate throuh all children
+    // Iterate throuh all children of the node
     for (unsigned i = 0; i < node->child_count; i++){
         codegen(node->children[i]);
     }
@@ -217,14 +189,10 @@ void codegen(ASTNode_ptr node){
      * @brief As the recurrsion returns back to the root these if statements
      *        will be executed.
      */
+
     // Generates function end instructions
     if (node->type == NODE_FUNCTION_DEF){
         gen_func_end();
-    }
-
-    // Updates block_depth counter
-    if (node->type == NODE_BLOCK){
-        global_name_gen->block_depth_counter--;
     }
 }
 
@@ -237,62 +205,66 @@ void codegen(ASTNode_ptr node){
  */
 void name_gen_init(ASTNode_ptr node){
     // Set counters to default values
-    global_name_gen->temp_var_counter = 0;
     global_name_gen->loop_counter = 0;
     global_name_gen->if_counter = 0;
-    global_name_gen->block_depth_counter = 1; // 1 by default because this function is called when enetring node_func_def
+    
+    // Set stack tracker to zero
+    global_name_gen->stack_depth = 0;
 
-    // Store current function name and parameter count in global_name_gen
-    strcpy(global_name_gen->curr_function, node->data.function_def.name);
-    global_name_gen->curr_param_count = node->data.function_def.arg_count;
     // Set all allocated strings to empty
     memset(global_name_gen->fun_label, 0, MAX_LABEL_NAME);
-    memset(global_name_gen->loop_end_label, 0, MAX_LABEL_NAME);
-    memset(global_name_gen->loop_start_label, 0, MAX_LABEL_NAME);
-    memset(global_name_gen->temp_var, 0, MAX_LABEL_NAME);
     memset(global_name_gen->if_true_label, 0, MAX_LABEL_NAME);
     memset(global_name_gen->if_false_label, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->loop_start_label, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->loop_end_label, 0, MAX_LABEL_NAME);
     memset(global_name_gen->called_function, 0, MAX_LABEL_NAME);
-
+    
+    // Store current function name and parameter count
+    strcpy(global_name_gen->curr_function, node->data.function_def.name);
+    global_name_gen->curr_param_count = node->data.function_def.arg_count;
+    
     // Set flags to default values
     global_name_gen->in_function = false;
     global_name_gen->in_getter = false;
     global_name_gen->in_setter = false;
     global_name_gen->in_loop = false;
-
-    // Set stack tracker to zero
-    global_name_gen->stack_depth = 0;
 }
 
 /**
- * @brief Generates unieque fun_label name using name-mangeling
- * 
- * @note These options can be used LABEL, LOOP_START_L, LOOP_END_L, IF_TRUE, IF_FALSE
+ * @brief Creates a unique label and generetase LABEL <label> instruction
  * 
  * @param option
  */
 void gen_label(name_option_t option){
+    // Creates a unique name
     create_unique_name(global_name_gen, option);
+
+    // Based on the option generates label
     switch (option){
         case FUN_LABEL:
             printf("\n");
             printf("LABEL %s\n", global_name_gen->fun_label);
+
             break;
         case LOOP_START_L:
             printf("\n");
             printf("LABEL %s\n", global_name_gen->loop_start_label);
+
             break;
         case LOOP_END_L:
             printf("\n");
             printf("LABEL %s\n", global_name_gen->loop_end_label);
+
             break;
         case IF_TRUE_L:
             printf("\n");
             printf("LABEL %s\n", global_name_gen->if_true_label);
+
             break;
         case IF_FALSE_L:
             printf("\n");
             printf("LABEL %s\n", global_name_gen->if_false_label);
+
             break;
         default:
             break;
@@ -300,17 +272,16 @@ void gen_label(name_option_t option){
 }
 
 /**
- * @brief Pushes variable on data stack
+ * @brief Pushes variable on data stack, used by expression processing functions
  * 
- * @note Used by expression processing functions.
- *       These options can be used VAR, TEMP_VAR.
+ * @param node 
  * 
- * @param option
  */
-void gen_variable(ASTNode_ptr node){
+void gen_push_variable(ASTNode_ptr node){
     // Creates uniquq variable name
     create_unique_name(node, VAR);
 
+    // Differentiates between global and local variable
     if (node->data.identifier.is_global){
         printf("PUSHS GF@%s\n", node->data.identifier.name);
     }
@@ -318,18 +289,17 @@ void gen_variable(ASTNode_ptr node){
         printf("PUSHS LF@%s\n", node->data.identifier.name);
     }
     
+    // Updates stack tracker
     global_name_gen->stack_depth++;
 }
 
 /**
- * @brief Generates variable declaration
+ * @brief Generates user defined variable declaration
  * 
  * @param node 
  */
 void gen_var_decl(ASTNode_ptr node){
-    // Creates uniquq variable name
-    create_unique_name(node, VAR);
-
+    // Differentiates between global and local variable
     if (node->data.identifier.is_global) {
         printf("DEFVAR GF@%s\n", node->data.identifier.name);
     } 
@@ -339,7 +309,7 @@ void gen_var_decl(ASTNode_ptr node){
 }
 
 /**
- * @brief Assigns value to the variable 
+ * @brief Assigns value to the variable stored in left node child
  * 
  * @param node 
  */
@@ -360,7 +330,7 @@ void gen_assign(ASTNode_ptr node){
 }
 
 /**
- * @brief Handles stert of function
+ * @brief Handles start of function
  * 
  * @note Called after entering NODE_FUNCTION_DEF node
  * 
@@ -375,25 +345,23 @@ void gen_func_start(ASTNode_ptr node){
     printf("CREATEFRAME\n");
     printf("PUSHFRAME\n");
 
-    printf("\n#Storing params into local variables\n");
+    printf("\n#Store params into local variables\n");
 
     // Creates local vaiables
     for (int i = node->data.function_def.arg_count; i >= 0; i--){
-        create_unique_name(node->children[i], TEMP_VAR);
-        printf("DEFVAR LF@%s\n", global_name_gen->temp_var);
-        printf("POPS LF@%s\n", global_name_gen->temp_var);
+        printf("DEFVAR LF@temp_var_param_%d\n", i);
+        printf("POPS LF@temp_var_param_%d\n", i);
     }
-    
 }
 
 /**
  * @brief Handles end of function
  * 
- * @note Called when childeren array is empty
+ * @note Called reccursion reaches NODE_FUNCTION_DEF node while returning
  * 
  */
 void gen_func_end(){
-    // Handeling return value via data stack
+    // Returns value via data stack
     if (return_occured){
         gen_return();   
     }
@@ -467,7 +435,7 @@ void gen_lit_bool(bool value){
 }
 
 /**
- * @brief Generates code for float literal
+ * @brief Converts string literal into corresponding value and pushes this value on a stack
  * 
  * @param value The float value to push on stack
  */
@@ -502,9 +470,7 @@ void gen_lit_string(char* value){
 }
 
 /**
- * @brief Generates code for built in functions
- * 
- * @note will be called when entered function call node and is_built_in == true
+ * @brief Jumps on corresponding built in function
  * 
  * @param node 
  */
@@ -541,10 +507,10 @@ void gen_jmp_builtin(ASTNode_ptr node){
     else{
         printf("CALL %%*Ifj.chr\n");
     }
-};
+}
 
 /**
- * @brief Create a unique string which is stored in 
+ * @brief Creates a unique label name
  * 
  * @param node 
  * @param option 
@@ -673,28 +639,6 @@ void create_unique_name(ASTNode_ptr node, name_option_t option) {
             // dont have to increment since if_true already incremented the counter
 
             break;
-        case TEMP_VAR:
-            // Creates unique name
-            snprintf(global_name_gen->temp_var, MAX_LABEL_NAME, "temp_var_%llu", 
-            global_name_gen->temp_var_counter);
-
-            // Increments temp_var counter
-            global_name_gen->temp_var_counter++;
-            
-            break;
-        case VAR:
-            // Creates unique name
-            snprintf(global_name_gen->temp_var, MAX_LABEL_NAME, "%s_%llu", 
-            node->data.identifier.name,
-            global_name_gen->block_depth_counter);
-            
-            /**
-             * @brief Block depth is incremented/decremented in the main code-gen function.
-             *        These variables can have 2 same names but they will still be unique for
-             *        current FRAME.
-             */
-            break;
-
         case CALL:
             /**
              *                       IMPORTANT
