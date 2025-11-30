@@ -101,12 +101,16 @@ void codegen(ASTNode_ptr node){
 
         break;
     case NODE_FUNCTION_DEF:
+        gen_func_start(node);
         break;
     case NODE_BLOCK:
+        global_name_gen->block_depth_counter++;
         break;
     case NODE_VAR_DECL:
+        gen_var_decl(node);
         break;
     case NODE_ASSIGN:
+        gen_assign(node);
         break;
     case NODE_IF:
         break;
@@ -123,18 +127,44 @@ void codegen(ASTNode_ptr node){
     case NODE_EXPR_STMNT:
         break;
     case NODE_IDENTIFIER:
+        if (node->data.identifier.id_type == VAR){
+            gen_variable(node);
+        }
+        else{
+            printf("\n");
+            create_unique_name(node, CALL);
+            printf("%s\n", global_name_gen->called_function);
+        }
+        
         break;
     case NODE_BINARY_OP:
+        break;
+    case NODE_CALL:
+        // Based on the function name and whether its builtin or not, 
+        // corresponding JUMP will be generated
+        if (node->data.function_call.is_builtin){
+            gen_jmp_builtin(node);
+        }
+        else{
+            printf("\n");
+            create_unique_name(node, CALL);
+            printf("%s\n", global_name_gen->called_function);
+        }
+
         break;
     case NODE_RANGE:
         break;
     case NODE_INT_LIT:
+        gen_lit_int(node->data.literal.data.int_val);
         break;
     case NODE_FLOAT_LIT:
+        gen_lit_int(node->data.literal.data.float_val);
         break;
     case NODE_STR_LIT:
+        gen_lit_int(node->data.literal.data.str_value);
         break;
     case NODE_NULL_LIT:
+        gen_lit_null();
         break;
     default:
         break;
@@ -145,16 +175,19 @@ void codegen(ASTNode_ptr node){
         codegen(node->children[i]);
     }
 
-    // TO DO: just wrote down the idea
     /**
-     * @brief 
-     * 
+     * @brief As the recurrsion returns back to the root these if statements
+     *        will be executed.
      */
+    // Generates function end instructions
     if (node->type == NODE_FUNCTION_DEF){
         gen_func_end();
     }
-    
 
+    // Updates block_depth counter
+    if (node->type == NODE_BLOCK){
+        global_name_gen->block_depth_counter--;
+    }
 }
 
 /**
@@ -165,103 +198,34 @@ void codegen(ASTNode_ptr node){
  * @param node 
  */
 void name_gen_init(ASTNode_ptr node){
-    global_name_gen->label_counter = 0;
+    // Set counters to default values
     global_name_gen->temp_var_counter = 0;
     global_name_gen->loop_counter = 0;
     global_name_gen->if_counter = 0;
+    global_name_gen->block_depth_counter = 1; // 1 by default because this function is called when enetring node_func_def
 
-
+    // Store current function name and parameter count in global_name_gen
     strcpy(global_name_gen->curr_function, node->data.function_def.name);
-    memset(global_name_gen->label, 0, MAX_LABEL_NAME);
+    global_name_gen->curr_param_count = node->data.function_def.arg_count;
+    // Set all allocated strings to empty
+    memset(global_name_gen->fun_label, 0, MAX_LABEL_NAME);
     memset(global_name_gen->loop_end_label, 0, MAX_LABEL_NAME);
     memset(global_name_gen->loop_start_label, 0, MAX_LABEL_NAME);
     memset(global_name_gen->temp_var, 0, MAX_LABEL_NAME);
-    memset(global_name_gen->if_label, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->if_true_label, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->if_false_label, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->called_function, 0, MAX_LABEL_NAME);
 
-    global_name_gen->curr_param_count = node->data.function_def.arg_count;
-
+    // Set flags to default values
     global_name_gen->in_function = true;
     global_name_gen->in_loop = false;
 
-    global_name_gen->stakck_depth = 0;
-}
-
-
-/**
- * @brief Generates code for string iteration (string * num)
- * 
- * @param name_gen
- * 
- * @note Expects arguments on data stack (Pascal convention)
- *       Returns result-string on stack
- */
-void gen_string_iter(ASTNode_ptr node){
-    // Generates unique variable name
-    create_unique_name(node, TEMP_VAR);
-    char count[MAX_LABEL_NAME];
-    strcpy(count, global_name_gen->temp_var);
-    
-    create_unique_name(global_name_gen, TEMP_VAR);
-    char string[MAX_LABEL_NAME];
-    strcpy(string, global_name_gen->temp_var);
-    
-    create_unique_name(global_name_gen, TEMP_VAR);
-    char result[MAX_LABEL_NAME];
-    strcpy(result, global_name_gen->temp_var);
-    
-    create_unique_name(global_name_gen, TEMP_VAR);
-    char counter[MAX_LABEL_NAME];
-    strcpy(counter, global_name_gen->temp_var);
-    
-    // Generates loop
-    create_unique_name(global_name_gen, LOOP_START_L);
-    char loop_start[MAX_LABEL_NAME];
-    strcpy(loop_start, global_name_gen->loop_start_label);
-    
-    create_unique_name(global_name_gen, LOOP_END_L);
-    char loop_end[MAX_LABEL_NAME];
-    strcpy(loop_end, global_name_gen->loop_end_label);
-    
-    // Define variables necesary to perform string iteration
-    printf("DEFVAR LF@%s\n", count);
-    printf("DEFVAR LF@%s\n", string);
-    printf("DEFVAR LF@%s\n", result);
-    printf("DEFVAR LF@%s\n", counter);
-    
-    // Assigns values of the two parameters from data stack to corresponding variables
-    printf("POPS LF@%s\n", count);    // count
-    printf("POPS LF@%s\n", string);   // string
-    
-    // Initialize result as empty string
-    printf("MOVE LF@%s string@\n", result);
-    
-    // Initialize counter to 0
-    printf("MOVE LF@%s int@0\n", counter);
-    
-    // Loop start
-    printf("LABEL %s\n", loop_start);
-    
-    // If counter == count, jump to end
-    printf("JUMPIFEQ %s LF@%s LF@%s\n", loop_end, counter, count);
-    
-    // Concatenate result with string
-    printf("CONCAT LF@%s LF@%s LF@%s\n", result, result, string);
-    
-    // Increment counter
-    printf("ADD LF@%s LF@%s int@1\n", counter, counter);
-    
-    // Repeat loop
-    printf("JUMP %s\n", loop_start);
-    
-    // Loop end
-    printf("LABEL %s\n", loop_end);
-    
-    // Push result on stack
-    printf("PUSHS LF@%s\n", result);
+    // Set stack tracker to zero
+    global_name_gen->stack_depth = 0;
 }
 
 /**
- * @brief Generates unieque label name using name-mangeling
+ * @brief Generates unieque fun_label name using name-mangeling
  * 
  * @note These options can be used LABEL, LOOP_START_L, LOOP_END_L, IF_TRUE, IF_FALSE
  * 
@@ -270,20 +234,21 @@ void gen_string_iter(ASTNode_ptr node){
 void gen_label(name_option_t option){
     create_unique_name(global_name_gen, option);
     switch (option){
-        case LABEL:
-            printf("LABEL %s\n", global_name_gen->label);
-            break;
-        case TEMP_VAR:
-            printf("LABEL %s\n", global_name_gen->temp_var);
+        case FUN_LABEL:
+            printf("\n");
+            printf("LABEL %s\n", global_name_gen->fun_label);
             break;
         case LOOP_START_L:
+            printf("\n");
             printf("LABEL %s\n", global_name_gen->loop_start_label);
             break;
         case LOOP_END_L:
+            printf("\n");
             printf("LABEL %s\n", global_name_gen->loop_end_label);
             break;
-        case IF_TRUE:
-        case IF_FALSE:
+        case IF_TRUE_L:
+        case IF_FALSE_L:
+            printf("\n");
             printf("LABEL %s\n", global_name_gen->if_label);
             break;
         default:
@@ -292,13 +257,17 @@ void gen_label(name_option_t option){
 }
 
 /**
- * @brief Generates unieque variable name using name-mangeling
+ * @brief Pushes variable on data stack
  * 
- * @note These options can be used TEMP_VAR
+ * @note Used by expression processing functions.
+ *       These options can be used VAR, TEMP_VAR.
  * 
  * @param option
  */
 void gen_variable(ASTNode_ptr node){
+    // Creates uniquq variable name
+    create_unique_name(node, VAR);
+
     if (node->data.identifier.is_global){
         printf("PUSHS GF@%s\n", node->data.identifier.name);
     }
@@ -306,10 +275,46 @@ void gen_variable(ASTNode_ptr node){
         printf("PUSHS LF@%s\n", node->data.identifier.name);
     }
     
-    global_name_gen->stakck_depth++;
-
+    global_name_gen->stack_depth++;
 }
 
+/**
+ * @brief Generates variable declaration
+ * 
+ * @param node 
+ */
+void gen_var_decl(ASTNode_ptr node){
+    // Creates uniquq variable name
+    create_unique_name(node, VAR);
+
+    if (node->data.identifier.is_global) {
+        printf("DEFVAR GF@%s\n", node->data.identifier.name);
+    } 
+    else{
+        printf("DEFVAR LF@%s\n", node->data.identifier.name);
+    }
+}
+
+/**
+ * @brief Assigns value to the variable 
+ * 
+ * @param node 
+ */
+void gen_assign(ASTNode_ptr node){
+    
+    /**
+     * @brief IMPORTANT = expression result has to be pushed on data stack
+     */
+    
+    // POPS the value from the data stack
+    ASTNode_ptr lhs = node->children[0];
+
+    if (lhs->data.identifier.is_global) {
+        printf("POPS GF@%s\n", lhs->data.identifier.name);
+    } else {
+        printf("POPS LF@%s\n", lhs->data.identifier.name);
+    }
+}
 
 /**
  * @brief Handles stert of function
@@ -322,11 +327,20 @@ void gen_func_start(ASTNode_ptr node){
     // Reset the name generator
     name_gen_init(node);
 
-    // Generate function start
-
-    gen_label(LABEL);        // Creates and print unique function label name, 
+    // Creates and print unique function label name, 
+    gen_label(FUN_LABEL);
     printf("CREATEFRAME\n");
     printf("PUSHFRAME\n");
+
+    printf("\n#Storing params into local variables\n");
+
+    // Creates local vaiables
+    for (int i = node->data.function_def.arg_count; i >= 0; i--){
+        create_unique_name(node->children[i], TEMP_VAR);
+        printf("DEFVAR LF@%s\n", global_name_gen->temp_var);
+        printf("POPS LF@%s\n", global_name_gen->temp_var);
+    }
+    
 }
 
 /**
@@ -356,40 +370,15 @@ void gen_func_end(){
  * 
  */
 void gen_return(){
-
+    /**
+     * @brief IMPORTANT = expression result has to be pushed on data stack
+     */
 }
 
 /**
- * @brief Calls functions generating literals based on the option
+ * @brief Pushes integer literal on data stack
  * 
- * @param option 
- * @param value 
- */
-void gen_literal(literal_option_t option, literal_values_t value){
-    // Different options that can be used as argument
-    switch (option){
-    case INTEGER:
-        gen_lit_int(value.int_value);
-        break;
-    case FLOAT:
-        gen_lit_float(value.float_value);
-        break;
-    case BOOL:
-        gen_lit_bool(value.bool_value);
-        break;
-    case STRING:
-        gen_lit_string(value.string_value);
-        break;
-    case NILL:
-        gen_lit_null();
-        break;
-    default:
-        break;
-    }
-}
-
-/**
- * @brief Generates code for integer literal
+ * @note Used by expression processing functions
  * 
  * @param value
  */
@@ -398,7 +387,9 @@ void gen_lit_int(long long value) {
 }
 
 /**
- * @brief Generates code for float literal
+ * @brief Pushes float literal on data stack
+ * 
+ * @note Used by expression processing functions
  * 
  * @param value
  */
@@ -407,18 +398,21 @@ void gen_lit_float(long double value) {
 }
 
 /**
- * @brief Generates code for float literal
+ * @brief Pushes null literal on data stack
  * 
- * @param value
+ * @note Used by expression processing functions
+ * 
  */
 void gen_lit_null(){
     printf("PUSHS nil@nil\n");
 }
 
 /**
- * @brief Generates code for float literal
+ * @brief Pushes bool literal on data stack
  * 
- * @param value The float value to push on stack
+ * @note Used by expression processing functions
+ * 
+ * @param value
  */
 void gen_lit_bool(bool value){
     if (value){
@@ -513,84 +507,133 @@ void gen_jmp_builtin(ASTNode_ptr node){
  * @param option 
  */
 void create_unique_name(ASTNode_ptr node, name_option_t option) {
-    // Name mangeling variable to differentiate between function a gett/setter
+    // Name mangeling variable to differentiate between function/getter/setter
     char fun_type;
 
     // Different options that can be used as argument
     switch (option){
-        case LABEL:
-
+        case FUN_LABEL:
+            
             if (node->data.function_def.type == FUN_F){
+                
                 fun_type = 'f';
-            }else if (node->data.function_def.type == FUN_G){
+
+                // Creates unique name
+                snprintf(global_name_gen->fun_label, MAX_LABEL_NAME, "%%%%%s_%c_%u%%%%", 
+                global_name_gen->curr_function, 
+                fun_type,
+                global_name_gen->curr_param_count);
+
+            }
+            else if (node->data.function_def.type == FUN_G){
+                // Sets value of fun_type based on wheter its func/getter/setter
                 fun_type = 'g';
+
+                // Creates unique name
+                snprintf(global_name_gen->fun_label, MAX_LABEL_NAME, "%%%%%s_%c%%%%", 
+                global_name_gen->curr_function, 
+                fun_type);
             }
             else{
+                // Sets value of fun_type based on wheter its func/getter/setter
                 fun_type = 's';
+
+                // Creates unique name
+                snprintf(global_name_gen->fun_label, MAX_LABEL_NAME, "%%%%%s_%c%%%%", 
+                global_name_gen->curr_function, 
+                fun_type);
             }
 
-            snprintf(global_name_gen->label, MAX_LABEL_NAME, 
-            "%%*%s_%u_%s_%llu", 
-            global_name_gen->curr_function, 
-            global_name_gen->curr_param_count,
-            fun_type,
-            global_name_gen->label_counter);
-
-            global_name_gen->label_counter++;
-
-            break;
-        case TEMP_VAR:
-            snprintf(global_name_gen->temp_var, MAX_LABEL_NAME, 
-            "__temp_var_%s_%u_%llu", 
-            global_name_gen->curr_function, 
-            global_name_gen->curr_param_count,
-            global_name_gen->temp_var_counter);
-
-            global_name_gen->temp_var_counter++;
-            
             break;
         case LOOP_START_L:
-            snprintf(global_name_gen->loop_start_label, MAX_LABEL_NAME, 
-            "#_loop_start_%s_%u_%llu", 
+            // Creates unique name
+            snprintf(global_name_gen->loop_start_label, MAX_LABEL_NAME, "##loop_start_%s_%u_%llu##", 
             global_name_gen->curr_function, 
             global_name_gen->curr_param_count,
             global_name_gen->loop_counter);
 
+            // Increments loop counter
             global_name_gen->loop_counter++;
             
             break;
         case LOOP_END_L:
-            snprintf(global_name_gen->loop_end_label, MAX_LABEL_NAME, 
-            "#_loop_end_%s_%u_%llu", 
+            // Creates unique name
+            snprintf(global_name_gen->loop_end_label, MAX_LABEL_NAME, "##loop_end_%s_%u_%llu##", 
             global_name_gen->curr_function, 
             global_name_gen->curr_param_count,
             global_name_gen->loop_counter);
 
             // dont have to increment since loop_start already incremented the counter
-            // global_name_gen->label_counter++;
-            
             break;
-        case IF_TRUE:
-            snprintf(global_name_gen->if_label, MAX_LABEL_NAME, 
-            "#_if_true_%s_%u_%llu", 
+        case IF_TRUE_L:
+            // Creates unique name
+            snprintf(global_name_gen->if_true_label, MAX_LABEL_NAME, "__if_true_%s_%u_%llu__", 
             global_name_gen->curr_function, 
             global_name_gen->curr_param_count,
             global_name_gen->if_counter);
 
+            // Increments if counter
             global_name_gen->if_counter++;
             
             break;
-
-        case IF_FALSE:
-            snprintf(global_name_gen->if_label, MAX_LABEL_NAME, 
+        case IF_FALSE_L:
+            // Creates unique name
+            snprintf(global_name_gen->if_false_label, MAX_LABEL_NAME, 
             "#_else_%s_%u_%llu", 
             global_name_gen->curr_function, 
             global_name_gen->curr_param_count,
             global_name_gen->if_counter);
 
             // dont have to increment since if_true already incremented the counter
-            // name_gen->if_counter++;
+            break;
+        case CALL:
+            if (node->type = NODE_CALL){
+                // Sets value of fun_type based on wheter its func/getter/setter
+                fun_type = 'f';
+
+                // Creates unique name
+                snprintf(global_name_gen->called_function, MAX_FUNCTION_NAME, "%%%%%s_%c_%u%%%%", 
+                node->data.function_call.name, 
+                fun_type,
+                node->data.function_call.param_count);
+            }
+            else{
+                if (node->data.identifier.id_type == SETTER){
+                    // Sets value of fun_type based on wheter its func/getter/setter
+                    fun_type = 's';
+                }
+                else{
+                    // Sets value of fun_type based on wheter its func/getter/setter
+                    fun_type = 'g';
+                }
+
+                // Creates unique name
+                snprintf(global_name_gen->called_function, MAX_FUNCTION_NAME, "%%%%%s_%c_%u%%%%", 
+                node->data.identifier.name, 
+                fun_type);
+            }
+
+            break;
+        case TEMP_VAR:
+            // Creates unique name
+            snprintf(global_name_gen->temp_var, MAX_LABEL_NAME, "temp_var_%llu", 
+            global_name_gen->temp_var_counter);
+
+            // Increments temp_var counter
+            global_name_gen->temp_var_counter++;
             
+            break;
+        case VAR:
+            // Creates unique name
+            snprintf(global_name_gen->temp_var, MAX_LABEL_NAME, "%s_%llu", 
+            node->data.identifier.name,
+            global_name_gen->block_depth_counter);
+            
+            /**
+             * @brief Block depth is incremented/decremented in the main code-gen function.
+             *        These variables can have 2 same names but they will still be unique for
+             *        current FRAME.
+             */
             break;
 
         default:

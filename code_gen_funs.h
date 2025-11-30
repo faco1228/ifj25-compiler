@@ -21,22 +21,13 @@
 
 // Enum representing different options for unique name creation via create_unique_name function
 typedef enum {
-    LABEL, LOOP_START_L, LOOP_END_L, IF_TRUE, IF_FALSE, TEMP_VAR
+    FUN_LABEL, LOOP_START_L, LOOP_END_L, IF_TRUE_L, IF_FALSE_L, CALL, VAR, TEMP_VAR
 }name_option_t;
 
 // Enum representing different options of literals to create
 typedef enum {
     INTEGER, FLOAT, BOOL, STRING, NILL
 }literal_option_t;
-
-// Union representiong different types of value a literal can obtain
-typedef union {
-    long long int_value;     // To store int
-    long double float_value; // To store float
-    char *string_value;      // To store string
-    bool bool_value;         // To store bool
-    // To store nill whatever can be used, since gen_lit_null function doesnt have parameters
-}literal_values_t;
 
 // Data type holding all different kinds of information nececssary for code-gen
 typedef struct {
@@ -49,27 +40,31 @@ typedef struct {
      */
 
     // Name mangeling
-    unsigned long long label_counter;
     unsigned long long temp_var_counter;
     unsigned long long loop_counter;
     unsigned long long if_counter;
+    unsigned long long block_depth_counter;
 
     // Location in AST
     char *curr_function;
     unsigned curr_param_count;
 
+    // Helpers for call
+    char *called_function;
+
     bool in_function;
     bool in_loop;
 
     // Will store a unique names
-    char* label;            // Function def
+    char* fun_label;        // Function def
     char* temp_var;         // Temp variable
-    char* if_label;         // Temp variable
+    char* if_true_label;    // When condition is true
+    char* if_false_label;   // When condition is false
     char* loop_start_label; // Loop start
     char* loop_end_label;   // Loop end
 
     // How many thing are on data stack, so reading from an empty stack can be prevented
-    unsigned stakck_depth;
+    unsigned stack_depth;
 
 } name_generator_t, *name_generator_ptr;
 
@@ -113,16 +108,6 @@ void create_unique_name(ASTNode_ptr node, name_option_t option);
 /*----------------- PATTERNS -----------------*/
 
 /**
- * @brief Generates code for string iteration (string * num)
- * 
- * @param node
- * 
- * @note Expects arguments on data stack (Pascal convention)
- *       Returns result-string on stack
- */
-void gen_string_iter(ASTNode_ptr node);
-
-/**
  * @brief Generates unieque label name using name-mangeling
  * 
  * @note These options can be used LABEL, LOOP_START_L, LOOP_END_L, IF_TRUE, IF_FALSE
@@ -132,15 +117,28 @@ void gen_string_iter(ASTNode_ptr node);
 void gen_label(name_option_t option);
 
 /**
- * @brief Generates unieque variable name using name-mangeling
+ * @brief Pushes variable on data stack
  * 
- * @note These options can be used TEMP_VAR
+ * @note Used by expression processing functions.
+ *       These options can be used VAR, TEMP_VAR.
  * 
  * @param option
  */
 void gen_variable(ASTNode_ptr node);
-void gen_var_decl();
-void gen_assign();
+
+/**
+ * @brief Generates variable declaration
+ * 
+ * @param node 
+ */
+void gen_var_decl(ASTNode_ptr node);
+
+/**
+ * @brief Assigns value to the variable 
+ * 
+ * @param node 
+ */
+void gen_assign(ASTNode_ptr node);
 
 /**
  * @brief Handles stert of function
@@ -166,14 +164,6 @@ void gen_func_end();
  * 
  */
 void gen_return();
-
-/**
- * @brief Calls functions generating literals based on the option
- * 
- * @param option 
- * @param value 
- */
-void gen_literal(literal_option_t option, literal_values_t value);
 
 /**
  * @brief Generates code for integer literal
