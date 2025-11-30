@@ -4,6 +4,8 @@
         "global_structures.h": "c",
         "cmath": "c",
         "functional": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "random": "c",
+        "atomic": "c"
     }
 }

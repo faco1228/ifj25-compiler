@@ -101,32 +101,61 @@ void codegen(ASTNode_ptr node){
 
         break;
     case NODE_FUNCTION_DEF:
+        // Reset name_gen objects attributes
+        name_gen_init(node);
+
+        // Sets flags
+        if (node->data.function_def.type == FUN_F){
+            global_name_gen->in_function = true;
+        }
+        else if (node->data.function_def.type == FUN_G){
+            global_name_gen->in_getter = true;
+        }
+        else{
+            global_name_gen->in_setter = true;
+        }
+
+        // Calls corresponding code generating function
         gen_func_start(node);
         break;
     case NODE_BLOCK:
+        // Update block depth counter
         global_name_gen->block_depth_counter++;
+
         break;
     case NODE_VAR_DECL:
+        // Calls corresponding code generating function
         gen_var_decl(node);
+
         break;
     case NODE_ASSIGN:
+        // Calls corresponding code generating function
         gen_assign(node);
+
         break;
     case NODE_IF:
+
         break;
     case NODE_RETURN:
+
         break;
     case NODE_WHILE:
+
         break;
     case NODE_FOR:
+
         break;
     case NODE_BREAK:
+
         break;
     case NODE_CONTINUE:
+
         break;
     case NODE_EXPR_STMNT:
+
         break;
     case NODE_IDENTIFIER:
+        // Calls corresponding code generating function based on whether it is variable or getter
         if (node->data.identifier.id_type == VAR){
             gen_variable(node);
         }
@@ -138,10 +167,10 @@ void codegen(ASTNode_ptr node){
         
         break;
     case NODE_BINARY_OP:
+
         break;
     case NODE_CALL:
-        // Based on the function name and whether its builtin or not, 
-        // corresponding JUMP will be generated
+        // Based on the function name and whether its builtin or not, corresponding JUMP will be generated
         if (node->data.function_call.is_builtin){
             gen_jmp_builtin(node);
         }
@@ -153,18 +182,27 @@ void codegen(ASTNode_ptr node){
 
         break;
     case NODE_RANGE:
+
         break;
     case NODE_INT_LIT:
+        // Calls corresponding code generating function
         gen_lit_int(node->data.literal.data.int_val);
+
         break;
     case NODE_FLOAT_LIT:
+        // Calls corresponding code generating function
         gen_lit_int(node->data.literal.data.float_val);
+
         break;
     case NODE_STR_LIT:
+        // Calls corresponding code generating function
         gen_lit_int(node->data.literal.data.str_value);
+
         break;
     case NODE_NULL_LIT:
+        // Calls corresponding code generating function
         gen_lit_null();
+
         break;
     default:
         break;
@@ -217,7 +255,9 @@ void name_gen_init(ASTNode_ptr node){
     memset(global_name_gen->called_function, 0, MAX_LABEL_NAME);
 
     // Set flags to default values
-    global_name_gen->in_function = true;
+    global_name_gen->in_function = false;
+    global_name_gen->in_getter = false;
+    global_name_gen->in_setter = false;
     global_name_gen->in_loop = false;
 
     // Set stack tracker to zero
@@ -247,9 +287,12 @@ void gen_label(name_option_t option){
             printf("LABEL %s\n", global_name_gen->loop_end_label);
             break;
         case IF_TRUE_L:
+            printf("\n");
+            printf("LABEL %s\n", global_name_gen->if_true_label);
+            break;
         case IF_FALSE_L:
             printf("\n");
-            printf("LABEL %s\n", global_name_gen->if_label);
+            printf("LABEL %s\n", global_name_gen->if_false_label);
             break;
         default:
             break;
@@ -468,31 +511,31 @@ void gen_lit_string(char* value){
 void gen_jmp_builtin(ASTNode_ptr node){
     // Based on the current node, jump will be performed
 
-    if (!strcmp(node->data.function_call.name, "Ifj.read_str")){
+    if (!strcmp(node->data.function_call.name, "read_str")){
         printf("CALL %%*Ifj.read_str\n");
     }
-    else if (!strcmp(node->data.function_call.name, "Ifj.read_num")){
+    else if (!strcmp(node->data.function_call.name, "read_num")){
         printf("CALL %%*Ifj.read_num\n");
     }
-    else if (!strcmp(node->data.function_call.name, "Ifj.write")){
+    else if (!strcmp(node->data.function_call.name, "write")){
         printf("CALL %%*Ifj.write\n");
     }
-    else if (!strcmp(node->data.function_call.name, "Ifj.floor")){
+    else if (!strcmp(node->data.function_call.name, "floor")){
         printf("CALL %%*Ifj.floor\n");
     }
-    else if (!strcmp(node->data.function_call.name, "Ifj.str")){
+    else if (!strcmp(node->data.function_call.name, "str")){
         printf("CALL %%*Ifj.str\n");
     }
-    else if (!strcmp(node->data.function_call.name, "Ifj.length")){
+    else if (!strcmp(node->data.function_call.name, "length")){
         printf("CALL %%*Ifj.length\n");
     }
-    else if (!strcmp(node->data.function_call.name, "Ifj.substring")){
+    else if (!strcmp(node->data.function_call.name, "substring")){
        printf("CALL %%*Ifj.substring\n");
     }
-    else if (!strcmp(node->data.function_call.name, "Ifj.strcmp")){
+    else if (!strcmp(node->data.function_call.name, "strcmp")){
         printf("CALL %%*Ifj.strcmp\n");
     }
-    else if (!strcmp(node->data.function_call.name, "Ifj.ord")){
+    else if (!strcmp(node->data.function_call.name, "ord")){
         printf("CALL %%*Ifj.ord\n");
     }
     else{
@@ -507,111 +550,127 @@ void gen_jmp_builtin(ASTNode_ptr node){
  * @param option 
  */
 void create_unique_name(ASTNode_ptr node, name_option_t option) {
-    // Name mangeling variable to differentiate between function/getter/setter
-    char fun_type;
-
     // Different options that can be used as argument
     switch (option){
         case FUN_LABEL:
-            
+            // Have to differentiate between the location of loop: function, setter and getter
             if (node->data.function_def.type == FUN_F){
-                
-                fun_type = 'f';
-
                 // Creates unique name
-                snprintf(global_name_gen->fun_label, MAX_LABEL_NAME, "%%%%%s_%c_%u%%%%", 
+                snprintf(global_name_gen->fun_label, MAX_LABEL_NAME, "_fun_%s_%u", 
                 global_name_gen->curr_function, 
-                fun_type,
                 global_name_gen->curr_param_count);
 
-            }
-            else if (node->data.function_def.type == FUN_G){
-                // Sets value of fun_type based on wheter its func/getter/setter
-                fun_type = 'g';
-
+            }else if (node->data.function_def.type == FUN_G){
                 // Creates unique name
-                snprintf(global_name_gen->fun_label, MAX_LABEL_NAME, "%%%%%s_%c%%%%", 
-                global_name_gen->curr_function, 
-                fun_type);
-            }
-            else{
-                // Sets value of fun_type based on wheter its func/getter/setter
-                fun_type = 's';
-
+                snprintf(global_name_gen->fun_label, MAX_LABEL_NAME, "_getter_%s", 
+                global_name_gen->curr_function);
+            }else{
                 // Creates unique name
-                snprintf(global_name_gen->fun_label, MAX_LABEL_NAME, "%%%%%s_%c%%%%", 
-                global_name_gen->curr_function, 
-                fun_type);
+                snprintf(global_name_gen->fun_label, MAX_LABEL_NAME, "_setter_%s", 
+                global_name_gen->curr_function);
             }
 
             break;
         case LOOP_START_L:
-            // Creates unique name
-            snprintf(global_name_gen->loop_start_label, MAX_LABEL_NAME, "##loop_start_%s_%u_%llu##", 
-            global_name_gen->curr_function, 
-            global_name_gen->curr_param_count,
-            global_name_gen->loop_counter);
+            // Have to differentiate between the location of loop: function, setter and getter
+            if (global_name_gen->in_function){
+                // Creates unique name
+                snprintf(global_name_gen->loop_start_label, MAX_LABEL_NAME, "_loop_start_fun_%s_%u_%llu", 
+                global_name_gen->curr_function, 
+                global_name_gen->curr_param_count,
+                global_name_gen->loop_counter);
+            }
+            else if (global_name_gen->in_getter){
+                // Creates unique name
+                snprintf(global_name_gen->loop_start_label, MAX_LABEL_NAME, "_loop_start_getter_%s_0_%llu", 
+                global_name_gen->curr_function, 
+                global_name_gen->loop_counter);
+            }
+            else{
+                // Creates unique name
+                snprintf(global_name_gen->loop_start_label, MAX_LABEL_NAME, "_loop_start_setter_%s_1_%llu", 
+                global_name_gen->curr_function, 
+                global_name_gen->loop_counter);
+            }
 
             // Increments loop counter
             global_name_gen->loop_counter++;
             
             break;
         case LOOP_END_L:
-            // Creates unique name
-            snprintf(global_name_gen->loop_end_label, MAX_LABEL_NAME, "##loop_end_%s_%u_%llu##", 
-            global_name_gen->curr_function, 
-            global_name_gen->curr_param_count,
-            global_name_gen->loop_counter);
+            // Have to differentiate between the location of loop: function, setter and getter
+            if (global_name_gen->in_function){
+                // Creates unique name
+                snprintf(global_name_gen->loop_end_label, MAX_LABEL_NAME, "_loop_end_fun_%s_%u_%llu", 
+                global_name_gen->curr_function, 
+                global_name_gen->curr_param_count,
+                global_name_gen->loop_counter);
+            }
+            else if (global_name_gen->in_getter){
+                // Creates unique name
+                snprintf(global_name_gen->loop_end_label, MAX_LABEL_NAME, "_loop_end_getter_%s_0_%llu", 
+                global_name_gen->curr_function, 
+                global_name_gen->loop_counter);
+            }
+            else{
+                // Creates unique name
+                snprintf(global_name_gen->loop_end_label, MAX_LABEL_NAME, "_loop_end_setter_%s_1_%llu", 
+                global_name_gen->curr_function, 
+                global_name_gen->loop_counter);
+            }
 
             // dont have to increment since loop_start already incremented the counter
+
             break;
         case IF_TRUE_L:
-            // Creates unique name
-            snprintf(global_name_gen->if_true_label, MAX_LABEL_NAME, "__if_true_%s_%u_%llu__", 
-            global_name_gen->curr_function, 
-            global_name_gen->curr_param_count,
-            global_name_gen->if_counter);
+            // Have to differentiate between the location of loop: function, setter and getter
+            if (global_name_gen->in_function){
+                // Creates unique name
+                snprintf(global_name_gen->if_true_label, MAX_LABEL_NAME, "_if_true_fun_%s_%u_%llu", 
+                global_name_gen->curr_function, 
+                global_name_gen->curr_param_count,
+                global_name_gen->loop_counter);
+            }
+            else if (global_name_gen->in_getter){
+                // Creates unique name
+                snprintf(global_name_gen->if_true_label, MAX_LABEL_NAME, "_if_true_getter_%s_0_%llu", 
+                global_name_gen->curr_function, 
+                global_name_gen->loop_counter);
+            }
+            else{
+                // Creates unique name
+                snprintf(global_name_gen->if_true_label, MAX_LABEL_NAME, "if_true_setter_%s_1_%llu", 
+                global_name_gen->curr_function, 
+                global_name_gen->loop_counter);
+            }
 
             // Increments if counter
             global_name_gen->if_counter++;
             
             break;
         case IF_FALSE_L:
-            // Creates unique name
-            snprintf(global_name_gen->if_false_label, MAX_LABEL_NAME, 
-            "#_else_%s_%u_%llu", 
-            global_name_gen->curr_function, 
-            global_name_gen->curr_param_count,
-            global_name_gen->if_counter);
-
-            // dont have to increment since if_true already incremented the counter
-            break;
-        case CALL:
-            if (node->type = NODE_CALL){
-                // Sets value of fun_type based on wheter its func/getter/setter
-                fun_type = 'f';
-
+            // Have to differentiate between the location of loop: function, setter and getter
+            if (global_name_gen->in_function){
                 // Creates unique name
-                snprintf(global_name_gen->called_function, MAX_FUNCTION_NAME, "%%%%%s_%c_%u%%%%", 
-                node->data.function_call.name, 
-                fun_type,
-                node->data.function_call.param_count);
+                snprintf(global_name_gen->if_false_label, MAX_LABEL_NAME, "_if_false_fun_%s_%u_%llu", 
+                global_name_gen->curr_function, 
+                global_name_gen->curr_param_count,
+                global_name_gen->loop_counter);
+            }
+            else if (global_name_gen->in_getter){
+                // Creates unique name
+                snprintf(global_name_gen->if_false_label, MAX_LABEL_NAME, "_if_false_getter_%s_0_%llu", 
+                global_name_gen->curr_function, 
+                global_name_gen->loop_counter);
             }
             else{
-                if (node->data.identifier.id_type == SETTER){
-                    // Sets value of fun_type based on wheter its func/getter/setter
-                    fun_type = 's';
-                }
-                else{
-                    // Sets value of fun_type based on wheter its func/getter/setter
-                    fun_type = 'g';
-                }
-
                 // Creates unique name
-                snprintf(global_name_gen->called_function, MAX_FUNCTION_NAME, "%%%%%s_%c_%u%%%%", 
-                node->data.identifier.name, 
-                fun_type);
+                snprintf(global_name_gen->if_false_label, MAX_LABEL_NAME, "if_false_setter_%s_1_%llu", 
+                global_name_gen->curr_function, 
+                global_name_gen->loop_counter);
             }
+
+            // dont have to increment since if_true already incremented the counter
 
             break;
         case TEMP_VAR:
@@ -636,6 +695,30 @@ void create_unique_name(ASTNode_ptr node, name_option_t option) {
              */
             break;
 
+        case CALL:
+            /**
+             *                       IMPORTANT
+             * This option/case isnt really used the same way as the previous ones.
+             * When encountered fun call or getter/setter call in code, we have to 
+             * know/generate the very same label name as is used for the function definition.
+             * This name will be stored in global_name_gen->called_function.
+             */
+
+            if (node->data.identifier.id_type == FUNCTION){
+                snprintf(global_name_gen->called_function, MAX_FUNCTION_NAME, "_fun_%s_%u", 
+                node->data.function_call.name,
+                node->data.function_call.param_count);
+            }
+            else if (node->data.identifier.id_type == SETTER){
+                snprintf(global_name_gen->called_function, MAX_FUNCTION_NAME, "_setter_%s", 
+                node->data.identifier.name);
+            }
+            else{
+                snprintf(global_name_gen->called_function, MAX_FUNCTION_NAME, "_getter_%s", 
+                node->data.identifier.name);
+            }
+
+            break;
         default:
             break;
     }

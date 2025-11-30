@@ -21,7 +21,7 @@
 
 // Enum representing different options for unique name creation via create_unique_name function
 typedef enum {
-    FUN_LABEL, LOOP_START_L, LOOP_END_L, IF_TRUE_L, IF_FALSE_L, CALL, VAR, TEMP_VAR
+    FUN_LABEL, LOOP_START_L, LOOP_END_L, IF_TRUE_L, IF_FALSE_L, VAR, TEMP_VAR, CALL
 }name_option_t;
 
 // Enum representing different options of literals to create
@@ -53,6 +53,8 @@ typedef struct {
     char *called_function;
 
     bool in_function;
+    bool in_getter;
+    bool in_setter;
     bool in_loop;
 
     // Will store a unique names
