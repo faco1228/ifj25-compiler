@@ -81,9 +81,9 @@ static ASTNode_ptr ast_from_operand_token(token_ptr t) // is token pre num str n
             return (ASTNode_ptr)t->ast;
         }
         // bezny ident: premenna, meno fcie
-        return ast_create_ident(t->value.str_value);
+        return ast_create_ident(t->value.str_value, false);
     case GLOB_VAR:
-        return ast_create_ident(t->value.str_value);
+        return ast_create_ident(t->value.str_value, true);
 
     case INT_LIT:
         return ast_create_int(t->value.int_value);
@@ -95,13 +95,18 @@ static ASTNode_ptr ast_from_operand_token(token_ptr t) // is token pre num str n
     case MUL_L_STRING:
         return ast_create_str(t->value.str_value);
 
-    case NULL_LIT:
-        return ast_create_null();
+        // case NULL_LIT:
+        //     return ast_create_null();
 
     case KEY_WORD:
         if (token_is_type_keyword(t))
         {
             return ast_create_type_lit(t->value.str_value);
+        }
+        else if (t->value.str_value != NULL &&
+                 strcmp(t->value.str_value, "null") == 0)
+        {
+            return ast_create_null();
         }
         else
         {
@@ -175,11 +180,21 @@ static bool psa_eol_end_expr(token_ptr current_token)
     case GLOB_VAR:
     case INT_LIT:
     case FLOAT_LIT:
-    case NULL_LIT:
+    // case NULL_LIT:
     case ONE_L_STRING:
     case MUL_L_STRING:
     case RIGHT_PAR:
         return true;
+
+    case KEY_WORD:
+        if (token_is_type_keyword(current_token) ||
+            (current_token->value.str_value != NULL &&
+             strcmp(current_token->value.str_value, "null") == 0))
+        {
+            return true;
+        }
+        return false;
+
     default:
         return false;
     }
@@ -238,7 +253,7 @@ static precedence_index token_to_index(token_ptr token)
     case GLOB_VAR:
     case INT_LIT:
     case FLOAT_LIT:
-    case NULL_LIT:
+    // case NULL_LIT:
     case ONE_L_STRING:
     case MUL_L_STRING:
         return OP_OPERAND;
@@ -249,6 +264,9 @@ static precedence_index token_to_index(token_ptr token)
         if (token_is_ifj_keyword(token))
             return OP_OPERAND; // <-- PRIDANÉ: Ifj je operand
         if (token_is_type_keyword(token))
+            return OP_OPERAND;
+        if (token->value.str_value != NULL &&
+            strcmp(token->value.str_value, "null") == 0)
             return OP_OPERAND;
         return OP_UNRECOGNISED;
 
@@ -353,8 +371,9 @@ static void psa_parse_call_args(ASTNode_ptr call_node)
     while (1)
     {
         /* každý argument je výraz – PSA, bez špeciálneho recognition tokenu */
-        ASTNode_ptr arg = parse_expression(NULL);
-        add_child(call_node, arg);
+        ASTNode_ptr arg_expr = parse_expression(NULL);
+        ASTNode_ptr arg_stmt = ast_create_exp_statement(arg_expr); // NODE_EXPR_STMNT
+        add_child(call_node, arg_stmt);                            // do CALL uklozit expr_stmt
         arg_count++;
 
         consume_eols();
@@ -934,6 +953,9 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
             /* for (... in <expr>) */
             else if (strcmp(recognition_token->value.str_value, "in") == 0)
             {
+                int par_depth = 0;        /* počet zátvoriek otvorených vo výraze za 'in' */
+                bool token_is_new = true; /* current_token po vstupe do parse_expression je "nový" */
+
                 while (true)
                 {
                     /* FUNEXP inline – user aj Ifj.* v in výraze */
@@ -957,20 +979,46 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
                             call_token->ast = call_ast;
 
                             current_token = call_token;
+
+                            /* nahradili sme token za nový (CALL), takže je opäť "nový" z pohľadu zátvoriek */
+                            token_is_new = true;
+                        }
+                    }
+
+                    /* Sledovanie vnútorných zátvoriek a rozlíšenie koncovej ) for-hlavicky
+                       urobíme LEN raz pre každý nový token. */
+                    if (token_is_new)
+                    {
+                        if (current_token->type == LEFT_PAR)
+                        {
+                            par_depth++;
+                        }
+                        else if (current_token->type == RIGHT_PAR)
+                        {
+                            if (par_depth == 0)
+                            {
+                                /* Táto ) patrí for-hlavicke, nie výrazu. Necháme ju na parser. */
+                                push_token(current_token);
+                                break;
+                            }
+                            else
+                            {
+                                par_depth--;
+                            }
                         }
                     }
 
                     bool should_advance =
                         psa_table_compare(&stack, current_token, &top_terminal, recognition_token);
 
+                    /* aktuálny token už bol "spracovaný" (či už shift/reduce), ďalšia iterácia
+                       s rovnakým tokenom ho nesmie znova brať ako "nový" */
+                    token_is_new = false;
+
                     if (should_advance)
                     {
                         current_token = get_token();
-                        if (current_token->type == RIGHT_PAR)
-                        {
-                            push_token(current_token);
-                            break;
-                        }
+                        token_is_new = true; /* nový token z lexeru */
                     }
                     else
                     {

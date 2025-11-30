@@ -5,8 +5,9 @@ class Program {
         var x
         var y
         var z
-        x = (Ifj.read_str() + 2)
-        z = (2+3*4-(Ifj.read_str()))
-        y = (3*3)+((Ifj.read_str()) - (Ifj.read_str()) + 2)
+        x = null
+        for (i in (2+(3))...((2+5)+2)) {
+
+        }
     }
 }

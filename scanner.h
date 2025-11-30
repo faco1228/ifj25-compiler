@@ -3,7 +3,7 @@
  * @author xracekm00
  * @brief Header file for lexical analyzer - scanner
  * @version 0.4
- * @date 2025-11-17
+ * @date 2025-11-28
  * 
  * @copyright Copyright (c) 2025
  */
@@ -18,7 +18,7 @@
 //Note: Subtraction operator has separate type, since it can be used as unary operator (extension)
 enum token_type {
     IDENT, KEY_WORD, GLOB_VAR, 
-    INT_LIT, FLOAT_LIT, NULL_LIT,
+    INT_LIT, FLOAT_LIT,
     ONE_L_STRING, MUL_L_STRING, 
     OPERATOR, MINUS,
     LEFT_PAR, RIGHT_PAR, LEFT_DOM_PAR, RIGHT_DOM_PAR, 
@@ -64,7 +64,7 @@ extern token_ptr pushed_token;
 
 //Global variables for EOF encounters during lookahead
 extern bool eof_reached;
-extern token_ptr pending_token;
+extern token_ptr pending_eof_token;
 
 //Defining max length of variable name
 #define MAX_NAME_LEN 100

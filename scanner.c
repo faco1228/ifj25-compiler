@@ -3,7 +3,7 @@
  * @author xracekm00
  * @brief Contains scanners backbone as well as functions for parsers use
  * @version 0.4
- * @date 2025-11-17
+ * @date 2025-11-28
  *
  * @copyright Copyright (c) 2025
  */
@@ -28,7 +28,7 @@ bool has_been_pushed = false;
 token_ptr pushed_token = NULL;
 
 bool eof_reached = false;
-token_ptr pending_token = NULL;
+token_ptr pending_eof_token = NULL;
 
 /**
  * @brief Returns token back to scanner
@@ -50,14 +50,14 @@ token_ptr get_token()
 {
     token_ptr token; // Token to be returned
 
-    if ((pending_token != NULL) && eof_reached)
+    if ((pending_eof_token != NULL) && eof_reached)
     {
         // Next token is the one that was unintentionally processed
-        token = pending_token;
+        token = pending_eof_token;
 
         // Updating gloval variables
         eof_reached = false;
-        pending_token = NULL;
+        pending_eof_token = NULL;
 
         return token;
     }
@@ -136,10 +136,10 @@ void free_token(token_ptr token)
 void scanner_cleanup()
 {
     // Frees memory used by global variables
-    if (pending_token != NULL)
+    if (pending_eof_token != NULL)
     {
-        free(pending_token);
-        pending_token = NULL;
+        free(pending_eof_token);
+        pending_eof_token = NULL;
     }
 
     if (pushed_token != NULL)

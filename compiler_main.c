@@ -17,19 +17,19 @@
 
 
 //! vymazat - funkcia pre print stromu pomocou preorder prechodu
-// void print_ast(ASTNode_ptr ast_root)
-// {
-//     if (!ast_root)
-//         return;
+void print_ast(ASTNode_ptr ast_root)
+{
+    if (!ast_root)
+        return;
 
-//     printf("NODE TYPE: %d\n", ast_root->type);
+    printf("NODE TYPE: %d\n", ast_root->type);
 
-//     for (size_t i = 0; i < ast_root->child_count; i++)
-//     {
-//         print_ast(ast_root->children[i]);
-//     }
+    for (size_t i = 0; i < ast_root->child_count; i++)
+    {
+        print_ast(ast_root->children[i]);
+    }
     
-// }
+}
 
 #define COMPILATIONS_SUCCESS 0
 
