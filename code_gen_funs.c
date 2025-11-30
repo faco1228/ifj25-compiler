@@ -650,7 +650,6 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
  */
 void choose_operation(ASTNode_ptr operator)
 {
-    printf("");
 }
 
 /**
@@ -662,72 +661,196 @@ void choose_operation(ASTNode_ptr operator)
 void gen_eval_star_op()
 {
     // retrieve both operands from the data stack
-    printf("POPS LF@#op2\n"); // second operand
-    printf("POPS LF@#op1\n"); // first operand
+    printf("POPS LF@op2\n"); // second operand
+    printf("POPS LF@op1\n"); // first operand
 
     // get the data types of both operands
-    printf("TYPE LF@#type1 LF@#op1\n"); // data type of the first operand
-    printf("TYPE LF@#type2 LF@#op2\n"); // data type of the second operand
-
-    // check for nill values
-    printf("EQ LF@#type_check1 LF@_type1 string@nill\n");
-    prinft("EQ LF@#type_check2 LF@_type2 string@nill\n");
-    printf("OR LF@#nill_check LF@#type_check1 LF@#type_check2\n");
-    printf("JUMPIFEQ !ERROR_EXP_L LF@#nill_check bool@true\n");
+    printf("TYPE LF@type1 LF@op1\n"); // data type of the first operand
+    printf("TYPE LF@type2 LF@op2\n"); // data type of the second operand
 
     // here we compare the two operands and try to match a valid operation scenario
 
     // float * float scenario
-    printf("EQ LF@#type_check1 LF@_type1 string@float\n");
-    prinft("EQ LF@#type_check2 LF@_type2 string@float\n");
-    printf("JUMPIFEQ &mul LF@#type_check1 LF@#type_check2\n");
+    printf("EQ LF@op_check1 LF@type1 string@float\n");
+    printf("EQ LF@op_check2 LF@type2 string@float\n");
+    printf("JUMPIFEQ &mul LF@op_check1 LF@op_check2\n");
 
     // int * int scenarion
-    printf("EQ LF@#type_check1 LF@_type1 string@int\n");
-    prinft("EQ LF@#type_check2 LF@_type2 string@int\n");
-    printf("JUMPIFEQ &mul LF@#type_check1 LF@#type_check2\n");
+    printf("EQ LF@op_check1 LF@type1 string@int\n");
+    printf("EQ LF@op_check2 LF@type2 string@int\n");
+    printf("JUMPIFEQ &mul LF@op_check1 LF@op_check2\n");
 
     // string * int scenario
-    printf("EQ LF@#type_check1 LF@_type1 string@string\n");
-    prinft("EQ LF@#type_check2 LF@_type2 string@int\n");
-    printf("JUMPIFEQ &str_iter LF@#type_check1 LF@#type_check2\n");
+    printf("EQ LF@op_check1 LF@type1 string@string\n");
+    printf("EQ LF@op_check2 LF@type2 string@int\n");
+    printf("JUMPIFEQ &str_iter LF@op_check1 LF@op_check2\n");
 
     // float * int scenario
-    printf("EQ LF@#type_check1 LF@_type1 string@flaot\n");
-    prinft("EQ LF@#type_check2 LF@_type2 string@int\n");
-    printf("JUMPIFEQ &right_to_float LF@#type_check1 LF@#type_check2\n");
+    printf("EQ LF@op_check1 LF@type1 string@float\n");
+    printf("EQ LF@op_check2 LF@type2 string@int\n");
+    printf("JUMPIFEQ &right_to_float LF@op_check1 LF@op_check2\n");
 
     // int * float scenario
-    printf("EQ LF@#type_check1 LF@_type1 string@int\n");
-    prinft("EQ LF@#type_check2 LF@_type2 string@float\n");
-    printf("JUMPIFEQ &left_to_float LF@#type_check1 LF@#type_check2\n");
+    printf("EQ LF@op_check1 LF@type1 string@int\n");
+    printf("EQ LF@op_check2 LF@type2 string@float\n");
+    printf("JUMPIFEQ &left_to_float LF@op_check1 LF@op_check2\n");
 
     // none of valid the scenarios was matched, type error occured
     printf("JUMP !ERROR_EXP_L\n");
 
     // int to float conversions - right op
-    printf("&right_to_float\n"); // label
-    printf("INT2FLOAT op2 op2\n");
+    printf("LABEL &right_to_float\n"); // label
+    printf("INT2FLOAT LF@op2 LF@op2\n");
     printf("JUMP &mul\n");
 
     // int to float conversions - left op
-    printf("&left_to_float\n"); // label
-    printf("INT2FLOAT op1 op1\n");
+    printf("LABEL &left_to_float\n"); // label
+    printf("INT2FLOAT LF@op1 LF@op1\n");
 
     // no need to jump here
 
     // multiplication
-    printf("&mul\n"); // lable
-    printf("MUL LF@#result LF@#op1 LF@#op2\n");
-    printf("PUSHS LF@#result\n");
+    printf("LABEL &mul\n"); // lable
+    printf("MUL LF@result LF@op1 LF@op2\n");
+    printf("PUSHS LF@result\n");
     printf("JUMP &mul_end\n");
 
     // string iter
     //  todo: sem vlozit kod pre string iter ale este si to chcem prejst s Martinom
 
     // no need to jump here
+
     // end of the function that handles the * operator
-    printf("&mul_end\n");
+    printf("LABEL &mul_end\n");
+    printf("RETURN\n");
+}
+
+/**
+ * @brief Generates instructions to type check and evaluate an operation that uses the / operator.
+ *
+ * @note Helper variables that start with & and are used in instructions generated in this function are going to
+ *       be defined outside these helper functions a will have a separate frame made for them.
+ */
+void gen_eval_slash_op()
+{
+    // retrieve both operands from the data stack
+    printf("POPS LF@op2\n"); // second operand
+    printf("POPS LF@op1\n"); // first operand
+
+    // get the data types of both operands
+    printf("TYPE LF@type1 LF@op1\n"); // data type of the first operand
+    printf("TYPE LF@type2 LF@op2\n"); // data type of the second operand
+
+    // float / float scenario
+    printf("EQ LF@op_check1 LF@type1 string@float\n");
+    printf("EQ LF@op_check2 LF@type2 string@float\n");
+    printf("JUMPIFEQ &zero_div_check_float LF@op_check1 LF@op_check2\n");
+
+    // int / int scenario
+    printf("EQ LF@op_check1 LF@type1 string@int\n");
+    printf("EQ LF@op_check2 LF@type2 string@int\n");
+    printf("JUMPIFEQ &zero_div_check_int LF@op_check1 LF@op_check2\n");
+
+    // float / int scenario
+    printf("EQ LF@op_check1 LF@type1 string@float\n");
+    printf("EQ LF@op_check2 LF@type2 string@int\n");
+    printf("JUMPIFEQ &right_to_float LF@op_check1 LF@op_check2\n");
+
+    // int / float scenario
+    printf("EQ LF@op_check1 LF@type1 string@int\n");
+    printf("EQ LF@op_check2 LF@type2 string@float\n");
+    printf("JUMPIFEQ &left_to_float LF@op_check1 LF@op_check2\n");
+
+    // none of valid the scenarios was matched, type error occured
+    printf("JUMP !ERROR_EXP_L\n");
+
+    // int to float conversions - right op
+    printf("LABEL &right_to_float\n"); // label
+    printf("INT2FLOAT LF@op2 LF@op2\n");
+    printf("JUMP &zero_div_check_float\n");
+
+    // int to float conversions - left op
+    printf("LABEL &left_to_float\n"); // label
+    printf("INT2FLOAT LF@op1 LF@op1\n");
+    printf("JUMP &zero_div_check_float\n");
+
+    // zero divison check for floats
+    printf("LABEL &zero_div_check_float\n");
+    printf("EQ LF@op_check2 LF@op2 float@0x0p+0\n");
+    printf("JUMP &zero_check_done\n");
+    
+    // zero divison check for ints
+    printf("LABEL &zero_div_check_int\n");
+    printf("EQ LF@op_check2 LF@op2 int@0\n");
+
+    // evaluate zero division check
+    printf("LABEL &zero_check_done\n");
+    printf("JUMPIFEQ !ERROR_EXP_L LF@op_check2 bool@true\n");
+
+    // division
+    printf("LABEL &div\n"); // label
+    printf("DIV LF@result LF@op1 LF@op2\n");
+    printf("PUSHS LF@result\n");
+
+    printf("RETURN\n");
+}
+
+/**
+ * @brief Generates instructions to type check and evaluate an operation that uses the - operator.
+ *
+ * @note Helper variables that start with & and are used in instructions generated in this function are going to
+ *       be defined outside these helper functions a will have a separate frame made for them.
+ */
+void gen_eval_minus_op()
+{
+    // retrieve both operands from the data stack
+    printf("POPS LF@op2\n"); // second operand
+    printf("POPS LF@op1\n"); // first operand
+
+    // get the data types of both operands
+    printf("TYPE LF@type1 LF@op1\n"); // data type of the first operand
+    printf("TYPE LF@type2 LF@op2\n"); // data type of the second operand
+
+    // float - float scenario
+    printf("EQ LF@op_check1 LF@type1 string@float\n");
+    printf("EQ LF@op_check2 LF@type2 string@float\n");
+    printf("JUMPIFEQ &sub LF@op_check1 LF@op_check2\n");
+
+    // int - int scenario
+    printf("EQ LF@op_check1 LF@type1 string@int\n");
+    printf("EQ LF@op_check2 LF@type2 string@int\n");
+    printf("JUMPIFEQ &sub LF@op_check1 LF@op_check2\n");
+
+    // float - int scenario
+    printf("EQ LF@op_check1 LF@type1 string@float\n");
+    printf("EQ LF@op_check2 LF@type2 string@int\n");
+    printf("JUMPIFEQ &right_to_float LF@op_check1 LF@op_check2\n");
+
+    // int - float scenario
+    printf("EQ LF@op_check1 LF@type1 string@int\n");
+    printf("EQ LF@op_check2 LF@type2 string@float\n");
+    printf("JUMPIFEQ &left_to_float LF@op_check1 LF@op_check2\n");
+
+    // none of valid the scenarios was matched, type error occured
+    printf("JUMP !ERROR_EXP_L\n");
+
+    // int to float conversions - right op
+    printf("LABEL &right_to_float\n"); // label
+    printf("INT2FLOAT LF@op2 LF@op2\n");
+    printf("JUMP &sub\n");
+
+    // int to float conversions - left op
+    printf("LABEL &left_to_float\n"); // label
+    printf("INT2FLOAT LF@op1 LF@op1\n");
+
+    // no need to jump here
+
+    // subtraction
+    printf("LABEL &sub\n"); // lable
+    printf("SUB LF@result LF@op1 LF@op2\n");
+    printf("PUSHS LF@result\n");
+
+    // end of the function that handles the - operator
     printf("RETURN\n");
 }
 
@@ -742,81 +865,75 @@ void gen_eval_plus_op()
     // NOTE: printnem to podobne ako built in funckie, potom sa pushne na stack operand lavy, potom pravy a ja si ich uz ziskam
     // v ramci tej "funkcie" pre add a ulozim si ich
     // todo: na zaciatku programu este pred tym nez sa zacne realne generovat kod si len vygenerujem cez defvar tie pomocne premenne
-    // todo: vytvorim si aj premennu LF@#nill_check pre kontrolu toho ci v aritmentickom vyraze nie je nill hodnota
+    // todo: vytvorim si aj premennu LF@nill_check pre kontrolu toho ci v aritmentickom vyraze nie je nill hodnota
     // todo: potrebujem premennu pre ulozenie vysledku
 
     // creates the label
     // todo: vymysliet nejaky label nazov ktory bude vhodny
 
     // retrieve both operands from the data stack
-    printf("POPS LF@#op2\n"); // second operand
-    printf("POPS LF@#op1\n"); // first operand
+    printf("POPS LF@op2\n"); // second operand
+    printf("POPS LF@op1\n"); // first operand
 
     // get the data types of both operands
-    printf("TYPE LF@#type1 LF@#op1\n"); // data type of the first operand
-    printf("TYPE LF@#type2 LF@#op2\n"); // data type of the second operand
-
-    // check for nill values
-    printf("EQ LF@#type_check1 LF@_type1 string@nill\n");
-    prinft("EQ LF@#type_check2 LF@_type2 string@nill\n");
-    printf("OR LF@#nill_check LF@#type_check1 LF@#type_check2\n");
-    printf("JUMPIFEQ !ERROR_EXP_L LF@#nill_check bool@true\n");
+    printf("TYPE LF@type1 LF@op1\n"); // data type of the first operand
+    printf("TYPE LF@type2 LF@op2\n"); // data type of the second operand
 
     // here we compare the two operands and try to match a valid operation scenario
 
     // float + float scenario
-    printf("EQ LF@#type_check1 LF@_type1 string@float\n");
-    prinft("EQ LF@#type_check2 LF@_type2 string@float\n");
-    printf("JUMPIFEQ &add LF@#type_check1 LF@#type_check2\n");
+    printf("EQ LF@op_check1 LF@type1 string@float\n");
+    printf("EQ LF@op_check2 LF@type2 string@float\n");
+    printf("JUMPIFEQ &add LF@op_check1 LF@op_check2\n");
 
     // int + int scenarion
-    printf("EQ LF@#type_check1 LF@_type1 string@int\n");
-    prinft("EQ LF@#type_check2 LF@_type2 string@int\n");
-    printf("JUMPIFEQ &add LF@#type_check1 LF@#type_check2\n");
+    printf("EQ LF@op_check1 LF@type1 string@int\n");
+    printf("EQ LF@op_check2 LF@type2 string@int\n");
+    printf("JUMPIFEQ &add LF@op_check1 LF@op_check2\n");
 
     // string + string scenario
-    printf("EQ LF@#type_check1 LF@_type1 string@string\n");
-    prinft("EQ LF@#type_check2 LF@_type2 string@string\n");
-    printf("JUMPIFEQ &concat LF@#type_check1 LF@#type_check2\n");
+    printf("EQ LF@op_check1 LF@type1 string@string\n");
+    printf("EQ LF@op_check2 LF@type2 string@string\n");
+    printf("JUMPIFEQ &concat LF@op_check1 LF@op_check2\n");
 
     // float + int scenario
-    printf("EQ LF@#type_check1 LF@_type1 string@float\n");
-    prinft("EQ LF@#type_check2 LF@_type2 string@int\n");
-    printf("JUMPIFEQ &right_to_float LF@#type_check1 LF@#type_check2\n");
+    printf("EQ LF@op_check1 LF@type1 string@float\n");
+    printf("EQ LF@op_check2 LF@type2 string@int\n");
+    printf("JUMPIFEQ &right_to_float LF@op_check1 LF@op_check2\n");
 
     // int + float scenario
-    printf("EQ LF@#type_check1 LF@_type1 string@int\n");
-    prinft("EQ LF@#type_check2 LF@_type2 string@float\n");
-    printf("JUMPIFEQ &left_to_float LF@#type_check1 LF@#type_check2\n");
+    printf("EQ LF@op_check1 LF@type1 string@int\n");
+    printf("EQ LF@op_check2 LF@type2 string@float\n");
+    printf("JUMPIFEQ &left_to_float LF@op_check1 LF@op_check2\n");
 
     // none of valid the scenarios was matched, type error occured
     printf("JUMP !ERROR_EXP_L\n");
 
     // int to float conversions - right op
-    printf("&right_to_float\n"); // label
-    printf("INT2FLOAT op2 op2\n");
+    printf("LABEL &right_to_float\n"); // label
+    printf("INT2FLOAT LF@op2 LF@op2\n");
     printf("JUMP &add\n");
 
     // int to float conversions - left op
-    printf("&left_to_float\n"); // label
-    printf("INT2FLOAT op1 op1\n");
+    printf("LABEL &left_to_float\n"); // label
+    printf("INT2FLOAT LF@op1 LF@op1\n");
 
     // no need to use jump here
 
     // addition
-    printf("&add\n"); // lable
-    printf("ADD LF@#result LF@#op1 LF@#op2\n");
-    printf("PUSHS LF@#result\n");
+    printf("LABEL &add\n"); // lable
+    printf("ADD LF@result LF@op1 LF@op2\n");
+    printf("PUSHS LF@result\n");
     printf("JUMP &add_end\n");
 
     // concat
-    printf("&concat\n"); // lable
-    printf("CONCAT LF@#result LF@#op1 LF@#op2\n");
-    printf("PUSHS LF@#result\n");
+    printf("LABEL &concat\n"); // lable
+    printf("CONCAT LF@result LF@op1 LF@op2\n");
+    printf("PUSHS LF@result\n");
 
     // no need to use jump here
 
     // end of the function that handles the + operator
-    printf("&add_end\n");
+    printf("LABEL &add_end\n");
     printf("RETURN\n");
 }
