@@ -17,19 +17,19 @@
 
 
 //! vymazat - funkcia pre print stromu pomocou preorder prechodu
-// void print_ast(ASTNode_ptr ast_root)
-// {
-//     if (!ast_root)
-//         return;
+void print_ast(ASTNode_ptr ast_root)
+{
+    if (!ast_root)
+        return;
 
-//     printf("NODE TYPE: %d\n", ast_root->type);
+    printf("NODE TYPE: %d\n", ast_root->type);
 
-//     for (size_t i = 0; i < ast_root->child_count; i++)
-//     {
-//         print_ast(ast_root->children[i]);
-//     }
+    for (size_t i = 0; i < ast_root->child_count; i++)
+    {
+        print_ast(ast_root->children[i]);
+    }
     
-// }
+}
 
 #define COMPILATIONS_SUCCESS 0
 
@@ -53,7 +53,7 @@ int main()
     scope_stack_init(g_scope_stack); // if stack array allocation fails, error_exit() is called inside the function and all memory is freed
 
     // performes semantic_analysis and generates code after every successful semantic action
-    semantic_analysis(ast, g_func_symtable, g_scope_stack);
+    semantic_analysis(ast);
 
     // free all allocated structures
     scope_stack_dispose(g_scope_stack);

@@ -3,7 +3,7 @@
  * @author xracekm00
  * @brief Header file for lexical analyzers functions
  * @version 0.4
- * @date 2025-11-17
+ * @date 2025-11-28
  * 
  * @copyright Copyright (c) 2025
  */

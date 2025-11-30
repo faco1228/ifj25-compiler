@@ -3,7 +3,7 @@
  * @author xracekm00
  * @brief Header file for lexical analyzer - scanner
  * @version 0.4
- * @date 2025-11-17
+ * @date 2025-11-28
  * 
  * @copyright Copyright (c) 2025
  */
@@ -64,7 +64,7 @@ extern token_ptr pushed_token;
 
 //Global variables for EOF encounters during lookahead
 extern bool eof_reached;
-extern token_ptr pending_token;
+extern token_ptr pending_eof_token;
 
 //Defining max length of variable name
 #define MAX_NAME_LEN 100
