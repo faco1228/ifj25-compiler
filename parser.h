@@ -1,12 +1,18 @@
 /**
  * @file parser.h
  * @author Samuel Facka (xfackas00)
- * @brief 
+ * @brief Recursive-descent parser interface (non-expression part).
+ * 
+ * Parser:
+ *  - uses the scanner to obtain tokens,
+ *  - parses program structure, statements, and blocks,
+ *  - delegates expression parsing to the precedence analyzer (parse_expression),
+ *  - builds an AST for the whole program.
+ * 
  * @version 0.1
  * @date 2025-10-26
- * 
+ *
  * @copyright Copyright (c) 2025
- * 
  */
 
 #ifndef PARSER_H
@@ -19,6 +25,7 @@
 #include "symtable.h"
 #include "semantic_analysis.h"
 #include "parser_expression.h"
+
 #include <stdio.h>
 #include <string.h>
 
@@ -35,42 +42,48 @@
  *
  * @note
  *  - Uses tokens produced by the scanner.
- *  - On successful parse, calls @c scanner_cleanup().
- *  - On a syntactic error, calls @c error_exit(ERR_SYNTACTIC).
+ *  - On successful parse, calls calls scanner_cleanup().
+ *  - On a syntactic error, calls calls error_exit(ERR_SYNTACTIC).
  *
- * @return 0 (PARSE_OK) on success. On syntax error the function does not return,
- *         because @c error_exit(ERR_SYNTACTIC) terminates the program.
+ * @return Root AST node of the parsed program. On syntax error, this function
+ *         does not return because error_exit terminates the program.
  */
 ASTNode_ptr parse_program(void);
 
+// helper functions for parser amd expression parser
+
 /**
- * @brief Parse a comma-separated parameter list.
+ * @brief Read and return a required identifier token.
  *
- * Grammar:
- * @code
- * <param_list> ::= ε | ID ( "," ID )*
- * @endcode
- *
- * @note
- *  - EOLs are allowed after each comma.
- *
- * @return PARSE_OK on success.
+ * @pre Next token must be of type IDENT.
+ * @return Token pointer owned by the caller (must call free_token()).
+ * @note On mismatch calls error_exit(ERR_SYNTACTIC).
  */
-int parse_param_list(ASTNode_ptr node, unsigned *arg_count);
+token_ptr expect_ident(void);
 
 /**
  * @brief Read and return a token of the required type.
  *
  * @param exp_tok Expected token type.
  *
- * @pre Next token's type must match @p exp_tok.
+ * @pre Next token's type must match exp_tok.
  * @return Token pointer owned by the caller (must call free_token()).
  * @note On mismatch calls error_exit(ERR_SYNTACTIC).
  */
 token_ptr expect_type(enum token_type exp_tok);
 
 /**
- * @brief Consume a maximal sequence of EOL tokens as soft whitespace.
+ * @brief One-token lookahead: fetch the next token and push it back.
+ *
+ * @note
+ *  - The same instance will be returned again by get_token().
+ *
+* @return Pointer to the peeked token (do not free).
+ */
+token_ptr look_ahead(void);
+
+/**
+ * @brief Consume a maximal sequence of EOL tokens as "soft whitespace.
  *
  * @note
  *  - Typical usage: after '(', after ',', and after operators like '=' or '.'.

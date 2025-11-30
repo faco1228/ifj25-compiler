@@ -2,6 +2,7 @@
     "files.associations": {
         "ast.h": "c",
         "global_structures.h": "c",
-        "cmath": "c"
+        "cmath": "c",
+        "parser.h": "c"
     }
 }
