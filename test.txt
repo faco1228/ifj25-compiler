@@ -1,13 +1,43 @@
-import "ifj25" for Ifj
+.Ifjcode25
 
-class Program {
-    static main() {
-        var x
-        var y
-        var z
-        x = null
-        for (i in (2+(3))...((2+5)+2)) {
+JUMP PROGRAMSTART
 
-        }
-    }
-}
+LABEL Ifj.write
+pritnf("PUSHS\n");
+.
+.
+.
+.
+.
+.
+.
+
+LABEL Ifj.read_num
+pritnf("PUSHS\n");
+.
+.
+.
+.
+.
+.
+.
+
+LABEL Ifj.floor
+pritnf("PUSHS\n");
+.
+.
+.
+.
+.
+.
+.
+
+
+PROGRAMSTART
+
+WREN
+
+call ifj.floor
+
+
+

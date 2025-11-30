@@ -200,8 +200,6 @@ token_ptr process_next_token(token_ptr token){
 /**
  * @brief Processes identifier or keyword token
  * 
- * @note  I had to amend this function so it detects null as token of type NULL_LIT
- * 
  * @param token to be filled
  */
 void process_ident(token_ptr token){
