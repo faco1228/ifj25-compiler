@@ -173,7 +173,7 @@ void name_gen_init(ASTNode_ptr node)
     global_name_gen->temp_var_counter = 0;
     global_name_gen->loop_counter = 0;
     global_name_gen->if_counter = 0;
-    global_name_gen->add_counter = 0;
+    global_name_gen->bin_op_counter = 0;
 
     strcpy(global_name_gen->curr_function, node->data.function_def.name);
     memset(global_name_gen->label, 0, MAX_LABEL_NAME);
@@ -633,11 +633,6 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
         // name_gen->if_counter++;
 
         break;
-    case ADD_L:
-        snprintf(global_name_gen->add_label, MAX_LABEL_NAME,
-                 "&add%llu",
-                 global_name_gen->add_counter);
-
     default:
         break;
     }
@@ -660,13 +655,45 @@ void eval_exp(ASTNode_ptr exp_node)
     eval_exp(exp_node->children[1]); // right subtree
 
     if (exp_node->type == NODE_BINARY_OP)
+    {
+        global_name_gen->bin_op_counter++;
         eval_bin_op(exp_node);
+    }
     else if (exp_node->type == NODE_IDENTIFIER) // name mangled idents are already inside the ast nodes
-        gen_variable(exp_node);
+    {
+        if (exp_node->data.identifier.id_type == GETTER)
+            gen_jmp_function(exp_node);
+        else
+            gen_variable(exp_node);
+    }
     else if (exp_node->type == NODE_STR_LIT)
-        gen_literal(STRING, exp_node->data.literal.data.str_value);
+        printf("PUSHS string@%s", exp_node->data.literal.data.str_value);
+    else if (exp_node->type == NODE_INT_LIT)
+        printf("PUSHS int@%d", exp_node->data.literal.data.int_val);
+    else if (exp_node->type == NODE_FLOAT_LIT)
+        printf("PUSHS float@%a", exp_node->data.literal.data.float_val);
+    else if (exp_node->type == NODE_NULL_LIT)
+        printf("PUSHS nil@nil");
+    else if (exp_node->type == NODE_CALL)
+        gen_jmp_function(exp_node);
 
-    // todo : operand handling - ak je premenna potrebujem pushnut ten ident, ak je literal, pushnem literal
+    // NOTE: nothing has to be done for NODE_TYPE_LIT because I don't actually need it when evaluating IS
+}
+
+/**
+ * @brief Generates code that defines helper variables used for expression evaluation.
+ */
+void gen_exp_helpers()
+{
+    printf("DEFVAR LF@op1\n");
+    printf("DEFVAR LF@op2\n");
+    printf("DEFVAR LF@type1\n");
+    printf("DEFVAR LF@type2\n");
+    printf("DEFVAR LF@op_check1\n");
+    printf("DEFVAR LF@op_check2\n");
+    printf("DEFVAR LF@type_check1\n");
+    printf("DEFVAR LF@type_check2\n");
+    printf("DEFVAR LF@result\n");
 }
 
 /**
@@ -681,11 +708,7 @@ void eval_bin_op(ASTNode_ptr operator)
     printf("CREATEFRAME\n");
     printf("PUSHFRAME\n");
 
-    // todo: pridat funckiu pre vygenerovanie pomocnych premennych, ktore pouzivam pri eval
-
-    // retrieve both operands from the data stack
-    printf("POPS LF@op2\n"); // second operand
-    printf("POPS LF@op1\n"); // first operand
+    gen_exp_helpers(); // defines all helper variables that are needed
 
     if (operator->data.binary_operator.op_type == OP_IS)
     {
@@ -792,7 +815,7 @@ void gen_eval_is(ASTNode_ptr operator)
     printf("TYPE LF@type1 LF@op1\n"); // I always have to aquire the data type of the left operand
 
     // I need to access the type keyword inside the expression and generate evaluation based on the keyword
-    if (strcmp(operator->children[1]->data.literal.data.str_value, "Num"))
+    if (strcmp(operator->children[1]->data.literal.data.str_value, "Num") == 0)
     {
         // i use op_check1 and op_check2 as helper variables to store both bool values of the first two comparisons
         printf("EQ LF@op_check1 LF@type1 string@int\n");
@@ -800,13 +823,13 @@ void gen_eval_is(ASTNode_ptr operator)
 
         printf("OR LF@result LF@op_check1 LF@op_check2\n"); // is it int OR float?
     }
-    else if (strcmp(operator->children[1]->data.literal.data.str_value, "String"))
+    else if (strcmp(operator->children[1]->data.literal.data.str_value, "String") == 0)
     {
         printf("EQ LF@result LF@type1 string@string\n");
     }
-    else if (strcmp(operator->children[1]->data.literal.data.str_value, "Null"))
+    else if (strcmp(operator->children[1]->data.literal.data.str_value, "Null") == 0)
     {
-        printf("EQ LF@result LF@type1 string@nill\n");
+        printf("EQ LF@result LF@type1 string@nil\n");
     }
 }
 
@@ -828,38 +851,38 @@ void gen_eval_equal_not_equal(operator_types *op_type)
     // string op string
     printf("EQ LF@type_check1 LF@type1 string@string\n");
     printf("EQ LF@type_check2 LF@type2 string@string\n");
-    printf("JUMPIFEQ &eval LF@type_check1 LF@type_check2\n");
+    printf("JUMPIFEQ &eval%d LF@type_check1 LF@type_check2\n", global_name_gen->bin_op_counter);
 
     // int op int
     printf("EQ LF@type_check1 LF@type1 string@int\n");
     printf("EQ LF@type_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ &eval LF@type_check1 LF@type_check2\n");
+    printf("JUMPIFEQ &eval%d LF@type_check1 LF@type_check2\n", global_name_gen->bin_op_counter);
 
     // float op float
     printf("EQ LF@type_check1 LF@type1 string@float\n");
     printf("EQ LF@type_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ &eval LF@type_check1 LF@type_check2\n");
+    printf("JUMPIFEQ &eval%d LF@type_check1 LF@type_check2\n", global_name_gen->bin_op_counter);
 
     // bool op bool
     printf("EQ LF@type_check1 LF@type1 string@bool\n");
     printf("EQ LF@type_check2 LF@type2 string@bool\n");
-    printf("JUMPIFEQ &eval LF@type_check1 LF@type_check2\n");
+    printf("JUMPIFEQ &eval%d LF@type_check1 LF@type_check2\n", global_name_gen->bin_op_counter);
 
-    // nill op nill
-    printf("EQ LF@type_check1 LF@type1 string@nill\n");
-    printf("EQ LF@type_check2 LF@type2 string@nill\n");
-    printf("JUMPIFEQ &eval LF@type_check1 LF@type_check2\n");
+    // nil op nil
+    printf("EQ LF@type_check1 LF@type1 string@nil\n");
+    printf("EQ LF@type_check2 LF@type2 string@nil\n");
+    printf("JUMPIFEQ &eval%d LF@type_check1 LF@type_check2\n", global_name_gen->bin_op_counter);
 
     // operands are of different types so we can just return false
     printf("MOVE LF@result bool@false\n");
-    printf("JUMP &logical_end\n");
+    printf("JUMP &logical_end%d\n", global_name_gen->bin_op_counter);
 
     // evaluate expressions
-    printf("LABEL &eval\n");
+    printf("LABEL eval%d\n");
     printf("EQ LF@result LF@op1 LF@op2\n");
 
     // push the result to the data stack and clean up
-    printf("LABEL &logical_end\n");
+    printf("LABEL &logical_end%d\n" ,global_name_gen->bin_op_counter);
 
     if (*op_type == OP_NEQ) // i can just negate the current result if needed
         printf("NOT LF@result LF@result\n");
@@ -885,33 +908,33 @@ void gen_eval_greater_lower(operator_types *op_type)
     // int op int
     printf("EQ LF@type_check1 LF@type1 string@int\n");
     printf("EQ LF@type_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ &eval LF@type_check1 LF@type_check2\n");
+    printf("JUMPIFEQ &eval%d LF@type_check1 LF@type_check2\n", global_name_gen->bin_op_counter);
 
     // float op float
     printf("EQ LF@type_check1 LF@type1 string@float\n");
     printf("EQ LF@type_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ &eval LF@type_check1 LF@type_check2\n");
+    printf("JUMPIFEQ &eval%d LF@type_check1 LF@type_check2\n", global_name_gen->bin_op_counter);
 
     // float op int
     printf("EQ LF@type_check1 LF@type1 string@float\n");
     printf("EQ LF@type_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ &right_to_float LF@type_check1 LF@type_check2\n");
+    printf("JUMPIFEQ &right_to_float%d LF@type_check1 LF@type_check2\n", global_name_gen->bin_op_counter);
 
     // int op float
     printf("EQ LF@type_check1 LF@type1 string@int\n");
     printf("EQ LF@type_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ &left_to_float LF@type_check1 LF@type_check2\n");
+    printf("JUMPIFEQ &left_to_float%d LF@type_check1 LF@type_check2\n", global_name_gen->bin_op_counter);
 
     // int to float conversion - right op
-    printf("LABEL &right_to_float\n"); // label
+    printf("LABEL &right_to_float%d\n", global_name_gen->bin_op_counter); // label
     printf("INT2FLOAT LF@op2 LF@op2\n");
-    printf("JUMP &eval\n");
+    printf("JUMP &eval%d\n", global_name_gen->bin_op_counter);
 
     // int to float conversion - left op
-    printf("LABEL &left_to_float\n"); // label
+    printf("LABEL &left_to_float%d\n", global_name_gen->bin_op_counter); // label
     printf("INT2FLOAT LF@op1 LF@op1\n");
 
-    printf("LABEL &eval\n"); // label
+    printf("LABEL &eval%d\n", global_name_gen->bin_op_counter); // label
 
     // based on different types of operators, different variant of the eval code block will be generated
 
@@ -942,16 +965,9 @@ void gen_eval_greater_lower(operator_types *op_type)
 
 /**
  * @brief Generates instructions to type check and evaluate an operation that uses the * operator
- *
- * @note Helper variables that are used in instructions generated in this function are going to
- *       be defined outside these helper functions a will have a separate frame made for them.
  */
 void gen_eval_star_op()
 {
-    // retrieve both operands from the data stack
-    printf("POPS LF@op2\n"); // second operand
-    printf("POPS LF@op1\n"); // first operand
-
     // get the data types of both operands
     printf("TYPE LF@type1 LF@op1\n"); // data type of the first operand
     printf("TYPE LF@type2 LF@op2\n"); // data type of the second operand
@@ -961,44 +977,44 @@ void gen_eval_star_op()
     // float * float scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ &mul LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ &mul%d LF@op_check1 LF@op_check2\n", global_name_gen->bin_op_counter);
 
     // int * int scenarion
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ &mul LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ &mul%d LF@op_check1 LF@op_check2\n", global_name_gen->bin_op_counter);
 
     // string * int scenario
     printf("EQ LF@op_check1 LF@type1 string@string\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ &str_iter LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ &str_iter%d LF@op_check1 LF@op_check2\n" ,global_name_gen->bin_op_counter);
 
     // float * int scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ &right_to_float LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ &right_to_float%d LF@op_check1 LF@op_check2\n" ,global_name_gen->bin_op_counter);
 
     // int * float scenario
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ &left_to_float LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ &left_to_float%d LF@op_check1 LF@op_check2\n", global_name_gen->bin_op_counter);
 
     // none of valid the scenarios was matched, type error occured
     printf("JUMP !ERROR_EXP_L\n");
 
     // int to float conversions - right op
-    printf("LABEL &right_to_float\n"); // label
+    printf("LABEL &right_to_float%d\n", global_name_gen->bin_op_counter); // label
     printf("INT2FLOAT LF@op2 LF@op2\n");
-    printf("JUMP &mul\n");
+    printf("JUMP &mul%d\n", global_name_gen->bin_op_counter);
 
     // int to float conversions - left op
-    printf("LABEL &left_to_float\n"); // label
+    printf("LABEL &left_to_float%d\n", global_name_gen->bin_op_counter); // label
     printf("INT2FLOAT LF@op1 LF@op1\n");
 
     // multiplication
-    printf("LABEL &mul\n"); // lable
+    printf("LABEL &mul%d\n", global_name_gen->bin_op_counter); // lable
     printf("MUL LF@result LF@op1 LF@op2\n");
-    printf("JUMP &mul_end\n");
+    printf("JUMP &mul_end%d\n", global_name_gen->bin_op_counter);
 
     // string iter
     //  todo: sem vlozit kod pre string iter ale este si to chcem prejst s Martinom
@@ -1006,21 +1022,14 @@ void gen_eval_star_op()
     // no need to jump here
 
     // end of the function that handles the * operator
-    printf("LABEL &mul_end\n");
+    printf("LABEL &mul_end%d\n", global_name_gen->bin_op_counter);
 }
 
 /**
  * @brief Generates instructions to type check and evaluate an operation that uses the / operator.
- *
- * @note Helper variables that are used in instructions generated in this function are going to
- *       be defined outside these helper functions a will have a separate frame made for them.
  */
 void gen_eval_slash_op()
 {
-    // retrieve both operands from the data stack
-    printf("POPS LF@op2\n"); // second operand
-    printf("POPS LF@op1\n"); // first operand
-
     // get the data types of both operands
     printf("TYPE LF@type1 LF@op1\n"); // data type of the first operand
     printf("TYPE LF@type2 LF@op2\n"); // data type of the second operand
@@ -1028,66 +1037,58 @@ void gen_eval_slash_op()
     // float / float scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ &zero_div_check_float LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ &zero_div_check_float%d LF@op_check1 LF@op_check2\n", global_name_gen->bin_op_counter);
 
     // int / int scenario
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ &zero_div_check_int LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ &zero_div_check_int%d LF@op_check1 LF@op_check2\n", global_name_gen->bin_op_counter);
 
     // float / int scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ &right_to_float LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ &right_to_float%d LF@op_check1 LF@op_check2\n", global_name_gen->bin_op_counter);
 
     // int / float scenario
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ &left_to_float LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ &left_to_float%d LF@op_check1 LF@op_check2\n", global_name_gen->bin_op_counter);
 
     // none of valid the scenarios was matched, type error occured
     printf("JUMP !ERROR_EXP_L\n");
 
     // int to float conversions - right op
-    printf("LABEL &right_to_float\n"); // label
+    printf("LABEL &right_to_float%d\n", global_name_gen->bin_op_counter); // label
     printf("INT2FLOAT LF@op2 LF@op2\n");
-    printf("JUMP &zero_div_check_float\n");
+    printf("JUMP &zero_div_check_float%d\n", global_name_gen->bin_op_counter);
 
     // int to float conversions - left op
-    printf("LABEL &left_to_float\n"); // label
+    printf("LABEL &left_to_float%d\n" ,global_name_gen->bin_op_counter); // label
     printf("INT2FLOAT LF@op1 LF@op1\n");
-    printf("JUMP &zero_div_check_float\n");
+    printf("JUMP &zero_div_check_float%d\n", global_name_gen->bin_op_counter);
 
     // zero divison check for floats
-    printf("LABEL &zero_div_check_float\n");
+    printf("LABEL &zero_div_check_float%d\n", global_name_gen->bin_op_counter);
     printf("EQ LF@op_check2 LF@op2 float@0x0p+0\n");
-    printf("JUMP &zero_check_done\n");
+    printf("JUMP &zero_check_done%d\n", global_name_gen->bin_op_counter);
 
     // zero divison check for ints
-    printf("LABEL &zero_div_check_int\n");
+    printf("LABEL &zero_div_check_int%d\n", global_name_gen->bin_op_counter);
     printf("EQ LF@op_check2 LF@op2 int@0\n");
 
     // evaluate zero division check
-    printf("LABEL &zero_check_done\n");
+    printf("LABEL &zero_check_done%d\n", global_name_gen->bin_op_counter);
     printf("JUMPIFEQ !ERROR_EXP_L LF@op_check2 bool@true\n");
 
     // division
-    printf("LABEL &div\n"); // label
     printf("DIV LF@result LF@op1 LF@op2\n");
 }
 
 /**
  * @brief Generates instructions to type check and evaluate an operation that uses the - operator.
- *
- * @note Helper variables that are used in instructions generated in this function are going to
- *       be defined outside these helper functions a will have a separate frame made for them.
  */
 void gen_eval_minus_op()
 {
-    // retrieve both operands from the data stack
-    printf("POPS LF@op2\n"); // second operand
-    printf("POPS LF@op1\n"); // first operand
-
     // get the data types of both operands
     printf("TYPE LF@type1 LF@op1\n"); // data type of the first operand
     printf("TYPE LF@type2 LF@op2\n"); // data type of the second operand
@@ -1095,39 +1096,39 @@ void gen_eval_minus_op()
     // float - float scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ &sub LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ &sub%d LF@op_check1 LF@op_check2\n", global_name_gen->bin_op_counter);
 
     // int - int scenario
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ &sub LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ &sub%d LF@op_check1 LF@op_check2\n" ,global_name_gen->bin_op_counter);
 
     // float - int scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ &right_to_float LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ &right_to_float%d LF@op_check1 LF@op_check2\n", global_name_gen->bin_op_counter);
 
     // int - float scenario
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ &left_to_float LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ &left_to_float%d LF@op_check1 LF@op_check2\n" ,global_name_gen->bin_op_counter);
 
     // none of valid the scenarios was matched, type error occured
     printf("JUMP !ERROR_EXP_L\n");
 
     // int to float conversions - right op
-    printf("LABEL &right_to_float\n"); // label
+    printf("LABEL &right_to_float%d\n", global_name_gen->bin_op_counter);
     printf("INT2FLOAT LF@op2 LF@op2\n");
-    printf("JUMP &sub\n");
+    printf("JUMP &sub%d\n" , global_name_gen->bin_op_counter);
 
     // int to float conversions - left op
-    printf("LABEL &left_to_float\n"); // label
+    printf("LABEL &left_to_float%d\n" ,global_name_gen->bin_op_counter);
     printf("INT2FLOAT LF@op1 LF@op1\n");
 
     // no need to jump here
 
     // subtraction
-    printf("LABEL &sub\n"); // lable
+    printf("LABEL &sub%d\n" ,global_name_gen->bin_op_counter);
     printf("SUB LF@result LF@op1 LF@op2\n");
 }
 
@@ -1139,19 +1140,6 @@ void gen_eval_minus_op()
  */
 void gen_eval_plus_op()
 {
-    // NOTE: printnem to podobne ako built in funckie, potom sa pushne na stack operand lavy, potom pravy a ja si ich uz ziskam
-    // v ramci tej "funkcie" pre add a ulozim si ich
-    // todo: na zaciatku programu este pred tym nez sa zacne realne generovat kod si len vygenerujem cez defvar tie pomocne premenne
-    // todo: vytvorim si aj premennu LF@nill_check pre kontrolu toho ci v aritmentickom vyraze nie je nill hodnota
-    // todo: potrebujem premennu pre ulozenie vysledku
-
-    // creates the label
-    // todo: vymysliet nejaky label nazov ktory bude vhodny
-
-    // retrieve both operands from the data stack
-    printf("POPS LF@op2\n"); // second operand
-    printf("POPS LF@op1\n"); // first operand
-
     // get the data types of both operands
     printf("TYPE LF@type1 LF@op1\n"); // data type of the first operand
     printf("TYPE LF@type2 LF@op2\n"); // data type of the second operand
@@ -1161,53 +1149,53 @@ void gen_eval_plus_op()
     // float + float scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ &add LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ &add%d LF@op_check1 LF@op_check2\n", global_name_gen->bin_op_counter);
 
     // int + int scenarion
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ &add LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ &add%d LF@op_check1 LF@op_check2\n", global_name_gen->bin_op_counter);
 
     // string + string scenario
     printf("EQ LF@op_check1 LF@type1 string@string\n");
     printf("EQ LF@op_check2 LF@type2 string@string\n");
-    printf("JUMPIFEQ &concat LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ &concat%d LF@op_check1 LF@op_check2\n", global_name_gen->bin_op_counter);
 
     // float + int scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ &right_to_float LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ &right_to_float%d LF@op_check1 LF@op_check2\n" , global_name_gen->bin_op_counter);
 
     // int + float scenario
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ &left_to_float LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ &left_to_float%d LF@op_check1 LF@op_check2\n", global_name_gen->bin_op_counter);
 
     // none of valid the scenarios was matched, type error occured
     printf("JUMP !ERROR_EXP_L\n");
 
     // int to float conversions - right op
-    printf("LABEL &right_to_float\n"); // label
+    printf("LABEL &right_to_float%d\n", global_name_gen->bin_op_counter); // label
     printf("INT2FLOAT LF@op2 LF@op2\n");
-    printf("JUMP &add\n");
+    printf("JUMP &add%d\n", global_name_gen->bin_op_counter);
 
     // int to float conversions - left op
-    printf("LABEL &left_to_float\n"); // label
+    printf("LABEL &left_to_float%d\n", global_name_gen->bin_op_counter); // label
     printf("INT2FLOAT LF@op1 LF@op1\n");
 
     // no need to use jump here
 
     // addition
-    printf("LABEL &add\n"); // lable
+    printf("LABEL &add%d\n", global_name_gen->bin_op_counter); // lable
     printf("ADD LF@result LF@op1 LF@op2\n");
-    printf("JUMP &add_end\n");
+    printf("JUMP &add_end%d\n", global_name_gen->bin_op_counter);
 
     // concat
-    printf("LABEL &concat\n"); // lable
+    printf("LABEL &concat%d\n", global_name_gen->bin_op_counter); // lable
     printf("CONCAT LF@result LF@op1 LF@op2\n");
 
     // end of the function that handles the + operator
-    printf("LABEL &add_end\n");
+    printf("LABEL &add_end%d\n", global_name_gen->bin_op_counter);
 }
 
 /**
@@ -1221,12 +1209,12 @@ void gen_eval_range_op()
 
     // check if both sides of the expression are an int value
     printf("EQ LF@op_check1 LF@type1 string@int\n");
+    printf("JUMPIFEQ !ERROR_EXP_L LF@op_check1 bool@false\n");
+
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFNEQ !ERROR_EXP_L LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ !ERROR_EXP_L LF@op_check2 bool@false\n");
 
     // now i can just push the starting and ending iterator values back to the scope stack
     printf("PUSHS LF@op1\n");
     printf("PUSHS LF@op2\n");
-
-    // todo : zistit ci toto martinovi vyhovuje
 }
