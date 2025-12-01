@@ -672,6 +672,90 @@ void choose_operation(ASTNode_ptr operator)
 }
 
 /**
+ * @brief Generates instructions to evaluate an operation that uses ==, != operators.
+ *
+ * @param op_type Based on this value I will either generate EQ or NEQ instruction at the end of the evaluation.
+ *
+ * @note variables that are used inside this function were defined inside the gen_eval_logical_op
+ */
+void gen_eval_equal_not_equal(operator_types *op_type)
+{
+    // operand data was aquired already
+
+    // get the data types of both operands
+    printf("TYPE LF@type1 LF@op1\n"); // data type of the first operand
+    printf("TYPE LF@type2 LF@op2\n"); // data type of the second operand
+
+    // checks different op type combinations and evaluates based on the current combination
+
+    // string op string
+    printf("EQ LF@type_check1 LF@type1 string@string\n");
+    printf("EQ LF@type_check2 LF@type2 string@string\n");
+    printf("JUMPIFEQ &eval LF@type_check1 LF@type_check2\n");
+
+    // int op int
+    printf("EQ LF@type_check1 LF@type1 string@int\n");
+    printf("EQ LF@type_check2 LF@type2 string@int\n");
+    printf("JUMPIFEQ &eval LF@type_check1 LF@type_check2\n");
+
+    // float op float
+    printf("EQ LF@type_check1 LF@type1 string@float\n");
+    printf("EQ LF@type_check2 LF@type2 string@float\n");
+    printf("JUMPIFEQ &eval LF@type_check1 LF@type_check2\n");
+
+    // bool op bool
+    printf("EQ LF@type_check1 LF@type1 string@bool\n");
+    printf("EQ LF@type_check2 LF@type2 string@bool\n");
+    printf("JUMPIFEQ &eval LF@type_check1 LF@type_check2\n");
+
+    // nill op nill
+    printf("EQ LF@type_check1 LF@type1 string@nill\n");
+    printf("EQ LF@type_check2 LF@type2 string@nill\n");
+    printf("JUMPIFEQ &eval LF@type_check1 LF@type_check2\n");
+
+    // operands are of different types so we can just return false
+    printf("MOVE LF@result bool@false\n");
+    printf("JUMP &logical_end\n");
+
+    // evaluate expressions
+    printf("LABEL &eval\n");
+    printf("EQ LF@result LF@op1 LF@op2\n");
+
+    // push the result to the data stack and clean up
+    printf("LABEL &logical_end\n");
+
+    if (*op_type == OP_NEQ) // i can just negate the current result if needed
+        printf("NOT LF@result LF@result\n");
+
+    printf("PUSH LF@result\n");
+
+    // todo : pridat cleanup
+}
+
+/**
+ * @brief Generates instructions to evaluate an operation that uses ==, != operators.
+ *
+ * @param op_type Based on this value I will either generate EQ or NEQ instruction at the end of the evaluation.
+ *
+ * @note variables that are used inside this function were defined inside the gen_eval_logical_op
+ */
+void gen_eval_greater_lower(operator_types *op_type)
+{
+    // operand data was aquired already
+
+    // get the data types of both operands
+    printf("TYPE LF@type1 LF@op1\n"); // data type of the first operand
+    printf("TYPE LF@type2 LF@op2\n"); // data type of the second operand
+
+    // compare different valid operand combinations
+    printf("EQ LF@type_check1 LF@type1 string@int\n");
+    printf("EQ LF@type_check2 LF@type2 string@int\n");
+    printf("JUMPIFEQ &eval LF@type_check1 LF@type_check2\n");
+
+    // 
+}
+
+/**
  * @brief Generates instructions to type check and evaluate an operation that uses logical operators.
  *        Based on the provided type of the logical operator, different versions of this function can be generated
  *        that are specific for the current logical operator.
@@ -692,16 +776,14 @@ void gen_eval_logical_op(operator_types *op_type)
     switch (*op_type)
     {
     case OP_EQ:
-        break;
     case OP_NEQ:
+        gen_eval_equal_not_equal(*op_type);
         break;
     case OP_GT:
-        break;
     case OP_GTE:
-        break;
     case OP_LT:
-        break;
     case OP_LTE:
+
         break;
     case OP_IS:
         break;
