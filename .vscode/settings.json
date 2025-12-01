@@ -3,6 +3,9 @@
         "ast.h": "c",
         "global_structures.h": "c",
         "cmath": "c",
-        "parser.h": "c"
+        "functional": "cpp",
+        "string": "cpp",
+        "random": "c",
+        "atomic": "c"
     }
 }

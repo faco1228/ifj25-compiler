@@ -25,15 +25,15 @@ typedef enum
     UNKNOWN_ERR_CODE = 100
 } ERROR_CODES;
 
-// /**
-//  * @brief Prints a warning messages based on the provided warning code. 
-//  * 
-//  * @param warning Warning code.
-//  * @param format Format of the warning message.
-//  * 
-//  * @note In some cases, other arguments might be provided.
-//  */
-// void warnings(int warning, const char *format, ...);
+/**
+ * @brief Prints a warning messages based on the provided warning code. 
+ * 
+ * @param warning Warning code.
+ * @param format Format of the warning message.
+ * 
+ * @note In some cases, other arguments might be provided.
+ */
+void warnings(int warning, const char *format, ...);
 
 /**
  * @brief Handles exiting the program with a corresponding error code

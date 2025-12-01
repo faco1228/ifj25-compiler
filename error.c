@@ -66,31 +66,35 @@ static void parser_psa_cleanup(void)
  * 
  * @note In some cases, other arguments might be provided.
  */
-// void warnings(int warning, const char *format, ...) {
-//     va_list args;
-//     va_start(args, format);
+void warnings(int warning, const char *format, ...) {
+    va_list args;
+    va_start(args, format);
 
-//     printf("Warning [%d]: ", warning);
+    printf("Warning [%d]: ", warning);
 
-//     switch (warning) {
-//         case 1:  printf("Lexikálna chyba - "); break;
-//         case 2:  printf("Syntaktická chyba - "); break;
-//         case 3:  printf("Sémantická chyba - nedefinovaná funkcia/premenná - "); break;
-//         case 4:  printf("Redefinícia funkcie/premennej - "); break;
-//         case 5:  printf("Neočekávaný počet argumentov / typ parametra - "); break;
-//         case 6:  printf("Typová nekompatibilita vo výrazoch - "); break;
-//         case 10: printf("Ostatné sémantické chyby - "); break;
-//         case 25: printf("Behová sémantická chyba - typ parametra - "); break;
-//         case 26: printf("Behová sémantická chyba - typová nekompatibilita - "); break;
-//         case 99: printf("Interná chyba prekladača - "); break;
-//         default: printf("Neznámy kód chyby - "); break;
-//     }
+    //TO DO: prerobit a doplnit
 
-//     vprintf(format, args);
-//     printf("\n");
+    /*
+    switch (warning) {
+        case 1:  printf("Lexikálna chyba - "); break;
+        case 2:  printf("Syntaktická chyba - "); break;
+        case 3:  printf("Sémantická chyba - nedefinovaná funkcia/premenná - "); break;
+        case 4:  printf("Redefinícia funkcie/premennej - "); break;
+        case 5:  printf("Neočekávaný počet argumentov / typ parametra - "); break;
+        case 6:  printf("Typová nekompatibilita vo výrazoch - "); break;
+        case 10: printf("Ostatné sémantické chyby - "); break;
+        case 25: printf("Behová sémantická chyba - typ parametra - "); break;
+        case 26: printf("Behová sémantická chyba - typová nekompatibilita - "); break;
+        case 99: printf("Interná chyba prekladača - "); break;
+        default: printf("Neznámy kód chyby - "); break;
+    }
+    */
 
-//     va_end(args);
-// }
+    vprintf(format, args);
+    printf("\n");
+
+    va_end(args);
+}
 
 /**
  * @brief Handles exiting the program with a corresponding error code
