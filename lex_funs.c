@@ -3,7 +3,7 @@
  * @author xracekm00
  * @brief Contains functions for partial token processing
  * @version 0.4
- * @date 2025-11-17
+ * @date 2025-11-28
  * 
  * @copyright Copyright (c) 2025
  */
@@ -200,8 +200,6 @@ token_ptr process_next_token(token_ptr token){
 /**
  * @brief Processes identifier or keyword token
  * 
- * @note  I had to amend this function so it detects null as token of type NULL_LIT
- * 
  * @param token to be filled
  */
 void process_ident(token_ptr token){
@@ -245,14 +243,6 @@ void process_ident(token_ptr token){
     for (int i = 0; key_words_arr[i] != NULL; i++){
         //When match was found
         if (!strcmp(token->value.str_value, key_words_arr[i])){
-            
-            // !tu som pridal detekciu pre null literal
-            if (!strcmp(token->value.str_value, "null")) // null literal detected
-            {
-                token->type = NULL_LIT;
-                return;
-            } 
-            
             //Sets token's parameteres
             token->type = KEY_WORD;
             strcpy(token->value.str_value, key_words_arr[i]);
@@ -696,6 +686,13 @@ void process_dots(token_ptr token){
     //Variable for reading characters from input stream (reads next char)
     int next = fgetc(stdin);
 
+    //Numeral character cannot follow - nvalid format
+    if (isdigit(next)){
+        free(token);
+        token = NULL;
+        error_exit(ERR_LEXICAL);
+    }
+
     /*
     * We have already read '.' and want to peak ahead to find out
     * whether there is second or maybe even a third dot, since we
@@ -787,10 +784,6 @@ void process_number(token_ptr token, int first_char){
                 temp_buffer = NULL;
                 error_exit(ERR_LEXICAL);
             }
-
-            //Storing decimal point
-            temp_buffer[index] = digit;
-            index++;
 
             //Takes care of the float
             process_float(token, temp_buffer, &index);
@@ -919,13 +912,8 @@ void process_number(token_ptr token, int first_char){
                 error_exit(ERR_LEXICAL);
             }
 
-            //Storing decimal point
-            temp_buffer[index] = digit;
-            index++;
-
             //Takes care of the rest
             process_float(token, temp_buffer, &index);
-
             break;
         case 'e':
         case 'E':
@@ -968,6 +956,8 @@ void process_number(token_ptr token, int first_char){
         error_exit(ERR_LEXICAL);
     }    
 
+    //printf("Velkost temp_bufferu = %lu\n", strlen(temp_buffer));
+
     //Strings have to be null terminated
     temp_buffer[index] = '\0';
 
@@ -1002,9 +992,35 @@ void process_number(token_ptr token, int first_char){
  * @param buf_index current position in buffer
  */
 void process_float(token_ptr token, char *buffer, unsigned *buf_index){
-    int digit;      //Varaible for reading characters from input stream
-    int count = 0;  //Counts how many numbers the number contains after decimal point
+    int digit;         //Varaible for reading characters from input stream
+    int count = 0;     //Counts how many numbers the number contains after decimal point
     
+    // At first the decimal point has to be handeled
+    digit = fgetc(stdin);
+
+    // If dot was read as the first character either doubledot or tripledot occured
+    if (digit == '.'){
+        // Have to return dot twice so it can be properly parsed as double or triple dot
+        ungetc(digit, stdin);
+        ungetc(digit, stdin);
+        token->type = INT_LIT;
+        return;
+    }
+
+    // If digit was read, everything is fine
+    if (isdigit(digit)){
+        buffer[(*buf_index)++] = '.';
+        buffer[(*buf_index)++] = digit;
+        count++;
+    }
+    else{
+        // Unexpected character read after decimal point
+        free_token(token);
+        free(buffer);
+        buffer = NULL;
+        error_exit(ERR_LEXICAL);
+    }
+
     //Reads decimal digits
     while (isdigit(digit = fgetc(stdin))){
         // Checks whetherr the index is in valid range
@@ -1020,7 +1036,7 @@ void process_float(token_ptr token, char *buffer, unsigned *buf_index){
         (*buf_index)++;
         count++;
     }
-
+    
    // After decimal point, there must be at least one digit
     if (count == 0) {
         free_token(token);
@@ -1176,16 +1192,16 @@ void process_exp(token_ptr token, char *buffer, unsigned *buf_index){
  */
 void store_pending_eof() {
     //Alocating new pending token
-    if (pending_token == NULL) {
-        if((pending_token = malloc(sizeof(token_t))) == NULL){
+    if (pending_eof_token == NULL) {
+        if((pending_eof_token = malloc(sizeof(token_t))) == NULL){
             //warnings(99, "memory allocation failed for EOF token\n");
             error_exit(ERR_INTERNAL);
         }
     }
 
     //Sets tokens attributes
-    pending_token->type = END_OF_FILE;
-    pending_token->value.other_value = EOF_V;
+    pending_eof_token->type = END_OF_FILE;
+    pending_eof_token->value.other_value = EOF_V;
 
     //Updates global variable
     eof_reached = true;

@@ -1,18 +1,13 @@
 /**
  * @file parser.c
  * @author Samuel Facka (xfackas00)
- * @brief
- * @version 0.1
- * @date 2025-10-26
- *
- * @copyright Copyright (c) 2025
- *
+ * @brief Recursive-descent parser implementation (non-expression grammar).
  */
 
 #include "parser.h"
 #include "global_structures.h"
 
-// forward prototypes (internal)
+// Forward declarations of static (internal) functions
 static int parse_prolog(void);
 static int parse_class_def(ASTNode_ptr program);
 static int parse_class_body(ASTNode_ptr program);
@@ -22,12 +17,12 @@ static ASTNode_ptr parse_setter_def(token_ptr id);
 static ASTNode_ptr parse_getter_def(token_ptr id);
 static ASTNode_ptr parse_block(void);
 static int parse_statement_list(ASTNode_ptr block);
+static int parse_param_list(ASTNode_ptr node, unsigned *arg_count);
 static ASTNode_ptr parse_statement(void);
 static ASTNode_ptr parse_var_def(void);
 static ASTNode_ptr parse_assign_target(void);
 static ASTNode_ptr parse_assignment_or_call(void);
 static ASTNode_ptr parse_exp_rhs(token_ptr token);
-// static int parse_arg_list(void); // moze byt vyuzita ako sablona pre PSA
 static ASTNode_ptr parse_if_statement(void);
 static ASTNode_ptr parse_while_statement(void);
 static ASTNode_ptr parse_return_statement(void);
@@ -35,10 +30,8 @@ static ASTNode_ptr parse_for_statement(void);
 static ASTNode_ptr parse_break_statement(void);
 static ASTNode_ptr parse_continue_statement(void);
 
-// helper functions
+// helper function
 static token_ptr expect_keyword(char *keyword);
-static token_ptr expect_ident(void);
-static token_ptr look_ahead(void);
 
 /**
  * @brief Entry point of the recursive-descent parser.
@@ -53,15 +46,15 @@ static token_ptr look_ahead(void);
  *  - Parses the prolog and the single class definition.
  *  - Requires EOF after the class.
  *
- * @return PARSE_OK (0) on success. On a syntax error, it calls
- *         error_exit(ERR_SYNTACTIC) and the function does not return.
+ * @return Root AST node of the parsed program.
+ * @note On a syntax error, calls error_exit(ERR_SYNTACTIC).
  */
 ASTNode_ptr parse_program(void)
 {
     error_set_parser_func_symtable(g_func_symtable);
     error_set_parser_glob_symtable(g_global_symtable);
 
-    // edge case if multiple EOLs
+    // Edge case: ignore multiple EOLs
     consume_eols();
 
     if (parse_prolog() != PARSE_OK)
@@ -71,7 +64,7 @@ ASTNode_ptr parse_program(void)
 
     consume_eols();
 
-    // ast root
+    // AST root node
     ASTNode_ptr program = ast_create_program();
     error_set_parser_ast_root(program);
 
@@ -82,7 +75,7 @@ ASTNode_ptr parse_program(void)
     consume_eols();
 
     token_ptr token = get_token();
-    // expect EOF
+    // Expect EOF at the end
     if (token->type != END_OF_FILE)
     {
         free_token(token);
@@ -95,7 +88,7 @@ ASTNode_ptr parse_program(void)
 }
 
 /**
- * @brief Parse the mandatory prolog line: @c import "ifj25" for Ifj EOL
+ * @brief Parse the mandatory prolog line: import "ifj25" for Ifj EOL
  *
  * Grammar:
  * @code
@@ -104,17 +97,16 @@ ASTNode_ptr parse_program(void)
  * where STRING_LITERAL must be "ifj25" and ID must be "Ifj".
  *
  * @note
- *  - EOLs are currently tolerated after @c import and @c for
- *    (according to project discussion), but never directly after "ifj25"
- *    before @c for.
- *
+ *  - EOLs are currently tolerated after import and for, but never 
+ *    directly after "ifj25" before for.
+ * 
  * @return PARSE_OK on success, otherwise calls error_exit(ERR_SYNTACTIC).
  */
 static int parse_prolog(void)
 {
     token_ptr token;
 
-    // check for expected "import"
+    // "import"
     token = get_token();
     if (token->type != KEY_WORD || strcmp(token->value.str_value, "import") != 0)
     {
@@ -125,14 +117,13 @@ static int parse_prolog(void)
 
     consume_eols();
 
-    // check for expected string_literal
+    // "ifj25" as a string literal
     token = get_token();
     if (token->type != ONE_L_STRING && token->type != MUL_L_STRING)
     {
         free_token(token);
         error_exit(PARSE_ERROR);
     }
-    // check for expected "ifj25"
     if (strcmp(token->value.str_value, "ifj25") != 0)
     {
         free_token(token);
@@ -140,7 +131,7 @@ static int parse_prolog(void)
     }
     free_token(token);
 
-    // check for expected "for"
+    // "for" keyword
     token = get_token();
     if (token->type != KEY_WORD || strcmp(token->value.str_value, "for") != 0)
     {
@@ -151,7 +142,7 @@ static int parse_prolog(void)
 
     consume_eols();
 
-    // check for expected id, and then if id == Ifj
+    // "Ifj" keyword
     token = get_token();
     if (token->type != KEY_WORD)
     {
@@ -165,7 +156,7 @@ static int parse_prolog(void)
     }
     free_token(token);
 
-    // check for expected EOL
+    // Necessary EOL at the end
     token = get_token();
     if (token->type != END_OF_LINE)
     {
@@ -189,17 +180,18 @@ static int parse_prolog(void)
  *  - Exactly one EOL is required after '{'.
  *  - Any number of trailing EOLs is allowed after '}'.
  *
- * @return PARSE_OK on success, otherwise volá error_exit(ERR_SYNTACTIC).
+ * @param program Root NODE_PROGRAM AST node.
+ * @return PARSE_OK on success, otherwise calls error_exit().
  */
 static int parse_class_def(ASTNode_ptr program)
 {
     token_ptr token;
 
-    // check for expected "class"
+    // "class" keyword
     token = expect_keyword("class");
     free_token(token);
 
-    // check for expected id, id == Program
+    // Class name: Program
     token = expect_ident();
     if (strcmp(token->value.str_value, "Program") != 0)
     {
@@ -208,23 +200,24 @@ static int parse_class_def(ASTNode_ptr program)
     }
     free_token(token);
 
-    // check for expected left_dom_par, eol
+    // '{' and a required EOL
     token = expect_type(LEFT_DOM_PAR);
     free_token(token);
+
     token = expect_type(END_OF_LINE);
     free_token(token);
 
-    // parse "inside" of class
+    // Parse the inside of the class body
     if (parse_class_body(program) != PARSE_OK)
     {
         error_exit(PARSE_ERROR);
     }
 
-    // check for expected right_dom_par
+    // Closing '}'
     token = expect_type(RIGHT_DOM_PAR);
     free_token(token);
 
-    // optional multiple EOLs
+    // Zero or more trailing EOLs
     consume_eols();
 
     return PARSE_OK;
@@ -241,6 +234,7 @@ static int parse_class_def(ASTNode_ptr program)
  * @note
  *  - Tolerates empty lines (EOLs) between definitions.
  *
+ * @param program Root NODE_PROGRAM AST node to which definitions are attached.
  * @return PARSE_OK on success.
  */
 static int parse_class_body(ASTNode_ptr program)
@@ -279,14 +273,14 @@ static int parse_class_body(ASTNode_ptr program)
  *      - '='  → setter_def
  *      - else → getter_def
  *
- * @return PARSE_OK on success.
+ * @return AST node representing the definition.
  */
 static ASTNode_ptr parse_definition()
 {
-    // saving next two tokens, for id and then token ahead, to decide which function
+    // Identifier for function/getter/setter name
     token_ptr ident = expect_ident();
 
-    // we used expect_ident (which consumed), but original code expected to pass id to parse_...
+    // Token, to decide which definition it is
     token_ptr token_ahead = look_ahead();
 
     ASTNode_ptr def_node = NULL;
@@ -320,7 +314,7 @@ static ASTNode_ptr parse_definition()
  *  - EOLs are allowed immediately after '('.
  *
  * @param id Identifier token of the function (already read by caller).
- * @return PARSE_OK on success.
+ * @return AST node representing the function definition.
  */
 static ASTNode_ptr parse_function_def(token_ptr id) // parse parameter list
 {
@@ -330,8 +324,7 @@ static ASTNode_ptr parse_function_def(token_ptr id) // parse parameter list
     free_token(token);
     consume_eols();
 
-    // function node needs to be created before we try to add any args as children
-    // right now we only know the name of the function, the other values are just temporary
+    // Create the function node before adding parameters as children
     ASTNode_ptr fun = ast_create_function(id->value.str_value, 0, FUN_F, NULL);
 
     unsigned arg_count = 0;
@@ -340,17 +333,16 @@ static ASTNode_ptr parse_function_def(token_ptr id) // parse parameter list
         error_exit(PARSE_ERROR);
     }
 
-    // now that we know the real arg_count we can overwrite the temporaty value
+    // Now we know the real arg_count, overwrite temporary value
     fun->data.function_def.arg_count = arg_count;
 
     token = expect_type(RIGHT_PAR);
     free_token(token);
 
-
     ASTNode_ptr body = parse_block();
-    add_child(fun, body); // we add body of the function as a child node 
+    add_child(fun, body); // Body is added as a child node
 
-    // adds new function to func symtable
+    // Insert function into function symbol table
     Key *key = st_create_function_key(id->value.str_value, arg_count, FUNCTION);
     ST_Node *new = st_create_node(key);
     g_func_symtable = st_insert_node(g_func_symtable, new);
@@ -372,9 +364,9 @@ static ASTNode_ptr parse_function_def(token_ptr id) // parse parameter list
  *  - EOLs are allowed immediately after '=' and '('.
  *
  * @param id Identifier token of the setter (already read by caller).
- * @return PARSE_OK on success, otherwise volá error_exit(ERR_SYNTACTIC).
+ * @return AST node representing the setter.
  */
-static ASTNode_ptr parse_setter_def(token_ptr id) // segfault, node
+static ASTNode_ptr parse_setter_def(token_ptr id)
 {
     token_ptr token;
 
@@ -392,11 +384,11 @@ static ASTNode_ptr parse_setter_def(token_ptr id) // segfault, node
     free_token(token);
     consume_eols();
 
-    // setter segfault fix
     ASTNode_ptr fun = ast_create_function(id->value.str_value, 0, FUN_S, NULL);
-    
+
+    // Setter has exactly one parameter
     token = expect_ident();
-    ASTNode_ptr param = ast_create_ident(token->value.str_value);
+    ASTNode_ptr param = ast_create_ident(token->value.str_value, false);
     add_child(fun, param);
     free_token(token);
 
@@ -408,10 +400,7 @@ static ASTNode_ptr parse_setter_def(token_ptr id) // segfault, node
     ASTNode_ptr body = parse_block();
     add_child(fun, body);
 
-    // token = expect_type(END_OF_LINE);
-    // free_token(token);
-
-    // adds new setter to func symtable
+    // Insert setter into function symbol table
     Key *key = st_create_function_key(id->value.str_value, 1, SETTER);
     ST_Node *new = st_create_node(key);
     g_func_symtable = st_insert_node(g_func_symtable, new);
@@ -430,20 +419,16 @@ static ASTNode_ptr parse_setter_def(token_ptr id) // segfault, node
  * @endcode
  *
  * @param id Identifier token of the getter (already read by caller).
- * @return PARSE_OK on success.
+ * @return AST node representing the getter.
  */
 static ASTNode_ptr parse_getter_def(token_ptr id)
 {
-    // token_ptr token;
-
     ASTNode_ptr body = parse_block();
 
-    // token = expect_type(END_OF_LINE);
-    // free_token(token);
-
+    // Getter has no parameters
     ASTNode_ptr fun = ast_create_function(id->value.str_value, 0, FUN_G, body);
 
-    // adds new getter to func symtable
+    // Insert getter into function symbol table
     Key *key = st_create_function_key(id->value.str_value, 0, GETTER);
     ST_Node *new = st_create_node(key);
     g_func_symtable = st_insert_node(g_func_symtable, new);
@@ -463,6 +448,9 @@ static ASTNode_ptr parse_getter_def(token_ptr id)
  *
  * @note
  *  - EOLs are allowed after each comma.
+ * 
+ * @param node Function node to which parameters will be attached.
+ * @param arg_count Output: number of parameters.
  *
  * @return PARSE_OK on success.
  */
@@ -471,22 +459,22 @@ int parse_param_list(ASTNode_ptr node, unsigned *arg_count)
     token_ptr token_ahead = look_ahead();
     *arg_count = 0;
 
-    // if function has no parameters
+    // Function with no parameters
     if (token_ahead->type == RIGHT_PAR)
     {
         return PARSE_OK;
     }
 
+    // First parameter
     ASTNode_ptr param;
-
-    // next token should be id - of the parameter
     token_ptr token = expect_ident();
     (*arg_count)++;
 
-    param = ast_create_ident(token->value.str_value);
+    param = ast_create_ident(token->value.str_value, false);
     add_child(node, param);
     free_token(token);
 
+    // Parse more parameters after commas
     while (1)
     {
         token_ahead = look_ahead();
@@ -498,8 +486,8 @@ int parse_param_list(ASTNode_ptr node, unsigned *arg_count)
 
             token = expect_ident();
             (*arg_count)++;
-            
-            param = ast_create_ident(token->value.str_value);
+
+            param = ast_create_ident(token->value.str_value, false);
             add_child(node, param);
             free_token(token);
 
@@ -522,7 +510,7 @@ int parse_param_list(ASTNode_ptr node, unsigned *arg_count)
  * @note
  *  - Exactly one EOL is required immediately after '{'.
  *
- * @return PARSE_OK on success.
+ * @return AST node representing the block.
  */
 static ASTNode_ptr parse_block(void)
 {
@@ -551,10 +539,11 @@ static ASTNode_ptr parse_block(void)
  * Grammar:
  * @code
  * <statement_list> ::= ( <block> | <statement> )*
- *
  * @endcode
- * Parsing stops at '}' or EOF.
+ * @note
+ *  - Parsing stops at '}' or EOF.
  *
+ * @param block Block node to which parsed statements/blocks are attached.
  * @return PARSE_OK on success.
  */
 static int parse_statement_list(ASTNode_ptr block)
@@ -568,7 +557,8 @@ static int parse_statement_list(ASTNode_ptr block)
         }
 
         if (token_ahead->type == LEFT_DOM_PAR)
-        { // if nahradil parse_stmnt_or_block
+        {
+            // Nested block
             ASTNode_ptr nested = parse_block();
             add_child(block, nested);
         }
@@ -584,29 +574,6 @@ static int parse_statement_list(ASTNode_ptr block)
 
     return PARSE_OK;
 }
-
-/**
- * @brief Decide between a nested block and a regular statement.
- *
- * Grammar:
- * @code
- * <statement_or_block> ::= <block> | <statement>
- * @endcode
- *
- * @return PARSE_OK on success.
- */
-// static int parse_statement_or_block(void) {
-//     token_ptr token_ahead;
-//     token_ahead = look_ahead();
-
-//     if (token_ahead->type == LEFT_DOM_PAR) {
-//         parse_block();
-//     } else {
-//         parse_statement();
-//     }
-
-//     return PARSE_OK;
-// }
 
 /**
  * @brief Parse a single statement or an empty line (EOL).
@@ -627,10 +594,9 @@ static int parse_statement_list(ASTNode_ptr block)
  *
  * @note
  *  - Stand-alone user function calls (ID '(' ... ')') as statements
- *    are not supported at this time; built-in calls are handled by the
- *    @c Ifj.* branch.
+ *    are not supported at this time; built-in calls are handled by the Ifj.* branch.
  *
- * @return PARSE_OK on success, otherwise calls error_exit(ERR_SYNTACTIC).
+ * @return AST node representing the statement, or NULL for an empty line.
  */
 static ASTNode_ptr parse_statement()
 {
@@ -638,69 +604,69 @@ static ASTNode_ptr parse_statement()
     token_ptr token_ahead = look_ahead();
 
     if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "var") == 0)
-    {
+    {   // Variable declaration
         ASTNode_ptr var = parse_var_def();
         token = expect_type(END_OF_LINE);
         free_token(token);
         return var;
     }
     else if (token_ahead->type == IDENT || token_ahead->type == GLOB_VAR)
-    {
+    {   // Assignment or variable reference starting with IDENT/GLOB_VAR
         ASTNode_ptr assign = parse_assignment_or_call();
         token = expect_type(END_OF_LINE);
         free_token(token);
         return assign;
     }
     else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "if") == 0)
-    {
+    {   // If statement
         ASTNode_ptr if_node = parse_if_statement();
         token = expect_type(END_OF_LINE);
         free_token(token);
         return if_node;
     }
     else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "while") == 0)
-    {
+    {   // While statement
         ASTNode_ptr while_node = parse_while_statement();
         token = expect_type(END_OF_LINE);
         free_token(token);
         return while_node;
     }
     else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "return") == 0)
-    {
+    {   // Return statement
         ASTNode_ptr ret_node = parse_return_statement();
         token = expect_type(END_OF_LINE);
         free_token(token);
         return ret_node;
     }
     else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "for") == 0)
-    {
+    {   // For statement
         ASTNode_ptr for_node = parse_for_statement();
         token = expect_type(END_OF_LINE);
         free_token(token);
         return for_node;
     }
     else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "break") == 0)
-    {
+    {   // Break statement
         ASTNode_ptr br = parse_break_statement();
         token = expect_type(END_OF_LINE);
         free_token(token);
         return br;
     }
     else if (token_ahead->type == KEY_WORD && strcmp(token_ahead->value.str_value, "continue") == 0)
-    {
+    {   // Continue statement
         ASTNode_ptr cont = parse_continue_statement();
         token = expect_type(END_OF_LINE);
         free_token(token);
         return cont;
     }
     else if (token_ahead->type == END_OF_LINE)
-    {
+    {   // Empty line
         token = expect_type(END_OF_LINE);
         free_token(token);
         return NULL;
     }
     else
-    {
+    {   // Any other token at statement start is a syntax error
         token = get_token();
         free_token(token);
         error_exit(PARSE_ERROR);
@@ -718,9 +684,9 @@ static ASTNode_ptr parse_statement()
  * @endcode
  *
  * @note
- *  - Trailing EOL is consumed by @c parse_statement().
+ *  - Trailing EOL is consumed by parse_statement().
  *
- * @return PARSE_OK on success.=
+ * @return AST node representing the variable declaration.
  */
 static ASTNode_ptr parse_var_def(void)
 {
@@ -731,7 +697,6 @@ static ASTNode_ptr parse_var_def(void)
 
     token = expect_ident();
 
-    // tvorenie ast node
     ASTNode_ptr node = ast_create_var_dec(token->value.str_value);
 
     free_token(token);
@@ -747,7 +712,7 @@ static ASTNode_ptr parse_var_def(void)
  * <assign_target> ::= ID | GLOBAL_ID
  * @endcode
  *
- * @return PARSE_OK on success, otherwise calls error_exit(ERR_SYNTACTIC).
+ * @return AST node representing the identifier.
  */
 static ASTNode_ptr parse_assign_target(void)
 {
@@ -757,14 +722,14 @@ static ASTNode_ptr parse_assign_target(void)
     if (token_ahead->type == IDENT)
     {
         token = expect_ident();
-        ASTNode_ptr id = ast_create_ident(token->value.str_value);
+        ASTNode_ptr id = ast_create_ident(token->value.str_value, false);
         free_token(token);
         return id;
     }
     else if (token_ahead->type == GLOB_VAR)
     {
         token = expect_type(GLOB_VAR);
-        ASTNode_ptr id = ast_create_ident(token->value.str_value);
+        ASTNode_ptr id = ast_create_ident(token->value.str_value, true);
 
         free_token(token);
         return id;
@@ -790,9 +755,8 @@ static ASTNode_ptr parse_assign_target(void)
  * @note
  *  - EOLs are allowed immediately after '='.
  *  - The expression on the right-hand side is processed by the PSA
- *    (OPERATORS, FUNEXP).
  *
- * @return PARSE_OK on success.
+ * @return AST node representing the assignment.
  */
 static ASTNode_ptr parse_assignment_or_call(void)
 {
@@ -809,8 +773,6 @@ static ASTNode_ptr parse_assignment_or_call(void)
 
     ASTNode_ptr rhs = parse_exp_rhs(token);
 
-    // free_token(token);
-
     return ast_create_assignment(lhs, rhs);
 }
 
@@ -818,67 +780,25 @@ static ASTNode_ptr parse_assignment_or_call(void)
  * @brief Parse the right-hand side of an assignment (expression stub).
  *
  * @note
- *  - This is a hook into the PSA (precedence syntax analyzer).
- *  - Must support OPERATORS and FUNEXP once PSA is integrated.
+ *  - Uses precedence syntax analyzer (PSA) for the actual expression.
  *
- * @return PARSE_OK for now (stub). PSA will signal syntax errors
- *         via error_exit(ERR_SYNTACTIC).
+ * @param token Token that triggered this expression (recognition token for PSA).
+ * @return NODE_EXPR_STMNT wrapping the parsed expression AST..
  */
 static ASTNode_ptr parse_exp_rhs(token_ptr token)
 {
     ASTNode_ptr expr = parse_expression(token);
+
     if (expr == NULL)
     {
         error_exit(PARSE_ERROR);
     }
+
     return ast_create_exp_statement(expr);
 }
 
 /**
- * @brief Parse a comma-separated argument list for function calls.
- *
- * Grammar:
- * @code
- * <arg_list> ::= ε | <expression> ( "," <expression> )*
- * @endcode
- *
- * @note
- *  - EOLs are allowed after each comma and after the opening '('
- *    (the latter is handled by the caller).
- *  - Each <expression> will be parsed by PSA.
- *
- * @return PARSE_OK on success.
- */
-// static int parse_arg_list(void) {
-//     token_ptr token_ahead;
-//     token_ahead = look_ahead();
-//     // unsigned args = 0;
-
-//     if (token_ahead->type == RIGHT_PAR) {
-//         return PARSE_OK;
-//     }
-
-//     ASTNode_ptr expr = parse_expression(NULL);
-//     // add_child(current_call_node, expr);   // argument 0
-
-//     while (1) {
-//         token_ahead = look_ahead();
-//         if (token_ahead->type != COMMA) break;
-
-//         token_ptr token;
-//         token = expect_type(COMMA);
-//         free_token(token);
-//         consume_eols();
-
-//         expr = parse_expression(NULL);
-//         // add_child(current_call_node, expr);
-//     }
-
-//     return PARSE_OK;
-// }
-
-/**
- * @brief Parse an @c if statement with an @c else branch.
+ * @brief Parse an if statement with an else branch.
  *
  * Grammar:
  * @code
@@ -891,7 +811,7 @@ static ASTNode_ptr parse_exp_rhs(token_ptr token)
  *    nor between the then-block and 'else'.
  *  - Condition expression is parsed by PSA.
  *
- * @return PARSE_OK on success.
+ * @return AST node representing the if statement.
  */
 static ASTNode_ptr parse_if_statement(void)
 {
@@ -902,15 +822,9 @@ static ASTNode_ptr parse_if_statement(void)
 
     token = expect_type(LEFT_PAR);
     ASTNode_ptr cond = parse_exp_rhs(token);
+    // PSA consumes the closing ')'
 
-    // free_token(token);
     consume_eols();
-
-    // This should be here but, kikos precedence analysis already processes
-    // ) parent, will fix later
-
-    // token = expect_type(RIGHT_PAR);
-    // free_token(token);
 
     ASTNode_ptr then_block = parse_block();
 
@@ -923,7 +837,7 @@ static ASTNode_ptr parse_if_statement(void)
 }
 
 /**
- * @brief Parse a @c while loop.
+ * @brief Parse a while loop.
  *
  * Grammar:
  * @code
@@ -935,7 +849,7 @@ static ASTNode_ptr parse_if_statement(void)
  *  - No EOL allowed between ')' and the block.
  *  - Condition expression is parsed by PSA.
  *
- * @return PARSE_OK on success.
+ * @return AST node representing the while statement.
  */
 static ASTNode_ptr parse_while_statement(void)
 {
@@ -946,15 +860,9 @@ static ASTNode_ptr parse_while_statement(void)
 
     token = expect_type(LEFT_PAR);
     ASTNode_ptr cond = parse_exp_rhs(token);
+    // PSA consumes the closing ')'
 
-    // free_token(token);
     consume_eols();
-
-    // This should be here but, kikos precedence analysis already processes
-    // ) parent, will fix later
-
-    // token = expect_type(RIGHT_PAR);
-    // free_token(token);
 
     ASTNode_ptr body = parse_block();
 
@@ -962,7 +870,7 @@ static ASTNode_ptr parse_while_statement(void)
 }
 
 /**
- * @brief Parse a @c return statement with an optional expression.
+ * @brief Parse a return statement with an optional expression.
  *
  * Grammar:
  * @code
@@ -971,7 +879,7 @@ static ASTNode_ptr parse_while_statement(void)
  *
  * @note
  *  - Optional expression is parsed by PSA.
- *  - Trailing EOL is consumed by @c parse_statement().
+ *  - Trailing EOL is consumed by parse_statement().
  *
  * @return PARSE_OK on success.
  */
@@ -980,13 +888,12 @@ static ASTNode_ptr parse_return_statement(void)
     token_ptr token = expect_keyword("return");
 
     ASTNode_ptr value = parse_exp_rhs(token);
-    // free_token(token);
 
     return ast_create_return(value);
 }
 
 /**
- * @brief Parse a @c for loop with an identifier iterator and a range/expression.
+ * @brief Parse a for loop with an identifier iterator and a range/expression.
  *
  * Grammar:
  * @code
@@ -998,7 +905,7 @@ static ASTNode_ptr parse_return_statement(void)
  *  - No EOL allowed between ')' and the block.
  *  - Range form (a..b / a...b) is validated later in the semantic phase.
  *
- * @return PARSE_OK on success.
+ * @return AST node representing the for loop.
  */
 static ASTNode_ptr parse_for_statement(void)
 {
@@ -1016,10 +923,7 @@ static ASTNode_ptr parse_for_statement(void)
 
     token = expect_keyword("in");
 
-    ASTNode_ptr iter_expr = parse_exp_rhs(token); // ???
-    // free_token(token);
-
-    // if (iter_expr->type != NODE_RANGE)
+    ASTNode_ptr iter_expr = parse_exp_rhs(token);
 
     token = expect_type(RIGHT_PAR);
     free_token(token);
@@ -1028,21 +932,19 @@ static ASTNode_ptr parse_for_statement(void)
 
     ASTNode_ptr node = ast_create_for(iter_name, iter_expr, body);
     free_token(id_token);
+
     return node;
 }
 
 /**
- * @brief Parse the @c break statement.
+ * @brief Parse the break statement.
  *
  * Grammar:
  * @code
  * <break_stmt> ::= "break"
  * @endcode
  *
- * @note
- *  - Semantic check (allowed only inside loops) is done later.
- *
- * @return PARSE_OK on success.
+ * @return AST node representing break.
  */
 static ASTNode_ptr parse_break_statement(void)
 {
@@ -1053,17 +955,14 @@ static ASTNode_ptr parse_break_statement(void)
 }
 
 /**
- * @brief Parse the @c continue statement.
+ * @brief Parse the continue statement.
  *
  * Grammar:
  * @code
  * <continue_stmt> ::= "continue"
  * @endcode
  *
- * @note
- *  - Semantic check (allowed only inside loops) is done later.
- *
- * @return PARSE_OK on success.
+ * @return AST node representing continue.
  */
 static ASTNode_ptr parse_continue_statement(void)
 {
@@ -1073,28 +972,30 @@ static ASTNode_ptr parse_continue_statement(void)
     return ast_create_continue();
 }
 
-// helper functions
+
+/******************** Helper functions implementations ********************/
 
 /**
  * @brief Read and return a required keyword token.
  *
  * @param keyword Expected keyword text.
  *
- * @pre Next token must be of type KEY_WORD with matching @p keyword.
- * @return Token pointer owned by the caller (must call free_token()).
- * @note On mismatch calls error_exit(ERR_SYNTACTIC).
+ * @pre Next token must be of type KEY_WORD with matching keyword.
+ * 
+ * @return Token pointer owned by the caller.
+ * @note On mismatch, calls error_exit(ERR_SYNTACTIC).
  */
 static token_ptr expect_keyword(char *keyword)
 {
     token_ptr token = get_token();
 
-    // checking if is keyword
+    // Must be a keyword
     if (token->type != KEY_WORD)
     {
         free_token(token);
         error_exit(PARSE_ERROR);
     }
-    // checking expected keyword
+    // Must match the expected text
     if (strcmp(token->value.str_value, keyword) != 0)
     {
         free_token(token);
@@ -1108,10 +1009,11 @@ static token_ptr expect_keyword(char *keyword)
  * @brief Read and return a required identifier token.
  *
  * @pre Next token must be of type IDENT.
- * @return Token pointer owned by the caller (must call free_token()).
- * @note On mismatch calls error_exit(ERR_SYNTACTIC).
+ * 
+ * @return Token pointer owned by the caller.
+ * @note On mismatch, calls error_exit(ERR_SYNTACTIC).
  */
-static token_ptr expect_ident(void)
+token_ptr expect_ident(void)
 {
     token_ptr token = get_token();
 
@@ -1127,12 +1029,11 @@ static token_ptr expect_ident(void)
  * @brief One-token lookahead: fetch the next token and push it back.
  *
  * @note
- *  - The returned token must NOT be freed by the caller.
- *  - The same instance will be returned again by @c get_token().
+ *  - The same instance will be returned again by get_token().
  *
- * @return Pointer to the peeked token.
+* @return Pointer to the peeked token (do not free).
  */
-static token_ptr look_ahead(void)
+token_ptr look_ahead(void)
 {
     token_ptr token = get_token();
     push_token(token);
@@ -1144,9 +1045,10 @@ static token_ptr look_ahead(void)
  *
  * @param exp_tok Expected token type.
  *
- * @pre Next token's type must match @p exp_tok.
- * @return Token pointer owned by the caller (must call free_token()).
- * @note On mismatch calls error_exit(ERR_SYNTACTIC).
+ * @pre Next token's type must match exp_tok.
+ * 
+ * @return Token pointer owned by the caller.
+ * @note On mismatch, calls error_exit(ERR_SYNTACTIC).
  */
 token_ptr expect_type(enum token_type exp_tok)
 {
@@ -1160,7 +1062,7 @@ token_ptr expect_type(enum token_type exp_tok)
     return token;
 }
 /**
- * @brief Consume a maximal sequence of EOL tokens as soft whitespace.
+ * @brief Consume a maximal sequence of EOL tokens as "soft" whitespace.
  *
  * @note
  *  - Typical usage: after '(', after ',', and after operators like '=' or '.'.
