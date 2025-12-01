@@ -78,7 +78,7 @@ bool scope_stack_full(Scope_Stack *scope_stack);
  *
  * @return True if symbol was found, false otherwise.
  */
-ST_Node *scope_stack_var_lookup(Scope_Stack *scope_stack, Key *key);
+ST_Node *scope_stack_var_lookup(Scope_Stack *scope_stack, Key *key, unsigned *block_id);
 
 /**
  * @brief Returns an adress of a Symtable that is currently on top of the stack.

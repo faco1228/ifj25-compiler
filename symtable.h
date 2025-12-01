@@ -8,9 +8,6 @@
 #ifndef SYMTABLE_H
 #define SYMTABLE_H
 
-// defining the ST_Node data type
-typedef struct ST_Node ST_Node;
-
 typedef enum ID_Types
 {
     FUNCTION,
@@ -27,22 +24,30 @@ typedef struct
     ID_Type id_type; // used to differentiate between function, setter, getters, etc. which share the same name, tertiary key
 } Key;
 
+// defining the ST_Node data type
+typedef struct ST_Node ST_Node;
+
+// NOTE: There was no time to do a major redesign of the ST_Node structure, so some data can be unused in certain cases, such as arg_count with variables or
+// block_id with functions and global variables. It does not cause any problems when it comes to the logic it just stores redundant data sometimes.
+
 struct ST_Node
 {
     Key key;            // contains information about the id that will help to differentiate between ids with the same name
     int balance_factor; // used to determine the balance of the Node's subtree
     ST_Node *left;      // left child pointer
     ST_Node *right;     // right child pointer
+
+    unsigned block_id; // stores an id of the block to which the variable belongs to
 };
 
 //**FUNCTION FOR CREATING KEYS**//
 
 /**
  * @brief Deallocates key struct and it's data.
- * 
+ *
  * @param key Key to dispose.
  */
-void key_dispose (Key *key);
+void key_dispose(Key *key);
 
 /**
  * @brief Used for creating function, setter and getter keys.
@@ -67,11 +72,12 @@ Key *st_create_variable_key(char *name);
 /**
  * @brief Creates a new instance of a Variable_Node and initializes it's attributes.
  *
- * @param key Key of the new node. Needs to be created before using st_create_function_key or st_create_variable_key functions
+ * @param key Key of the new node. Needs to be created before using st_create_function_key or st_create_variable_key functions.
+ * @param block_id Block id is used to determined in which block exactly was a local variable declared.
  *
  * @return New Variable_Node.
  */
-ST_Node *st_create_node(Key *key);
+ST_Node *st_create_node(Key *key, unsigned block_id);
 
 /**
  * @brief Inserts a new ST_Node.

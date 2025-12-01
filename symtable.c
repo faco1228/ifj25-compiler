@@ -95,11 +95,12 @@ Key *st_create_variable_key(char *name)
 /**
  * @brief Creates a new instance of a Variable_Node and initializes it's attributes.
  *
- * @param key Key of the new node. Needs to be created before using create_function_key or create_variable_key functions
+ * @param key Key of the new node. Needs to be created before using st_create_function_key or st_create_variable_key functions.
+ * @param block_id Block id is used to determined in which block exactly was a local variable declared.
  *
  * @return New Variable_Node.
  */
-ST_Node *st_create_node(Key *key)
+ST_Node *st_create_node(Key *key, unsigned block_id)
 {
     ST_Node *node = malloc(sizeof(ST_Node));
 
@@ -122,6 +123,7 @@ ST_Node *st_create_node(Key *key)
     }
 
     node->key.name = name_copy;
+    node->block_id = block_id;
 
     return node;
 }
