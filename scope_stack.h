@@ -34,7 +34,7 @@ void scope_stack_init(Scope_Stack *scope_stack);
 /**
  * @brief Handles Scope_Stack clean up.
  *
- * @param Scope_Stack Pointer to Scope_Stack.
+ * @param scope_stack Pointer to Scope_Stack.
  */
 void scope_stack_dispose(Scope_Stack *scope_stack);
 
@@ -48,33 +48,38 @@ void scope_stack_push(Scope_Stack *scope_stack, ST_Node *root_ptr);
 
 /**
  * @brief Increases the size of symtable_array to fit one more element.
- * @param Scope_Stack Pointer to Scope_Stack.
+ * 
+ * @param scope_stack Pointer to Scope_Stack.
  */
 void scope_stack_increase_size(Scope_Stack *scope_stack);
 
 /**
  * @brief Removes Symtable pointer from stack top.
- * @param Scope_Stack Pointer to Scope_Stack.
+ * 
+ * @param scope_stack Pointer to Scope_Stack.
  */
 void scope_stack_pop(Scope_Stack *scope_stack);
 
 /**
  * @brief Checks if Scope_Stack is empty.
- * @param Scope_Stack Pointer to Scope_Stack.
+ * 
+ * @param scope_stack Pointer to Scope_Stack.
  */
 bool scope_stack_empty(Scope_Stack *scope_stack);
 
 /**
  * @brief Checks if Scope_Stack if full.
- * @param Scope_Stack Pointer to Scope_Stack.
+ *
+ * @param scope_stack Pointer to Scope_Stack.
  */
 bool scope_stack_full(Scope_Stack *scope_stack);
 
 /**
  * @brief Looks through all the symtables that are currently on stack and tries to find a specific symbol.
+ *
  * @param scope_stack Pointer to a scope_stack.
- * @param glob_var_symtable Pointer to a symtable of global variables.
  * @param key Key of a symbol we look for.
+ * @param block_id Pointer to a helper variable inside the semantic analysis module used for name mangling.
  *
  * @return True if symbol was found, false otherwise.
  */

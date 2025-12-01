@@ -89,16 +89,6 @@ ST_Node *st_create_node(Key *key, unsigned block_id);
  */
 ST_Node *st_insert_node(ST_Node *root_ptr, ST_Node *to_insert);
 
-/**
- * @brief Removes an existing Node.
- *
- * @param root_ptr Pointer to the root Node of a symtable.
- * @param key Key that is used to locate the Node that will be removed.
- *
- * @return Pointer to the (possibly new) root of the subtree after removal,
- *         or NULL if the subtree becomes empty or removal fails.
- */
-ST_Node *st_remove_node(ST_Node *root_ptr, Key *key);
 
 /**
  * @brief Searches for a ST_Node based on a provided key. Can be used to verify existance of a ST_Node or to obtain a pointer to it's adress.
