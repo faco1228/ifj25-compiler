@@ -1,5 +1,5 @@
 # @file 	Makefile
-# @author 	xracekm00
+# @author 	Martin Racek (xracekm00)
 # @brief 	IFJ project - compiler
 # @version 	0.7
 # @date 	2025-11-17

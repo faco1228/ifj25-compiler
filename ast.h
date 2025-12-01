@@ -1,6 +1,7 @@
 /**
  * @file ast.h
- * @author Samuel Facka (xfackas00), Martin Racek (xracekm00)
+ * @author Samuel Facka (xfackas00), 
+ *         Martin Racek (xracekm00)
  * @brief Abstract Syntax Tree (AST) structures and builder functions.
  *
  * The AST represents the parsed IFJ25 program in a structured tree form.
@@ -134,8 +135,10 @@ struct ASTNode
         struct
         {
             char *name;
+            char *code_gen_name;
             ID_Type id_type;
             bool is_global;
+            bool declared_in_loop;
         } identifier;
 
         // Function definition

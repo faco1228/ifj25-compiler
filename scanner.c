@@ -1,6 +1,6 @@
 /**
  * @file scanner.c
- * @author xracekm00
+ * @author Martin Racek (xracekm00)
  * @brief Contains scanners backbone as well as functions for parsers use
  * @version 0.4
  * @date 2025-11-28

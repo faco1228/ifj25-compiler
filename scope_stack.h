@@ -1,6 +1,6 @@
 /**
  * @file scope_stack.h
- * @author xmezeim00
+ * @author Martin Mezei (xmezeim00)
  *
  * @brief Implements Stack and its helper functions to manage working with variable
  * scopes according to the memory model of the IFJcode25 programming language.

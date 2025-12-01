@@ -1,3 +1,14 @@
+/**
+ * @file global_structures.h
+ * @author Samuel Facka (xfackas00)
+ * @brief Contains extern daclarations of global structers used in multiple modules
+ * @version 0.1
+ * @date 2025-12-01
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
+
 #ifndef GLOBALS_H_GUARD
 #define GLOBALS_H_GUARD
 

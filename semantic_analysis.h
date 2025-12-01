@@ -1,6 +1,6 @@
 /**
  * @file semantic_analysis.h
- * @author xmezeim00
+ * @author Martin Mezei (xmezeim00)
  * @brief Contains function prototypes of the semantic analysis module.
  * @version 0.2
  * @date 2025-11-14

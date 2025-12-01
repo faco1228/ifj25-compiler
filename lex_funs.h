@@ -1,6 +1,6 @@
 /**
  * @file lex_funs.h
- * @author xracekm00
+ * @author Martin Racek (xracekm00)
  * @brief Header file for lexical analyzers functions
  * @version 0.4
  * @date 2025-11-28

@@ -1,6 +1,6 @@
 /**
  * @file symtable.h
- * @author xmezeim00
+ * @author Martin Mezei (xmezeim00)
  *
  * @brief Implementation of symtable using AVL binary tree.
  */

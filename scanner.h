@@ -1,6 +1,6 @@
 /**
  * @file scanner.h
- * @author xracekm00
+ * @author Martin Racek (xracekm00)
  * @brief Header file for lexical analyzer - scanner
  * @version 0.4
  * @date 2025-11-28
