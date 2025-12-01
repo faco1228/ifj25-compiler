@@ -648,8 +648,13 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
  *
  * @param operator Pointer to the operator node.
  */
-void choose_operation(ASTNode_ptr operator)
+void eval_expression(ASTNode_ptr operator)
 {
+
+    // creates a local frame for the exp evaluation
+    printf("CREATEFRAME\n");
+    printf("PUSHFRAME\n");
+
     switch (operator->data.binary_operator.op_type)
     {
     case OP_PLUS:
@@ -663,12 +668,67 @@ void choose_operation(ASTNode_ptr operator)
         break;
     case OP_DIV:
         break;
+    case OP_EQ:
+    case OP_NEQ:
+    case OP_GT:
+    case OP_GTE:
+    case OP_LT:
+    case OP_LTE:
+    case OP_IS:
+        gen_eval_logical_op(operator->data.binary_operator.op_type);
+        break;
+    default:
+        break;
+    }
 
-        // todo : logicke operatory
+    // cleanup after evaluating the expression
+    printf("POPFRAME\n");
+}
+
+/**
+ * @brief Generates instructions to type check and evaluate an operation that uses logical operators.
+ *        Based on the provided type of the logical operator, different versions of this function can be generated
+ *        that are specific for the current logical operator.
+ *
+ * @param op_type Pointer to an enum value of the current operator.
+ *
+ * @note Helper variables that are used in instructions generated in this function are going to
+ *       be defined outside these helper functions a will have a separate frame made for them.
+ */
+void gen_eval_logical_op(operator_types *op_type)
+{
+    // retrieve both operands from the data stack
+    printf("POPS LF@op2\n"); // second operand
+    printf("POPS LF@op1\n"); // first operand
+
+    switch (*op_type)
+    {
+    case OP_EQ:
+    case OP_NEQ:
+        gen_eval_equal_not_equal(*op_type);
+        break;
+    case OP_GT:
+    case OP_GTE:
+    case OP_LT:
+    case OP_LTE:
+        gen_eval_greater_lower(*op_type);
+        break;
+    case OP_IS:
+        break;
 
     default:
         break;
     }
+}
+
+/**
+ * @brief Generates instructions to evaluate an operation that uses the is operator.
+ *
+ * @note variables that are used inside this function were defined inside the gen_eval_logical_op
+ */
+void gen_eval_is()
+{
+    
 }
 
 /**
@@ -680,8 +740,6 @@ void choose_operation(ASTNode_ptr operator)
  */
 void gen_eval_equal_not_equal(operator_types *op_type)
 {
-    // operand data was aquired already
-
     // get the data types of both operands
     printf("TYPE LF@type1 LF@op1\n"); // data type of the first operand
     printf("TYPE LF@type2 LF@op2\n"); // data type of the second operand
@@ -728,8 +786,6 @@ void gen_eval_equal_not_equal(operator_types *op_type)
         printf("NOT LF@result LF@result\n");
 
     printf("PUSH LF@result\n");
-
-    // todo : pridat cleanup
 }
 
 /**
@@ -748,76 +804,65 @@ void gen_eval_greater_lower(operator_types *op_type)
     printf("TYPE LF@type2 LF@op2\n"); // data type of the second operand
 
     // compare different valid operand combinations
+
+    // int op int
     printf("EQ LF@type_check1 LF@type1 string@int\n");
     printf("EQ LF@type_check2 LF@type2 string@int\n");
     printf("JUMPIFEQ &eval LF@type_check1 LF@type_check2\n");
 
-    // 
-}
+    // float op float
+    printf("EQ LF@type_check1 LF@type1 string@float\n");
+    printf("EQ LF@type_check2 LF@type2 string@float\n");
+    printf("JUMPIFEQ &eval LF@type_check1 LF@type_check2\n");
 
-/**
- * @brief Generates instructions to type check and evaluate an operation that uses logical operators.
- *        Based on the provided type of the logical operator, different versions of this function can be generated
- *        that are specific for the current logical operator.
- *
- * @param op_type Pointer to an enum value of the current operator.
- *
- * @note Helper variables that are used in instructions generated in this function are going to
- *       be defined outside these helper functions a will have a separate frame made for them.
- */
-void gen_eval_logical_op(operator_types *op_type)
-{
-    // retrieve both operands from the data stack
-    printf("POPS LF@op2\n"); // second operand
-    printf("POPS LF@op1\n"); // first operand
+    // float op int
+    printf("EQ LF@type_check1 LF@type1 string@float\n");
+    printf("EQ LF@type_check2 LF@type2 string@int\n");
+    printf("JUMPIFEQ &right_to_float LF@type_check1 LF@type_check2\n");
 
-    // todo: bude vhodne spravit zvlast funkciu pre print EQ a NEQ, zvlast pre GT, GTE, ..., zvlast pre is aby v tejto nebolo zbytocne vela kodu
+    // int op float
+    printf("EQ LF@type_check1 LF@type1 string@int\n");
+    printf("EQ LF@type_check2 LF@type2 string@float\n");
+    printf("JUMPIFEQ &left_to_float LF@type_check1 LF@type_check2\n");
 
-    switch (*op_type)
+    // int to float conversion - right op
+    printf("LABEL &right_to_float\n"); // label
+    printf("INT2FLOAT LF@op2 LF@op2\n");
+    printf("JUMP &eval\n");
+
+    // int to float conversion - left op
+    printf("LABEL &left_to_float\n"); // label
+    printf("INT2FLOAT LF@op1 LF@op1\n");
+
+    printf("LABEL &eval\n"); // label
+
+    // based on different types of operators, different variant of the eval code block will be generated
+
+    if (*op_type == OP_LT)
     {
-    case OP_EQ:
-    case OP_NEQ:
-        gen_eval_equal_not_equal(*op_type);
-        break;
-    case OP_GT:
-    case OP_GTE:
-    case OP_LT:
-    case OP_LTE:
-
-        break;
-    case OP_IS:
-        break;
-
-    default:
-        break;
+        printf("LT LF@result LF@op1 LF@op2\n"); // num1 < num2
     }
-}
+    else if (*op_type == OP_GT)
+    {
+        printf("GT LF@result LF@op1 LF@op2\n"); // num1 > num2
+    }
+    // for LTE and GTE I have to evaluate it like so :  LTE (num1 < num2 || num1 == num2) GTE(num1 > num2 || num1 == num2)
+    else if (*op_type == OP_LTE)
+    {
+        // here i use op_check1 and op_check2 as helper variables to store both bool values of num1 < num2, num1 == num2
+        printf("LT LF@op_check1 LF@op1 LF@op2\n");          // num1 < num2
+        printf("EQ LF@op_check1 LF@op1 LF@op2\n");          // num1 == num2
+        printf("OR LF@result LF@op_check1 LF@op_check2\n"); // (num1 < num2 || num1 == num2)
+    }
+    else if (*op_type == OP_GTE)
+    {
+        // here i use op_check1 and op_check2 as helper variables to store both bool values of num1 < num2, num1 == num2
+        printf("GT LF@op_check1 LF@op1 LF@op2\n");          // num1 > num2
+        printf("EQ LF@op_check1 LF@op1 LF@op2\n");          // num1 == num2
+        printf("OR LF@result LF@op_check1 LF@op_check2\n"); // (num1 > num2 || num1 == num2)
+    }
 
-/**
- * @brief Generates instructions to type check and evaluate an operation that uses the range operator
- *
- * @note Helper variables that are used in instructions generated in this function are going to
- *       be defined outside these helper functions a will have a separate frame made for them.
- */
-void gen_eval_range_op()
-{
-    // retrieve both operands from the data stack
-    printf("POPS LF@op2\n"); // second operand
-    printf("POPS LF@op1\n"); // first operand
-
-    // get the data types of both operands
-    printf("TYPE LF@type1 LF@op1\n"); // data type of the first operand
-    printf("TYPE LF@type2 LF@op2\n"); // data type of the second operand
-
-    // check if both sides of the expression are an int value
-    printf("EQ LF@op_check1 LF@type1 string@int\n");
-    printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFNEQ !ERROR_EXP_L LF@op_check1 LF@op_check2\n");
-
-    // todo : vyhodnoti pocet iteracii cyklu a ziskat pociatocnu hodnotu iteratoru
-    // todo : zistit ako mam na stack pushnut tieto hodnoty pre Martina
-
-    printf("RETURN\n");
+    printf("PUSHS LF@result\n");
 }
 
 /**
@@ -874,8 +919,6 @@ void gen_eval_star_op()
     // int to float conversions - left op
     printf("LABEL &left_to_float\n"); // label
     printf("INT2FLOAT LF@op1 LF@op1\n");
-
-    // no need to jump here
 
     // multiplication
     printf("LABEL &mul\n"); // lable
@@ -1103,5 +1146,32 @@ void gen_eval_plus_op()
 
     // end of the function that handles the + operator
     printf("LABEL &add_end\n");
+    printf("RETURN\n");
+}
+
+/**
+ * @brief Generates instructions to type check and evaluate an operation that uses the range operator
+ *
+ * @note Helper variables that are used in instructions generated in this function are going to
+ *       be defined outside these helper functions a will have a separate frame made for them.
+ */
+void gen_eval_range_op()
+{
+    // retrieve both operands from the data stack
+    printf("POPS LF@op2\n"); // second operand
+    printf("POPS LF@op1\n"); // first operand
+
+    // get the data types of both operands
+    printf("TYPE LF@type1 LF@op1\n"); // data type of the first operand
+    printf("TYPE LF@type2 LF@op2\n"); // data type of the second operand
+
+    // check if both sides of the expression are an int value
+    printf("EQ LF@op_check1 LF@type1 string@int\n");
+    printf("EQ LF@op_check2 LF@type2 string@int\n");
+    printf("JUMPIFNEQ !ERROR_EXP_L LF@op_check1 LF@op_check2\n");
+
+    // todo : vyhodnoti pocet iteracii cyklu a ziskat pociatocnu hodnotu iteratoru
+    // todo : zistit ako mam na stack pushnut tieto hodnoty pre Martina
+
     printf("RETURN\n");
 }
