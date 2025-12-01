@@ -71,7 +71,7 @@ void codegen(ASTNode_ptr node){
             
             // This is where actuall compilation begins
             printf("\n");
-            printf("LABEL _program_start_\n");
+            printf("\nLABEL _program_start_\n");
 
             break;
         case NODE_FUNCTION_DEF:
@@ -92,9 +92,10 @@ void codegen(ASTNode_ptr node){
             // Call corresponding code generating function
             gen_func_start(node);
             break;
-        case NODE_BLOCK:
-
-            break;
+        // There is nothing to be done for this type of node
+        //
+        // case NODE_BLOCK:
+        //     break;
         case NODE_VAR_DECL:
             // Call corresponding code generating function
             gen_var_decl(node);
@@ -112,15 +113,25 @@ void codegen(ASTNode_ptr node){
 
             break;
         case NODE_WHILE:
+            // Updates location flag and calls corresponding code generating function
+            global_name_gen->in_loop = true;
+            gen_while_start(node);
 
             break;
         case NODE_FOR:
+            // Updates location flag and calls corresponding code generating function
+            global_name_gen->in_loop = true;
+            gen_for_start(node);
 
             break;
         case NODE_BREAK:
+            // Prints jump to corresponding label
+            gen_break();
 
             break;
         case NODE_CONTINUE:
+            // Prints jump to corresponding label
+            gen_continue();
 
             break;
         case NODE_EXPR_STMNT:
@@ -153,9 +164,10 @@ void codegen(ASTNode_ptr node){
             }
 
             break;
-        case NODE_RANGE:
-
-            break;
+        // This node type is already processed when NODE_FOR is reached during traversal
+        //   
+        // case NODE_RANGE:
+        //     break;
         case NODE_INT_LIT:
             // Pushes integer literal on data stack
             gen_lit_int(node->data.literal.data.int_val);
@@ -192,8 +204,22 @@ void codegen(ASTNode_ptr node){
 
     // Generates function end instructions
     if (node->type == NODE_FUNCTION_DEF){
+        global_name_gen->in_function = false;
         gen_func_end();
     }
+
+    // Updates location flag and calls function handeling for loop end
+    if (node->type == NODE_FOR){
+        global_name_gen->in_loop = false;
+        gen_for_end(node);
+    }
+
+    // Updates location flag and calls function handeling while loop end
+    if (node->type == NODE_WHILE){
+        global_name_gen->in_loop = false;
+        gen_while_end(node);
+    }
+    
 }
 
 /**
@@ -207,6 +233,7 @@ void name_gen_init(ASTNode_ptr node){
     // Set counters to default values
     global_name_gen->loop_counter = 0;
     global_name_gen->if_counter = 0;
+    global_name_gen->temp_var_counter = 0;
     
     // Set stack tracker to zero
     global_name_gen->stack_depth = 0;
@@ -242,28 +269,23 @@ void gen_label(name_option_t option){
     // Based on the option generates label
     switch (option){
         case FUN_LABEL:
-            printf("\n");
-            printf("LABEL %s\n", global_name_gen->fun_label);
+            printf("\nLABEL %s\n", global_name_gen->fun_label);
 
             break;
         case LOOP_START_L:
-            printf("\n");
-            printf("LABEL %s\n", global_name_gen->loop_start_label);
+            printf("\nLABEL %s\n", global_name_gen->loop_start_label);
 
             break;
         case LOOP_END_L:
-            printf("\n");
-            printf("LABEL %s\n", global_name_gen->loop_end_label);
+            printf("\nLABEL %s\n", global_name_gen->loop_end_label);
 
             break;
         case IF_TRUE_L:
-            printf("\n");
-            printf("LABEL %s\n", global_name_gen->if_true_label);
+            printf("\nLABEL %s\n", global_name_gen->if_true_label);
 
             break;
         case IF_FALSE_L:
-            printf("\n");
-            printf("LABEL %s\n", global_name_gen->if_false_label);
+            printf("\nLABEL %s\n", global_name_gen->if_false_label);
 
             break;
         default:
@@ -666,4 +688,202 @@ void create_unique_name(ASTNode_ptr node, name_option_t option) {
         default:
             break;
     }
+}
+
+/**
+ * @brief Handles start of a for loop
+ * 
+ * @note called from NODE_FOR
+ * 
+ * @param node 
+ */
+void gen_for_start(ASTNode_ptr node){
+    // Creates unique label name
+    create_unique_name(node, LOOP_START_L);
+    create_unique_name(node, LOOP_END_L);
+    
+    // Store current temp_var_counter value for later usage and increment the counter inside global_name_gen
+    unsigned temp_id = global_name_gen->temp_var_counter++;
+
+    // Variable used as "index" in for loop - iterator
+    printf("DEFVAR LF@%s\n", node->data.for_statement.name_iter);
+    printf("DEFVAR LF@temp_var_until_%d\n", temp_id);
+
+    // Have to read NODE_RANGE children
+    ASTNode_ptr range_node = node->children[0];
+
+    // Push iterator value on data stack
+    if (range_node->children[0]->type == NODE_INT_LIT){
+        gen_lit_int(range_node->children[0]->data.literal.data.int_val);
+    }
+    else if (range_node->children[0]->type == NODE_IDENTIFIER){
+        // Lets assume for now, that ident represents only variable
+        gen_push_variable(range_node->children[0]);
+    }
+    else{
+        // IMPORTANT: can be expression, menzi function
+    }
+    
+    // Push end value on data stack
+    if (range_node->children[1]->type == NODE_INT_LIT){
+        gen_lit_int(range_node->children[1]->data.literal.data.int_val);
+    }
+    else if (range_node->children[1]->type == NODE_IDENTIFIER){
+        // Lets assume for now, that ident represents only variable
+        gen_push_variable(range_node->children[1]);
+    }
+    else{
+        // IMPORTANT: can be expression, menzi function
+    }
+    
+    // Initialize variables
+    printf("POPS LF@temp_var_until_%d\n", temp_id);
+    printf("POPS LF@%s\n", node->data.for_statement.name_iter);
+
+    // Prints label of the beginnning of the loop
+    printf("\nLABEL %s\n", global_name_gen->loop_start_label);
+
+    // Push condition arguments on stack    
+    printf("\n# Evaluate condition\n");
+    printf("PUSHS LF@%s\n", node->data.for_statement.name_iter);
+    printf("PUSHS LF@temp_var_until_%d\n", temp_id);
+    
+    // Evaluates condition based on whether the range is inclusive(double dot) or not(triple dot)
+    if (range_node->data.range.inclusive) {
+        // Continue until i <= end
+        printf("GTS\n");
+        printf("PUSHS bool@true\n");
+        printf("JUMPIFEQS %s\n\n", global_name_gen->loop_end_label);
+    } else {
+        // Continue until i < end
+        printf("LTS\n");
+        printf("PUSHS bool@false\n");
+        printf("JUMPIFEQS %s\n\n", global_name_gen->loop_end_label);
+    }
+
+    // for loop body follows
+}
+
+/**
+ * @brief Handles end of a for loop
+ * 
+ * @note called when recrusion returns back to the node
+ * 
+ * @param node 
+ */
+void gen_for_end(ASTNode_ptr node) {
+    // Increment the iterator variable
+    printf("\n# Icrementing iterator\n");
+    printf("PUSHS LF@%s\n", node->data.for_statement.name_iter);
+    printf("PUSHS int@1\n");
+    printf("ADDS\n");
+    printf("POPS LF@%s\n", node->data.for_statement.name_iter);
+    
+    printf("\nJUMP %s\n", global_name_gen->loop_start_label);
+    
+    printf("\nLABEL %s\n", global_name_gen->loop_end_label);
+}
+
+/**
+ * @brief Handles start of a while loop
+ * 
+ * @note called from NODE_WHILE
+ * 
+ * @param node 
+ */
+void gen_while_start(ASTNode_ptr node) {
+    // Creates unique label names
+    create_unique_name(node, LOOP_START_L);
+    create_unique_name(node, LOOP_END_L);
+    
+    // Prints loop start label
+    printf("\nLABEL %s\n", global_name_gen->loop_start_label);
+    
+    // Condition check
+    printf("# Evaluate while condition\n");
+    
+    // IMPORTANT: node->children[0] is an expression, that has to be evaluated
+    
+    // When condition is false, while loop will end
+    printf("PUSHS bool@false\n");
+    printf("JUMPIFEQS %s\n\n", global_name_gen->loop_end_label);
+    
+    // while loop body follows
+}
+
+/**
+ * @brief Handles end of a while loop
+ * 
+ * @note called when recursion returns back to NODE_WHILE
+ * 
+ * @param node 
+ */
+void gen_while_end(ASTNode_ptr node) {
+    // Loop back to the beginning
+    printf("\nJUMP %s\n", global_name_gen->loop_start_label);
+    
+    // Prints loop end label
+    printf("\nLABEL %s\n", global_name_gen->loop_end_label);
+}
+
+/**
+ * @brief Terminates correspondig while loop
+ */
+void gen_break(){
+    printf("JUMP %s\n", global_name_gen->loop_end_label);
+};
+
+/**
+ * @brief Skips one iteration in correspondig while loop
+ */
+void gen_continue(){
+    printf("JUMP %s\n", global_name_gen->loop_start_label);
+};
+
+/**
+ * @brief Handles if-else statement
+ * 
+ * @note Called from NODE_IF
+ *       children[0] = condition
+ *       children[1] = if block
+ *       children[2] = else block
+ * 
+ * @param node 
+ */
+void gen_if(ASTNode_ptr node) {
+    // Creates unique name
+    create_unique_name(node, IF_FALSE_L);
+    
+    // Condition check
+    printf("\n# Evaluate if condition\n");
+    
+    // IMPORTANT: once again expression eval function has to be called
+    
+    // When the condition is false, jump streight to the else block
+    printf("PUSHS bool@false\n");
+    printf("JUMPIFEQS %s\n\n", global_name_gen->if_false_label);
+    
+    // Block for the
+    printf("# If true block\n");
+    
+    // IMPORTANT: somehow codegen has to process the body
+    
+    // Po then bloku preskoč else (skoč na koniec)
+    // Musíme vytvoriť end label
+    char if_end_label[MAX_LABEL_NAME];
+    sprintf(if_end_label, "__if_end_%llu", global_name_gen->if_counter);
+    
+    printf("JUMP %s\n\n", if_end_label);
+    
+    // ===== ELSE BLOK =====
+    printf("LABEL %s\n", global_name_gen->if_false_label);
+    printf("# Else block\n");
+    
+    if (node->children[2] != NULL) {
+        codegen(node->children[2]);
+    }
+    // Ak je NULL, else blok je prázdny (ale v základnom zadaní je vždy prítomný)
+    
+    // ===== KONIEC IF =====
+    printf("\nLABEL %s\n", if_end_label);
 }

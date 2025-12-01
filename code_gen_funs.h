@@ -42,6 +42,8 @@ typedef struct {
     // Name mangeling
     unsigned long long loop_counter;
     unsigned long long if_counter;
+    unsigned long long temp_var_counter;
+
     // Prevents reading from an empty stack
     unsigned stack_depth;
     
@@ -183,26 +185,44 @@ void gen_lit_bool(bool value);
  */
 void gen_lit_string(char *value);
 
-/**
- * @brief These will be used to handle if,else statements
- * 
- * @note Implementation:
- *       Use LTS, GTS, EQS instructions
- *       JUMPIFEQ <vysledok>, <1 / 0>
- * 
- */
-void gen_jump_if_grater();
-void gen_jump_if_lower();
 
 void gen_if();
 
+/**
+ * @brief Handles start of a while loop
+ * 
+ * @note called from NODE_WHILE
+ * 
+ * @param node 
+ */
 void gen_while_start();
 
+/**
+ * @brief Handles end of a while loop
+ * 
+ * @note called when recursion returns back to NODE_WHILE
+ * 
+ * @param node 
+ */
 void gen_while_end();
 
-void gen_for_start();
+/**
+ * @brief Handles start of a for loop
+ * 
+ * @note called from NODE_FOR
+ * 
+ * @param node 
+ */
+void gen_for_start(ASTNode_ptr node);
 
-void gen_for_end();
+/**
+ * @brief Handles end of a for loop
+ * 
+ * @note called when recrusion returns back to the node
+ * 
+ * @param node 
+ */
+void gen_for_end(ASTNode_ptr node);
 
 /**
  * @brief Jumps on corresponding built in function
@@ -218,7 +238,6 @@ void gen_jmp_builtin(ASTNode_ptr node);
  * @param option 
  */
 void create_unique_name(ASTNode_ptr node, name_option_t option);
-
 
 /*----------------- BUILTIN FUNCTIONS -----------------*/
 
@@ -254,6 +273,16 @@ void gen_binary_op();
 void gen_infix_to_postfix();
 
 void gen_postfix_eval_fun();
+
+/**
+ * @brief Terminates correspondig while loop
+ */
+void gen_break();
+
+/**
+ * @brief Skips one iteration in correspondig while loop
+ */
+void gen_continue();
 
 /**
  * @brief We will create this one together at the very end.
