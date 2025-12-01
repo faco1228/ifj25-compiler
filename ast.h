@@ -134,6 +134,7 @@ struct ASTNode
         struct
         {
             char *name;
+            char *code_gen_name;
             ID_Type id_type;
             bool is_global;
         } identifier;
