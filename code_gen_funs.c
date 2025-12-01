@@ -644,29 +644,86 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
 }
 
 /**
+ * @brief Traverses the expression AST subtree using the postorder traversal and evaluates each binary operation of the expression.
+ *        The postorder traversal simulates the postfix notation. All results of evaluations are pushed to the data stack.
+ *
+ * @note Pushing the results to the data stack is handled by the eval_bin_op function.
+ *
+ * @param exp_node Root of the expression subtree.
+ */
+void eval_exp(ASTNode_ptr exp_node)
+{
+    if (exp_node->child_count == 0)
+        return;
+
+    eval_exp(exp_node->children[0]); // left subtree
+    eval_exp(exp_node->children[1]); // right subtree
+
+    if (exp_node->type == NODE_BINARY_OP)
+        eval_bin_op(exp_node);
+    else if (exp_node->type == NODE_IDENTIFIER) // name mangled idents are already inside the ast nodes
+        gen_variable(exp_node);
+    else if (exp_node->type == NODE_STR_LIT)
+        gen_literal(STRING, exp_node->data.literal.data.str_value);
+
+    // todo : operand handling - ak je premenna potrebujem pushnut ten ident, ak je literal, pushnem literal
+}
+
+/**
  * @brief Decides what binary op eval function to call based on the provided operator.
  *
  * @param operator Pointer to the operator node.
  */
-void eval_expression(ASTNode_ptr operator)
+void eval_bin_op(ASTNode_ptr operator)
 {
 
     // creates a local frame for the exp evaluation
     printf("CREATEFRAME\n");
     printf("PUSHFRAME\n");
 
+    // todo: pridat funckiu pre vygenerovanie pomocnych premennych, ktore pouzivam pri eval
+
+    // retrieve both operands from the data stack
+    printf("POPS LF@op2\n"); // second operand
+    printf("POPS LF@op1\n"); // first operand
+
+    if (operator->data.binary_operator.op_type == OP_IS)
+    {
+        /*
+            IS eval only needs the left side of the expression. Deciding whether the keyword was Num, String or Null is done in compile time so less
+            instructions are needed during evaluation. Because of this there is no need to push any information about the keyword itself to the data stack.
+            If IS operator is detected I will only pop once to access the left side of the expression. No other data stack pops are performed to prevent popping
+            an empty data stack.
+        */
+        printf("POPS LF@op1\n"); // left side of the IS expression
+    }
+    else
+    {
+        // retrieve both operands from the data stack
+        printf("POPS LF@op2\n"); // second operand
+        printf("POPS LF@op1\n"); // first operand
+    }
+
+    if (operator->type == NODE_RANGE) // special case for a range operator
+    {
+        gen_eval_range_op();
+        return;
+    }
+
+    // based on the operator type a different version of binary op eval is generated
     switch (operator->data.binary_operator.op_type)
     {
     case OP_PLUS:
-        // todo: zavola prislusnu funkciu a na datovy zasobnik pushne operandy / operand
-        // todo: treba kontrolovat ci su obe strany pod bin operaciou operandy a generovat kod pre push na stack
-        // len v pripade ze naozaj ide o operandy
+        gen_eval_plus_op();
         break;
     case OP_MINUS:
+        gen_eval_minus_op();
         break;
     case OP_MUL:
+        gen_eval_star_op();
         break;
     case OP_DIV:
+        gen_eval_slash_op();
         break;
     case OP_EQ:
     case OP_NEQ:
@@ -675,11 +732,15 @@ void eval_expression(ASTNode_ptr operator)
     case OP_LT:
     case OP_LTE:
     case OP_IS:
-        gen_eval_logical_op(operator->data.binary_operator.op_type);
+        gen_eval_logical_op(operator);
         break;
-    default:
+    default: // not a valid operator
+        error_exit(ERR_INTERNAL);
         break;
     }
+
+    // result of the expression evaluation
+    printf("PUSHS LF@result\n");
 
     // cleanup after evaluating the expression
     printf("POPFRAME\n");
@@ -690,32 +751,28 @@ void eval_expression(ASTNode_ptr operator)
  *        Based on the provided type of the logical operator, different versions of this function can be generated
  *        that are specific for the current logical operator.
  *
- * @param op_type Pointer to an enum value of the current operator.
+ * @param operator Pointer to the node that holds the binary operator of the expression.
  *
  * @note Helper variables that are used in instructions generated in this function are going to
  *       be defined outside these helper functions a will have a separate frame made for them.
  */
-void gen_eval_logical_op(operator_types *op_type)
+void gen_eval_logical_op(ASTNode_ptr operator)
 {
-    // retrieve both operands from the data stack
-    printf("POPS LF@op2\n"); // second operand
-    printf("POPS LF@op1\n"); // first operand
-
-    switch (*op_type)
+    switch (operator->data.binary_operator.op_type)
     {
     case OP_EQ:
     case OP_NEQ:
-        gen_eval_equal_not_equal(*op_type);
+        gen_eval_equal_not_equal(operator->data.binary_operator.op_type);
         break;
     case OP_GT:
     case OP_GTE:
     case OP_LT:
     case OP_LTE:
-        gen_eval_greater_lower(*op_type);
+        gen_eval_greater_lower(operator->data.binary_operator.op_type);
         break;
     case OP_IS:
+        gen_eval_is(operator);
         break;
-
     default:
         break;
     }
@@ -724,11 +781,33 @@ void gen_eval_logical_op(operator_types *op_type)
 /**
  * @brief Generates instructions to evaluate an operation that uses the is operator.
  *
+ * @param operator Pointer to the node that holds the is operator.
+ *
  * @note variables that are used inside this function were defined inside the gen_eval_logical_op
  */
-void gen_eval_is()
+void gen_eval_is(ASTNode_ptr operator)
 {
-    
+    // NOTE: based on the ast structure convetion that we agreed on I always know that children[1] is the right side of the expression
+
+    printf("TYPE LF@type1 LF@op1\n"); // I always have to aquire the data type of the left operand
+
+    // I need to access the type keyword inside the expression and generate evaluation based on the keyword
+    if (strcmp(operator->children[1]->data.literal.data.str_value, "Num"))
+    {
+        // i use op_check1 and op_check2 as helper variables to store both bool values of the first two comparisons
+        printf("EQ LF@op_check1 LF@type1 string@int\n");
+        printf("EQ LF@op_check2 LF@type1 string@float\n");
+
+        printf("OR LF@result LF@op_check1 LF@op_check2\n"); // is it int OR float?
+    }
+    else if (strcmp(operator->children[1]->data.literal.data.str_value, "String"))
+    {
+        printf("EQ LF@result LF@type1 string@string\n");
+    }
+    else if (strcmp(operator->children[1]->data.literal.data.str_value, "Null"))
+    {
+        printf("EQ LF@result LF@type1 string@nill\n");
+    }
 }
 
 /**
@@ -784,8 +863,6 @@ void gen_eval_equal_not_equal(operator_types *op_type)
 
     if (*op_type == OP_NEQ) // i can just negate the current result if needed
         printf("NOT LF@result LF@result\n");
-
-    printf("PUSH LF@result\n");
 }
 
 /**
@@ -861,8 +938,6 @@ void gen_eval_greater_lower(operator_types *op_type)
         printf("EQ LF@op_check1 LF@op1 LF@op2\n");          // num1 == num2
         printf("OR LF@result LF@op_check1 LF@op_check2\n"); // (num1 > num2 || num1 == num2)
     }
-
-    printf("PUSHS LF@result\n");
 }
 
 /**
@@ -923,7 +998,6 @@ void gen_eval_star_op()
     // multiplication
     printf("LABEL &mul\n"); // lable
     printf("MUL LF@result LF@op1 LF@op2\n");
-    printf("PUSHS LF@result\n");
     printf("JUMP &mul_end\n");
 
     // string iter
@@ -933,7 +1007,6 @@ void gen_eval_star_op()
 
     // end of the function that handles the * operator
     printf("LABEL &mul_end\n");
-    printf("RETURN\n");
 }
 
 /**
@@ -1001,9 +1074,6 @@ void gen_eval_slash_op()
     // division
     printf("LABEL &div\n"); // label
     printf("DIV LF@result LF@op1 LF@op2\n");
-    printf("PUSHS LF@result\n");
-
-    printf("RETURN\n");
 }
 
 /**
@@ -1059,10 +1129,6 @@ void gen_eval_minus_op()
     // subtraction
     printf("LABEL &sub\n"); // lable
     printf("SUB LF@result LF@op1 LF@op2\n");
-    printf("PUSHS LF@result\n");
-
-    // end of the function that handles the - operator
-    printf("RETURN\n");
 }
 
 /**
@@ -1134,33 +1200,21 @@ void gen_eval_plus_op()
     // addition
     printf("LABEL &add\n"); // lable
     printf("ADD LF@result LF@op1 LF@op2\n");
-    printf("PUSHS LF@result\n");
     printf("JUMP &add_end\n");
 
     // concat
     printf("LABEL &concat\n"); // lable
     printf("CONCAT LF@result LF@op1 LF@op2\n");
-    printf("PUSHS LF@result\n");
-
-    // no need to use jump here
 
     // end of the function that handles the + operator
     printf("LABEL &add_end\n");
-    printf("RETURN\n");
 }
 
 /**
- * @brief Generates instructions to type check and evaluate an operation that uses the range operator
- *
- * @note Helper variables that are used in instructions generated in this function are going to
- *       be defined outside these helper functions a will have a separate frame made for them.
+ * @brief Generates instructions to type check an operation that uses the range operator.
  */
 void gen_eval_range_op()
 {
-    // retrieve both operands from the data stack
-    printf("POPS LF@op2\n"); // second operand
-    printf("POPS LF@op1\n"); // first operand
-
     // get the data types of both operands
     printf("TYPE LF@type1 LF@op1\n"); // data type of the first operand
     printf("TYPE LF@type2 LF@op2\n"); // data type of the second operand
@@ -1170,8 +1224,9 @@ void gen_eval_range_op()
     printf("EQ LF@op_check2 LF@type2 string@int\n");
     printf("JUMPIFNEQ !ERROR_EXP_L LF@op_check1 LF@op_check2\n");
 
-    // todo : vyhodnoti pocet iteracii cyklu a ziskat pociatocnu hodnotu iteratoru
-    // todo : zistit ako mam na stack pushnut tieto hodnoty pre Martina
+    // now i can just push the starting and ending iterator values back to the scope stack
+    printf("PUSHS LF@op1\n");
+    printf("PUSHS LF@op2\n");
 
-    printf("RETURN\n");
+    // todo : zistit ci toto martinovi vyhovuje
 }
