@@ -18,7 +18,6 @@
 //**HELPER FUNCTION PROTOTYPES**//
 static char *str_duplicate(char *to_duplicate);
 static void node_dispose(ST_Node *node, Key *key);
-static ST_Node *find_max_node(ST_Node *node);
 static ST_Node *left_rotation(ST_Node *root_ptr);
 static ST_Node *right_rotation(ST_Node *root_ptr);
 static ST_Node *balance_tree(ST_Node *critical_node);
@@ -397,21 +396,6 @@ static char *str_duplicate(char *to_duplicate)
     return strcpy(copy, to_duplicate);
 }
 
-/**
- * @brief Finds the most right ST_Node of the left subtree.
- *
- * @param node Root node of the subtree in which we want to find the min ST_Node.
- * @note Root of the left subtree needs to be passed!
- *
- * @return Min ST_Node pointer.
- */
-static ST_Node *find_max_node(ST_Node *node)
-{
-    if (!node->right) // no more right children
-        return node;
-    else
-        return find_max_node(node->right);
-}
 
 /**
  * @brief Deallocates data inside the node and the node itself.
