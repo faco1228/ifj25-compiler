@@ -172,10 +172,6 @@ void codegen(ASTNode_ptr node)
         gen_continue();
 
         break;
-        // case NODE_EXPR_STMNT:
-        //     // Expression will be evaluated and the result will be left at the top of data stack
-        //     eval_exp(node);
-
     case NODE_CALL:
         // Call corresponding code generating function
         gen_jmp_function(node);
@@ -961,11 +957,8 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
  */
 void eval_exp(ASTNode_ptr exp_node)
 {
-    if (!exp_node->children)
-        return;
-
-    eval_exp(exp_node->children[0]); // left subtree
-    eval_exp(exp_node->children[1]); // right subtree
+    for (unsigned idx = 0; idx < exp_node->child_count; idx++)
+        eval_exp(exp_node->children[idx]);
 
     if (exp_node->type == NODE_BINARY_OP)
     {
@@ -977,7 +970,10 @@ void eval_exp(ASTNode_ptr exp_node)
         if (exp_node->data.identifier.id_type == GETTER)
             gen_jmp_function(exp_node);
         else
+        {
             gen_push_variable(exp_node);
+        }
+           
     }
     else if (exp_node->type == NODE_STR_LIT)
         printf("PUSHS string@%s\n", exp_node->data.literal.data.str_value);
