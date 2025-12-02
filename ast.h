@@ -16,8 +16,8 @@
  * @copyright Copyright (c) 2025
  */
 
-#ifndef AST_H
-#define AST_H
+#ifndef _AST_H_
+#define _AST_H_
 
 #include "error.h"
 #include "symtable.h"

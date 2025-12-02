@@ -15,8 +15,8 @@
  * @copyright Copyright (c) 2025
  */
 
-#ifndef PARSER_H
-#define PARSER_H
+#ifndef _PARSER_H_
+#define _PARSER_H_
 
 #include "scanner.h"
 #include "error.h"

@@ -8,8 +8,8 @@
  * @copyright Copyright (c) 2025
  */
 
-#ifndef SEMANTIC_ANALYSIS_H
-#define SEMANTIC_ANALYSIS_H
+#ifndef _SEMANTIC_ANALYSIS_H_
+#define _SEMANTIC_ANALYSIS_H_
 
 #include "symtable.h"
 #include "ast.h"

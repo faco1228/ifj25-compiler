@@ -8,8 +8,8 @@
  * @copyright Copyright (c) 2025
  */
 
-#ifndef SCANNER_H
-#define SCANNER_H
+#ifndef _SCANNER_H_
+#define _SCANNER_H_
 
 #include <stdbool.h>
 

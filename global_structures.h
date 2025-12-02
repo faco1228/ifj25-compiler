@@ -9,8 +9,8 @@
  * 
  */
 
-#ifndef GLOBALS_H_GUARD
-#define GLOBALS_H_GUARD
+#ifndef _GLOBALS_H_GUARD_
+#define _GLOBALS_H_GUARD_
 
 #include <stdarg.h>
 #include "ast.h"

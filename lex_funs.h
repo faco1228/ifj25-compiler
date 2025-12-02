@@ -8,14 +8,15 @@
  * @copyright Copyright (c) 2025
  */
 
-#ifndef LEX_FUNS_H
-#define LEX_FUNS_H
+#ifndef _LEX_FUNS_H_
+#define _LEX_FUNS_H_
 
-#include "scanner.h"
-#include "error.h"
 #include <stdio.h>
 #include <ctype.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include "scanner.h"
+#include "error.h"
 
 //Macro to determine whether the input character still belongs to the IDENT token being processed
 #define is_ident(c) \

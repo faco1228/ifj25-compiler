@@ -9,6 +9,8 @@
  * 
  */
 
+#include <stdio.h>
+
 /******************** Ifj.read_str ********************/
 
 void gen_built_in_read_str() {

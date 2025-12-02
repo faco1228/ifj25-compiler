@@ -4,8 +4,8 @@
  * @brief  ADT stack for precedence analysis implemented as Linked List
  */
 
-#ifndef STACK_H
-#define STACK_H
+#ifndef _STACK_H_
+#define _STACK_H_
 
 #include <stdbool.h>
 #include "scanner.h"
@@ -45,4 +45,5 @@ void stack_set_top_terminal_pointer(Stack *s, StackItem *item);
 void stack_push_after(Stack *s, token_ptr token);
 
 void stack_pop_no_free(Stack *s);
+
 #endif

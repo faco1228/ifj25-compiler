@@ -16,8 +16,9 @@
 #include "code_gen.h"
 #include "global_structures.h"
 #include "compiler_main.h"
+#include "error.h"
 
-#define COMPILATIONS_SUCCESS 0
+#define COMPILATION_SUCCESS 0
 
 ASTNode_ptr g_ast_root = NULL;
 ST_Node *g_func_symtable = NULL;
@@ -27,7 +28,7 @@ Scope_Stack *g_scope_stack = NULL;
 int main()
 {
     // syntactic analysis and creation of ast
-    ASTNode_ptr g_ast_root = parse_program();
+    g_ast_root = parse_program();
     
     // print_ast(ast); //! vymazat - volanie pomocnej funkcie pre print ast cez pre order
 
@@ -53,5 +54,5 @@ int main()
     free_global_name_gen(global_name_gen);
     // parser calls scanner_cleanup
 
-    return COMPILATIONS_SUCCESS;
+    return COMPILATION_SUCCESS;
 }

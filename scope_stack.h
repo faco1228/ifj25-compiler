@@ -7,8 +7,8 @@
  *
  */
 
-#ifndef SCOPE_STACK_H
-#define SCOPE_STACK_H
+#ifndef _SCOPE_STACK_H_
+#define _SCOPE_STACK_H_
 
 #include "symtable.h"
 #include <stdbool.h>

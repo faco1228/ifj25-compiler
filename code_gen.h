@@ -13,6 +13,7 @@
 #define _CODE_GEN_
 
 #include <stdbool.h>
+#include <stdlib.h>
 #include "ast.h"
 #include "scope_stack.h"
 #include "symtable.h"
@@ -91,37 +92,37 @@ extern name_generator_ptr global_name_gen;
         } \
         \
         (global_name_gen->fun_label) = calloc(MAX_LABEL_NAME, sizeof(char)); \
-        if (global_name_gen->fun_label){ \
+        if (global_name_gen->fun_label  == NULL){ \
             glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable); \
         } \
         \
         (global_name_gen->else_block_label) = calloc(MAX_LABEL_NAME, sizeof(char)); \
-        if (global_name_gen->else_block_label){ \
+        if (global_name_gen->else_block_label  == NULL){ \
             glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable); \
         } \
         \
         (global_name_gen->end_if_label) = calloc(MAX_LABEL_NAME, sizeof(char)); \
-        if (global_name_gen->end_if_label){ \
+        if (global_name_gen->end_if_label == NULL){ \
             glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable); \
         } \
         \
         (global_name_gen->loop_start_label) = calloc(MAX_LABEL_NAME, sizeof(char)); \
-        if (global_name_gen->loop_start_label){ \
+        if (global_name_gen->loop_start_label == NULL){ \
             glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable); \
         } \
         \
         (global_name_gen->loop_end_label) = calloc(MAX_LABEL_NAME, sizeof(char)); \
-        if (global_name_gen->loop_end_label){ \
+        if (global_name_gen->loop_end_label == NULL){ \
             glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable); \
         } \
         \
         (global_name_gen->curr_function) = calloc(MAX_LABEL_NAME, sizeof(char)); \
-        if (global_name_gen->curr_function){ \
+        if (global_name_gen->curr_function == NULL){ \
             glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable); \
         } \
         \
         (global_name_gen->called_function) = calloc(MAX_LABEL_NAME, sizeof(char)); \
-        if (global_name_gen->called_function){ \
+        if (global_name_gen->called_function == NULL){ \
             glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable); \
         } \
     } while (0)
@@ -130,14 +131,15 @@ extern name_generator_ptr global_name_gen;
 
 /**
  * @brief The main code generating function - contains switch for all different types of nodes.
- *        Traverses the AST via inorder and expression subtrees via postorder.
+ *        Traverses the AST via inorder exept for expression subtrees.
+ *        That one is processed by functions handling expression and is being traversed via postorder.
  * 
  * @param node 
  */
 void codegen(ASTNode_ptr node);
 
 /**
- * @brief sets all attributes of global instance of name_gen_t to default values
+ * @brief sets all name_generator_t attributes to default values
  * 
  * @note used for reset when entering new function_def node
  * 
@@ -146,10 +148,11 @@ void codegen(ASTNode_ptr node);
 void name_gen_init(ASTNode_ptr node);
 
 /**
- * @brief Pushes variable on data stack, used by expression processing functions
+ * @brief Pushes variable on data stack
+ * 
+ * @note used by expression processing functions
  * 
  * @param node 
- * 
  */
 void gen_push_variable(ASTNode_ptr node);
 
@@ -176,47 +179,27 @@ void gen_assign(ASTNode_ptr node);
  */
 void gen_func_start(ASTNode_ptr node);
 
-// TO DO: add a comment
+/**
+ * @brief This function is called at the end of function or when return node is encountered
+ * 
+ */
 void gen_return();
 
 /**
- * @brief Generates code for float literal
+ * @brief Converts string literal into corresponding value and pushes this value on a stack
  * 
  * @param value The float value to push on stack
  */
 void gen_lit_string(char *value);
 
 /**
- * @brief Handles start of if statement
+ * @brief Generates jump on corresponding function
+ * 
+ * @note works on both built in and user defined functions
  * 
  * @param node 
  */
-void gen_if(ASTNode_ptr node);
-
-/**
- * @brief Handles beginning of else block of if statement
- * 
- * @param node 
- */
-void gen_else(ASTNode_ptr node);
-
-/**
- * @brief Handles start of a while loop
- * 
- * @note called from NODE_WHILE
- * 
- * @param node 
- */
-void gen_while_start();
-
-/**
- * @brief Handles end of a while loop
- * 
- * @note called when recursion returns back to NODE_WHILE
- * 
- * @param node 
- */
-void gen_while_end();
+void gen_jmp_function(ASTNode_ptr node);
 
 /**
  * @brief Handles start of a for loop
@@ -237,13 +220,20 @@ void gen_for_start(ASTNode_ptr node);
 void gen_for_end(ASTNode_ptr node);
 
 /**
- * @brief Generates jump on corresponding function
+ * @brief Handles start of a while loop
  * 
- * @note works on both built in and user defined functions
+ * @note called from NODE_WHILE
  * 
  * @param node 
  */
-void gen_jmp_function(ASTNode_ptr node);
+void gen_while_start(ASTNode_ptr node);
+
+/**
+ * @brief Handles end of a while loop
+ * 
+ * @note called when recursion returns back to NODE_WHILE
+ */
+void gen_while_end();
 
 /**
  * @brief Terminates correspondig while loop
@@ -254,6 +244,18 @@ void gen_break();
  * @brief Skips one iteration in correspondig while loop
  */
 void gen_continue();
+
+/**
+ * @brief Handles start of if statement
+ * 
+ * @param node 
+ */
+void gen_if(ASTNode_ptr node);
+
+/**
+ * @brief Handles beginning of else block of if statement
+ */
+void gen_else();
 
 /**
  * @brief Creates a unique label name

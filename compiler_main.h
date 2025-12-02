@@ -9,8 +9,8 @@
  * 
  */
 
-#ifndef __COMPILER_MAIN__
-#define __COMPILER_MAIN__
+#ifndef _COMPILER_MAIN_
+#define _COMPILER_MAIN_
 
 #include "ast.h"
 #include "symtable.h"

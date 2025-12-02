@@ -101,6 +101,8 @@ void codegen(ASTNode_ptr node){
 
             break;
         case NODE_ASSIGN:
+            // This function takes care of the right side of the assignment
+            eval_exp(node->children[1]);
             // Calls corresponding code generating function
             gen_assign(node);
 
@@ -110,8 +112,8 @@ void codegen(ASTNode_ptr node){
             eval_exp(node->children[0]);
             
             // Variables to make code more readable
-            ASTNode_ptr true_block = node->children[0];
-            ASTNode_ptr else_block = node->children[1];
+            ASTNode_ptr true_block = node->children[1];
+            ASTNode_ptr else_block = node->children[2];
             
             // Calls corresponding code generating function
             gen_if(node);
@@ -276,7 +278,6 @@ void name_gen_init(ASTNode_ptr node){
  * @note used by expression processing functions
  * 
  * @param node 
- * 
  */
 void gen_push_variable(ASTNode_ptr node){
     // Differentiates between global and local variable
@@ -298,7 +299,8 @@ void gen_push_variable(ASTNode_ptr node){
  */
 void gen_var_decl(ASTNode_ptr node){
     // Differentiates between global and local variable
-    if (node->data.identifier.is_global) {
+    if (node->data.identifier.is_global){
+        // Here its not necessary to use code_gen_name since global names are unique after scope stack check
         printf("DEFVAR GF@%s\n", node->data.identifier.name);
     }
     else{
@@ -316,8 +318,8 @@ void gen_assign(ASTNode_ptr node){
     ASTNode_ptr lhs = node->children[0];
 
     // When the lhs is a setter
-    if (lhs->type == SETTER){
-        gen_jmp_function(node);
+    if (lhs->type == NODE_IDENTIFIER && lhs->data.identifier.id_type == SETTER){
+        gen_jmp_function(lhs);
     }
     else{ // The lhs needs to be a variable
         if (lhs->data.identifier.is_global) {
@@ -336,8 +338,7 @@ void gen_assign(ASTNode_ptr node){
  * @param node
  */
 void gen_func_start(ASTNode_ptr node){
-    // Reset the name generator
-    name_gen_init(node);
+    // Name generator was already initialized when this function is called
 
     // Creates and print unique function label name, 
     create_unique_name(node, FUN_LABEL);
@@ -348,17 +349,20 @@ void gen_func_start(ASTNode_ptr node){
     printf("\n# Store params into local variables\n");
 
     // Creates local vaiables
-    for (int i = node->data.function_def.arg_count; i >= 0; i--){
+    for (int i = (node->data.function_def.arg_count - 1); i >= 0; i--){
         printf("DEFVAR LF@%s\n", node->children[i]->data.identifier.code_gen_name);
         printf("POPS LF@%s\n", node->children[i]->data.identifier.code_gen_name);
     }
 }
 
-// TO DO: add a comment
+/**
+ * @brief This function is called at the end of function or when return node is encountered
+ * 
+ */
 void gen_return(){
     // Returns value via data stack
     if (!return_occured){
-        printf("pushs nil@nil\n");
+        printf("PUSHS nil@nil\n");
     }
 
     // Generate function end
@@ -410,16 +414,16 @@ void gen_lit_string(char* value){
  */
 void gen_jmp_function(ASTNode_ptr node){
     // Checks whether the node is getter/setter/function
-    if (node->type = SETTER){
+    if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == SETTER){
         eval_exp(node->children[1]);
     }
-    else if (node->type = GETTER){
+    else if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == SETTER){
         ; // Nothing will be pushed
     }
     else{
         // First the arguments are pushed on data strack (left to right) but
         // has to be treated as potential expression
-        for (int i = 0; i < node->data.function_call.param_count; i++){
+        for (unsigned i = 0; i < node->data.function_call.param_count; i++){
             eval_exp(node->children[i]);
         }
     }
@@ -427,34 +431,34 @@ void gen_jmp_function(ASTNode_ptr node){
     // The function is built in
     if (node->data.function_call.is_builtin){
         if (!strcmp(node->data.function_call.name, "read_str")){
-        printf("CALL %%*Ifj.read_str\n");
+        printf("CALL Ifj.read_str\n");
         }
         else if (!strcmp(node->data.function_call.name, "read_num")){
-            printf("CALL %%*Ifj.read_num\n");
+            printf("CALL Ifj.read_num\n");
         }
         else if (!strcmp(node->data.function_call.name, "write")){
-            printf("CALL %%*Ifj.write\n");
+            printf("CALL Ifj.write\n");
         }
         else if (!strcmp(node->data.function_call.name, "floor")){
-            printf("CALL %%*Ifj.floor\n");
+            printf("CALL Ifj.floor\n");
         }
         else if (!strcmp(node->data.function_call.name, "str")){
-            printf("CALL %%*Ifj.str\n");
+            printf("CALL Ifj.str\n");
         }
         else if (!strcmp(node->data.function_call.name, "length")){
-            printf("CALL %%*Ifj.length\n");
+            printf("CALL Ifj.length\n");
         }
         else if (!strcmp(node->data.function_call.name, "substring")){
-        printf("CALL %%*Ifj.substring\n");
+            printf("CALL Ifj.substring\n");
         }
         else if (!strcmp(node->data.function_call.name, "strcmp")){
-            printf("CALL %%*Ifj.strcmp\n");
+            printf("CALL Ifj.strcmp\n");
         }
         else if (!strcmp(node->data.function_call.name, "ord")){
-            printf("CALL %%*Ifj.ord\n");
+            printf("CALL Ifj.ord\n");
         }
         else{
-            printf("CALL %%*Ifj.chr\n");
+            printf("CALL Ifj.chr\n");
         }
     }
     else{
@@ -462,6 +466,182 @@ void gen_jmp_function(ASTNode_ptr node){
         create_unique_name(node, CALL);
         printf("\nCALL %s\n", global_name_gen->called_function);
     }
+}
+
+/**
+ * @brief Handles start of a for loop
+ * 
+ * @note called from NODE_FOR
+ * 
+ * @param node 
+ */
+void gen_for_start(ASTNode_ptr node){
+    // Creates unique label name
+    create_unique_name(node, LOOP_START_L);
+    create_unique_name(node, LOOP_END_L);
+    
+    // Store current temp_var_counter value for later usage and increment the counter inside global_name_gen
+    unsigned temp_id = global_name_gen->temp_var_counter++;
+
+    // Variable to make code more readable
+    char* iter_name = node->children[0]->data.identifier.code_gen_name;
+
+    // Variable used as "index" in for loop - iterator
+    printf("DEFVAR LF@%s\n", iter_name);
+    printf("DEFVAR LF@temp_var_until_%d\n", temp_id);
+
+    // Have to read NODE_RANGE children
+    ASTNode_ptr range_node = node->children[1]->children[0];
+
+    // This function will return start and end of the range on stack data
+    eval_exp(range_node);
+    
+    // Initialize variables
+    printf("POPS LF@temp_var_until_%d\n", temp_id);
+    printf("POPS LF@%s\n", iter_name);
+
+    // Prints label of the beginnning of the loop
+    printf("\nLABEL %s\n", global_name_gen->loop_start_label);
+
+    // Push condition arguments on stack    
+    printf("\n# Evaluate condition\n");
+    printf("PUSHS LF@%s\n", iter_name);
+    printf("PUSHS LF@temp_var_until_%d\n", temp_id);
+    
+    // Evaluates condition based on whether the range is inclusive(double dot) or not(triple dot)
+    // Continue until i <= end
+    if (range_node->data.range.inclusive) { 
+        // Jump when i > end
+        printf("GTS\n");
+        printf("PUSHS bool@true\n");
+        printf("JUMPIFEQS %s\n\n", global_name_gen->loop_end_label);
+    } 
+    // Continue until i < end
+    else {
+        // jump when i !< end
+        printf("LTS\n");
+        printf("PUSHS bool@false\n");
+        printf("JUMPIFEQS %s\n\n", global_name_gen->loop_end_label);
+    }
+
+    // for loop body follows
+}
+
+/**
+ * @brief Handles end of a for loop
+ * 
+ * @note called when recrusion returns back to the node
+ * 
+ * @param node 
+ */
+void gen_for_end(ASTNode_ptr node) {
+    // Variable to make code more readable
+    char* iter_name = node->children[0]->data.identifier.code_gen_name;
+
+    // Increment the iterator variable
+    printf("\n# Icrementing iterator\n");
+    printf("PUSHS LF@%s\n", iter_name);
+    printf("PUSHS int@1\n");
+    printf("ADDS\n");
+    printf("POPS LF@%s\n", iter_name);
+
+    // Loops to the beginning    
+    printf("\nJUMP %s\n", global_name_gen->loop_start_label);
+    // Prints label representing loops end
+    printf("\nLABEL %s\n", global_name_gen->loop_end_label);
+}
+
+/**
+ * @brief Handles start of a while loop
+ * 
+ * @note called from NODE_WHILE
+ * 
+ * @param node 
+ */
+void gen_while_start(ASTNode_ptr node){
+    // Creates unique label names
+    create_unique_name(node, LOOP_START_L);
+    create_unique_name(node, LOOP_END_L);
+    
+    // Prints loop start label
+    printf("\nLABEL %s\n", global_name_gen->loop_start_label);
+    
+    // Condition check
+    printf("# Evaluate while condition\n");
+    
+    // This function will evaluate the condition and leave the result at data stack top
+    eval_exp(node->children[0]);
+    
+    // When condition is false, while loop will end
+    printf("PUSHS bool@false\n");
+    printf("JUMPIFEQS %s\n\n", global_name_gen->loop_end_label);
+    
+    // while loop body follows
+}
+
+/**
+ * @brief Handles end of a while loop
+ * 
+ * @note called when recursion returns back to NODE_WHILE
+ * 
+ * @param node 
+ */
+void gen_while_end(){
+    // Loop back to the beginning
+    printf("\nJUMP %s\n", global_name_gen->loop_start_label);
+    
+    // Prints loop end label
+    printf("\nLABEL %s\n", global_name_gen->loop_end_label);
+}
+
+/**
+ * @brief Terminates correspondig while loop
+ */
+void gen_break(){
+    printf("JUMP %s\n", global_name_gen->loop_end_label);
+}
+
+/**
+ * @brief Skips one iteration in correspondig while loop
+ */
+void gen_continue(){
+    printf("JUMP %s\n", global_name_gen->loop_start_label);
+}
+
+/**
+ * @brief Handles start of if statement
+ * 
+ * @param node 
+ */
+void gen_if(ASTNode_ptr node) {
+    // Unique labely
+    create_unique_name(node, IF_ELSE_L);
+    create_unique_name(node, IF_END_L);
+    
+    // Condition check
+    printf("\n# Decides where to continue based on the condition result\n");
+    
+    // When the condition is false jump on else block label
+    printf("PUSHS bool@false\n");
+    printf("JUMPIFEQS %s\n\n", global_name_gen->else_block_label);
+    
+    // Generate body
+}
+
+/**
+ * @brief Handles beginning of else block of if statement
+ * 
+ * @param node 
+ */
+void gen_else() {
+    // In case the if block would reach this instructions jump at the end of 
+    // the whole if statement needs to be executed
+    printf("JUMP %s\n\n", global_name_gen->end_if_label);
+    
+    // Prints label for else block
+    printf("\nLABEL %s\n", global_name_gen->else_block_label);
+    
+    // Generate body
 }
 
 /**
@@ -547,7 +727,7 @@ void create_unique_name(ASTNode_ptr node, name_option_t option) {
             // Have to differentiate between the location of loop: function, setter and getter
             if (global_name_gen->in_function){
                 // Creates unique name
-                snprintf(global_name_gen->else_block_label, MAX_LABEL_NAME, "_if_felse_fun_%s_%u_%llu", 
+                snprintf(global_name_gen->else_block_label, MAX_LABEL_NAME, "_if_else_fun_%s_%u_%llu", 
                 global_name_gen->curr_function, 
                 global_name_gen->curr_param_count,
                 global_name_gen->loop_counter);
@@ -580,13 +760,13 @@ void create_unique_name(ASTNode_ptr node, name_option_t option) {
             }
             else if (global_name_gen->in_getter){
                 // Creates unique name
-                snprintf(global_name_gen->else_block_label, MAX_LABEL_NAME, "_if_end_getter_%s_0_%llu", 
+                snprintf(global_name_gen->end_if_label, MAX_LABEL_NAME, "_if_end_getter_%s_0_%llu", 
                 global_name_gen->curr_function, 
                 global_name_gen->loop_counter);
             }
             else{
                 // Creates unique name
-                snprintf(global_name_gen->else_block_label, MAX_LABEL_NAME, "if_end_setter_%s_1_%llu", 
+                snprintf(global_name_gen->end_if_label, MAX_LABEL_NAME, "if_end_setter_%s_1_%llu", 
                 global_name_gen->curr_function, 
                 global_name_gen->loop_counter);
             }
@@ -601,16 +781,16 @@ void create_unique_name(ASTNode_ptr node, name_option_t option) {
              * This name will be stored in global_name_gen->called_function.
              */
 
-            if (node->data.identifier.id_type == FUNCTION){
+            if (node->type == NODE_CALL){
                 snprintf(global_name_gen->called_function, MAX_FUNCTION_NAME, "_fun_%s_%u", 
                 node->data.function_call.name,
                 node->data.function_call.param_count);
             }
-            else if (node->data.identifier.id_type == SETTER){
+            else if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == SETTER){
                 snprintf(global_name_gen->called_function, MAX_FUNCTION_NAME, "_setter_%s", 
                 node->data.identifier.code_gen_name);
             }
-            else{
+            else{ // node->type == NODE_IDENTIFIER && node->data.identifier.id_type == GETTER
                 snprintf(global_name_gen->called_function, MAX_FUNCTION_NAME, "_getter_%s", 
                 node->data.identifier.code_gen_name);
             }
@@ -620,137 +800,6 @@ void create_unique_name(ASTNode_ptr node, name_option_t option) {
             break;
     }
 }
-
-/**
- * @brief Handles start of a for loop
- * 
- * @note called from NODE_FOR
- * 
- * @param node 
- */
-void gen_for_start(ASTNode_ptr node){
-    // Creates unique label name
-    create_unique_name(node, LOOP_START_L);
-    create_unique_name(node, LOOP_END_L);
-    
-    // Store current temp_var_counter value for later usage and increment the counter inside global_name_gen
-    unsigned temp_id = global_name_gen->temp_var_counter++;
-
-    // Variable used as "index" in for loop - iterator
-    printf("DEFVAR LF@%s\n", node->children[0]->data.identifier.code_gen_name);
-    printf("DEFVAR LF@temp_var_until_%d\n", temp_id);
-
-    // Have to read NODE_RANGE children
-    ASTNode_ptr range_node = node->children[1]->children[0];
-
-    // This function will return start and end of the range on stack data
-    eval_exp(range_node);
-    
-    // Initialize variables
-    printf("POPS LF@temp_var_until_%d\n", temp_id);
-    printf("POPS LF@%s\n", node->children[0]->data.identifier.code_gen_name);
-
-    // Prints label of the beginnning of the loop
-    printf("\nLABEL %s\n", global_name_gen->loop_start_label);
-
-    // Push condition arguments on stack    
-    printf("\n# Evaluate condition\n");
-    printf("PUSHS LF@%s\n", node->children[0]->data.identifier.code_gen_name);
-    printf("PUSHS LF@temp_var_until_%d\n", temp_id);
-    
-    // Evaluates condition based on whether the range is inclusive(double dot) or not(triple dot)
-    if (range_node->data.range.inclusive) {
-        // Continue until i <= end
-        printf("GTS\n");
-        printf("PUSHS bool@true\n");
-        printf("JUMPIFEQS %s\n\n", global_name_gen->loop_end_label);
-    } else {
-        // Continue until i < end
-        printf("LTS\n");
-        printf("PUSHS bool@false\n");
-        printf("JUMPIFEQS %s\n\n", global_name_gen->loop_end_label);
-    }
-
-    // Increment the iterator variable
-    printf("\n# Icrementing iterator\n");
-    printf("PUSHS LF@%s\n", node->data.for_statement.name_iter);
-    printf("PUSHS int@1\n");
-    printf("ADDS\n");
-    printf("POPS LF@%s\n", node->data.for_statement.name_iter);
-
-    // for loop body follows
-}
-
-/**
- * @brief Handles end of a for loop
- * 
- * @note called when recrusion returns back to the node
- * 
- * @param node 
- */
-void gen_for_end(ASTNode_ptr node) {
-    // Loops to the beginning    
-    printf("\nJUMP %s\n", global_name_gen->loop_start_label);
-    // Prints label representing loops end
-    printf("\nLABEL %s\n", global_name_gen->loop_end_label);
-}
-
-/**
- * @brief Handles start of a while loop
- * 
- * @note called from NODE_WHILE
- * 
- * @param node 
- */
-void gen_while_start(ASTNode_ptr node) {
-    // Creates unique label names
-    create_unique_name(node, LOOP_START_L);
-    create_unique_name(node, LOOP_END_L);
-    
-    // Prints loop start label
-    printf("\nLABEL %s\n", global_name_gen->loop_start_label);
-    
-    // Condition check
-    printf("# Evaluate while condition\n");
-    
-    // This function will evaluate the condition and leave the result at data stack top
-    eval_exp(node->children[0]);
-    
-    // When condition is false, while loop will end
-    printf("PUSHS bool@false\n");
-    printf("JUMPIFEQS %s\n\n", global_name_gen->loop_end_label);
-    
-    // while loop body follows
-}
-
-/**
- * @brief Handles end of a while loop
- * 
- * @note called when recursion returns back to NODE_WHILE
- * 
- * @param node 
- */
-void gen_while_end(ASTNode_ptr node) {
-    // Loop back to the beginning
-    printf("\nJUMP %s\n", global_name_gen->loop_start_label);
-    
-    // Prints loop end label
-    printf("\nLABEL %s\n", global_name_gen->loop_end_label);
-}
-
-/**
- * @brief Terminates correspondig while loop
- */
-void gen_break(){
-    printf("JUMP %s\n", global_name_gen->loop_end_label);
-};
-
-/**
- * @brief Skips one iteration in correspondig while loop
- */
-void gen_continue(){
-    printf("JUMP %s\n", global_name_gen->loop_start_label);
-};
 
 /**
  * @brief Memory clean up for global instance of name_generator_ptr object
@@ -778,40 +827,4 @@ void free_global_name_gen(name_generator_ptr global_name_gen){
 
     // Free the vole oject
     free(global_name_gen);
-}
-
-/**
- * @brief Handles start of if statement
- * 
- * @param node 
- */
-void gen_if(ASTNode_ptr node) {
-    // Unique labely
-    create_unique_name(node, IF_ELSE_L);
-    create_unique_name(node, IF_END_L);
-    
-    // Condition check
-    printf("\n# Decides where to continue based on the condition result\n");
-    
-    // When the condition is false jump on else block label
-    printf("PUSHS bool@false\n");
-    printf("JUMPIFEQS %s\n\n", global_name_gen->else_block_label);
-    
-    // Generate body
-}
-
-/**
- * @brief Handles beginning of else block of if statement
- * 
- * @param node 
- */
-void gen_else(ASTNode_ptr node) {
-    // In case the if block would reach this instructions jump at the end of 
-    // the whole if statement needs to be executed
-    printf("JUMP %s\n\n", global_name_gen->end_if_label);
-    
-    // Prints label for else block
-    printf("\nLABEL %s\n", global_name_gen->else_block_label);
-    
-    // Generate body
 }

@@ -9,8 +9,8 @@
  * 
  */
 
-#ifndef __BUILT_IN_FUNS__
-#define __BUILT_IN_FUNS__
+#ifndef _BUILT_IN_FUNS_
+#define _BUILT_IN_FUNS_
 
 void gen_built_in_read_str();
 

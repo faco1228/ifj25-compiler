@@ -5,8 +5,8 @@
  *        printing warnings to stdout.
  */
 
-#ifndef ERROR_H
-#define ERROR_H
+#ifndef _ERROR_H_
+#define _ERROR_H_
 
 #include <stdarg.h>
 

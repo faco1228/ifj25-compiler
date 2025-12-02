@@ -6,6 +6,9 @@
         "functional": "cpp",
         "string": "cpp",
         "random": "c",
-        "atomic": "c"
+        "atomic": "c",
+        "typeinfo": "c",
+        "stdlib.h": "c",
+        "stdbool.h": "c"
     }
 }

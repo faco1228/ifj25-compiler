@@ -16,8 +16,8 @@
  * @copyright Copyright (c) 2025
  */
 
-#ifndef PARSER_EXPRESSION_H
-#define PARSER_EXPRESSION_H
+#ifndef _PARSER_EXPRESSION_H_
+#define _PARSER_EXPRESSION_H_
 
 #include <stdbool.h>
 #include <stdio.h>
