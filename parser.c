@@ -344,7 +344,7 @@ static ASTNode_ptr parse_function_def(token_ptr id) // parse parameter list
 
     // Insert function into function symbol table
     Key *key = st_create_function_key(id->value.str_value, arg_count, FUNCTION);
-    ST_Node *new = st_create_node(key);
+    ST_Node *new = st_create_node(key, 0);
     g_func_symtable = st_insert_node(g_func_symtable, new);
 
     key_dispose(key);
@@ -402,7 +402,7 @@ static ASTNode_ptr parse_setter_def(token_ptr id)
 
     // Insert setter into function symbol table
     Key *key = st_create_function_key(id->value.str_value, 1, SETTER);
-    ST_Node *new = st_create_node(key);
+    ST_Node *new = st_create_node(key, 0);
     g_func_symtable = st_insert_node(g_func_symtable, new);
 
     key_dispose(key);
@@ -430,7 +430,7 @@ static ASTNode_ptr parse_getter_def(token_ptr id)
 
     // Insert getter into function symbol table
     Key *key = st_create_function_key(id->value.str_value, 0, GETTER);
-    ST_Node *new = st_create_node(key);
+    ST_Node *new = st_create_node(key, 0);
     g_func_symtable = st_insert_node(g_func_symtable, new);
 
     key_dispose(key);

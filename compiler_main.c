@@ -15,7 +15,6 @@
 #include "symtable.h"
 #include "global_structures.h"
 
-
 //! vymazat - funkcia pre print stromu pomocou preorder prechodu
 void print_ast(ASTNode_ptr ast_root)
 {
@@ -28,7 +27,21 @@ void print_ast(ASTNode_ptr ast_root)
     {
         print_ast(ast_root->children[i]);
     }
-    
+}
+
+void print_code_gen_names(ASTNode_ptr ast_root) // !vymazat pre odovzdanim
+{
+
+    if (!ast_root)
+        return;
+
+    if (ast_root->type == NODE_IDENTIFIER || ast_root->type == NODE_VAR_DECL)
+        printf("CODE_GEN_NAME: %s\n", ast_root->data.identifier.code_gen_name);
+
+    for (size_t i = 0; i < ast_root->child_count; i++)
+    {
+        print_code_gen_names(ast_root->children[i]);
+    }
 }
 
 #define COMPILATIONS_SUCCESS 0
@@ -42,7 +55,7 @@ int main()
 {
     // syntactic analysis and creation of ast
     ASTNode_ptr ast = parse_program(); //! bude vobec treba vratit ast ak je globalne? nestaci poslat ten globalny ptr? len na zamyslenie
-    
+
     // print_ast(ast); //! vymazat - volanie pomocnej funkcie pre print ast cez pre order
 
     // scope_stack init
@@ -54,6 +67,8 @@ int main()
 
     // performes semantic_analysis and generates code after every successful semantic action
     semantic_analysis(ast);
+
+    // print_code_gen_names(ast); // !vymazat
 
     // free all allocated structures
     scope_stack_dispose(g_scope_stack);

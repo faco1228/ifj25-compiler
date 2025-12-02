@@ -77,7 +77,7 @@ void scope_stack_push(Scope_Stack *scope_stack, ST_Node *root_ptr)
 
 /**
  * @brief Increases the size of symtable_array to fit one more element.
- * @param scope_stack Pointer to Scope_Stack.
+ * @param scope_stack Pointer to scope_stack.
  */
 void scope_stack_increase_size(Scope_Stack *scope_stack)
 {
@@ -92,7 +92,7 @@ void scope_stack_increase_size(Scope_Stack *scope_stack)
 /**
  * @brief Removes Symtable pointer from stack top. Calls Disposte_Tree before popping
  *
- * @param Scope_Stack Pointer to Scope_Stack.
+ * @param scope_stack Pointer to the scope_stack.
  */
 void scope_stack_pop(Scope_Stack *scope_stack)
 {
@@ -130,13 +130,14 @@ bool scope_stack_full(Scope_Stack *scope_stack)
 
 /**
  * @brief Looks through all the symtables that are currently on stack and tries to find a specific symbol.
+ * 
  * @param scope_stack Pointer to a scope_stack.
- * @param glob_var_symtable Pointer to a symtable of global variables.
  * @param key Key of a symbol we look for.
+ * @param block_id Pointer to a helper variable inside the semantic analysis module used for name mangling.
  *
  * @return True if symbol was found, false otherwise.
  */
-ST_Node *scope_stack_var_lookup(Scope_Stack *scope_stack, Key *key)
+ST_Node *scope_stack_var_lookup(Scope_Stack *scope_stack, Key *key, unsigned *block_id)
 {
     if (scope_stack_empty(scope_stack))
         return NULL;
@@ -148,7 +149,10 @@ ST_Node *scope_stack_var_lookup(Scope_Stack *scope_stack, Key *key)
         symbol = st_search(scope_stack->symtable_array[idx], key);
 
         if (symbol)
+        {
+            *block_id = symbol->block_id;
             return symbol;
+        }
     }
 
     return NULL; // local var not found
