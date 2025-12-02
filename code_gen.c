@@ -1258,7 +1258,7 @@ void gen_eval_greater_lower(operator_types *op_type)
     printf("JUMPIFEQ %s LF@type_check1 LF@type_check2\n", global_name_gen->left_to_float);
 
     // int to float conversion - right op
-    printf("LABEL %s\n", global_name_gen->left_to_float); // label
+    printf("LABEL %s\n", global_name_gen->right_to_float); // label
     printf("INT2FLOAT LF@op2 LF@op2\n");
     printf("JUMP %s\n", global_name_gen->eval);
 
