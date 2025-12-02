@@ -116,8 +116,7 @@ void codegen(ASTNode_ptr node)
     case NODE_ASSIGN:
         // This function takes care of the right side of the assignment
         // but only when the lhs is not a setter
-        ASTNode_ptr lhs = node->children[0];
-        if (lhs->data.identifier.id_type == VAR){
+        if (node->children[0]->data.identifier.id_type == VAR){
             eval_exp(node->children[1]->children[0]);
         }
 
@@ -483,7 +482,7 @@ void gen_jmp_function(ASTNode_ptr node)
     // Checks whether the node is getter/setter/function
     if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == SETTER)
     {
-        eval_exp(node->children[1]);
+        eval_exp(node->children[1]->children[0]);
     }
     else if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == GETTER)
     {
