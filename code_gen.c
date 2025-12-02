@@ -459,7 +459,7 @@ void gen_jmp_function(ASTNode_ptr node)
     {
         eval_exp(node->children[1]);
     }
-    else if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == SETTER)
+    else if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == GETTER)
     {
         ; // Nothing will be pushed
     }
