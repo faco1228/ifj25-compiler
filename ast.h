@@ -138,7 +138,6 @@ struct ASTNode
             char *code_gen_name;
             ID_Type id_type;
             bool is_global;
-            bool declared_in_loop;
         } identifier;
 
         // Function definition

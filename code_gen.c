@@ -115,7 +115,12 @@ void codegen(ASTNode_ptr node)
         break;
     case NODE_ASSIGN:
         // This function takes care of the right side of the assignment
-        eval_exp(node->children[1]->children[0]);
+        // but only when the lhs is not a setter
+        ASTNode_ptr lhs = node->children[0];
+        if (lhs->data.identifier.id_type == VAR){
+            eval_exp(node->children[1]->children[0]);
+        }
+
         // Calls corresponding code generating function
         gen_assign(node);
 
