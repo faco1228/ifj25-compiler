@@ -1,6 +1,6 @@
 /**
  * @file lex_funs.h
- * @author xracekm00
+ * @author Martin Racek (xracekm00)
  * @brief Header file for lexical analyzers functions
  * @version 0.4
  * @date 2025-11-28
@@ -8,14 +8,15 @@
  * @copyright Copyright (c) 2025
  */
 
-#ifndef LEX_FUNS_H
-#define LEX_FUNS_H
+#ifndef _LEX_FUNS_H_
+#define _LEX_FUNS_H_
 
-#include "scanner.h"
-#include "error.h"
 #include <stdio.h>
 #include <ctype.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include "scanner.h"
+#include "error.h"
 
 //Macro to determine whether the input character still belongs to the IDENT token being processed
 #define is_ident(c) \

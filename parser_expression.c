@@ -1,6 +1,7 @@
 /**
  * @file parser_expression.h
- * @authors Samuel Facka (xfackas00), Kristian Cilling (xcillik00)
+ * @authors Samuel Facka (xfackas00),
+ *          Kristian Cilling (xcillik00)
  * @brief Precedence syntax analyzer (PSA) for expressions.
  *
  * Supported:

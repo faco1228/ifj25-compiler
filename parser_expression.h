@@ -1,6 +1,7 @@
 /**
  * @file parser_expression.h
- * @authors Samuel Facka (xfackas00), Kristian Cilling (xcillik00)
+ * @authors Samuel Facka (xfackas00),
+ *          Kristian Cilling (xcillik00)
  * @brief Precedence syntax analyzer (PSA) interface for expressions.
  * 
  * The PSA parses expressions into AST using:
@@ -15,8 +16,8 @@
  * @copyright Copyright (c) 2025
  */
 
-#ifndef PARSER_EXPRESSION_H
-#define PARSER_EXPRESSION_H
+#ifndef _PARSER_EXPRESSION_H_
+#define _PARSER_EXPRESSION_H_
 
 #include <stdbool.h>
 #include <stdio.h>

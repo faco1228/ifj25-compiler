@@ -1,6 +1,6 @@
 /**
  * @file scanner.h
- * @author xracekm00
+ * @author Martin Racek (xracekm00)
  * @brief Contains functions for partial token processing
  * @version 0.4
  * @date 2025-11-28

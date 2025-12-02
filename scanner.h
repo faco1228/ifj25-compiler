@@ -1,6 +1,6 @@
 /**
  * @file scanner.h
- * @author xracekm00
+ * @author Martin Racek (xracekm00)
  * @brief Header file for lexical analyzer - scanner
  * @version 0.4
  * @date 2025-11-28
@@ -8,8 +8,8 @@
  * @copyright Copyright (c) 2025
  */
 
-#ifndef SCANNER_H
-#define SCANNER_H
+#ifndef _SCANNER_H_
+#define _SCANNER_H_
 
 #include <stdbool.h>
 

@@ -1,6 +1,6 @@
 /**
  * @file symtable.c
- * @author xmezeim00
+ * @author Martin Mezei (xmezeim00)
  * @brief Implementation of symtable using AVL binary tree.
  * @version 0.1
  * @date 2025-11-17

@@ -1,6 +1,6 @@
 /**
  * @file semantic_analysis.c
- * @author xmezeim00
+ * @author Martin Mezei (xmezeim00)
  * @brief Impelements function used during the semantic analysis.
  * @version 0.1
  * @date 2025-11-14

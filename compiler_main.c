@@ -1,6 +1,6 @@
 /**
  * @file compiler_main.c
- * @authors xmezeim00
+ * @authors Martin Mezei (xmezeim00)
  * @brief Implements an executable main to run different modules of the compiler and allocate structure that are needed in multiple modules.
  * @version 0.1
  * @date 2025-11-17
@@ -13,7 +13,10 @@
 #include "semantic_analysis.h"
 #include "scope_stack.h"
 #include "symtable.h"
+#include "code_gen.h"
 #include "global_structures.h"
+#include "compiler_main.h"
+#include "error.h"
 
 //! vymazat - funkcia pre print stromu pomocou preorder prechodu
 void print_ast(ASTNode_ptr ast_root)
@@ -60,22 +63,27 @@ int main()
 
     // scope_stack init
     g_scope_stack = malloc(sizeof(Scope_Stack));
-    if (!g_scope_stack)
+    if (g_scope_stack == NULL){
         error_exit(ERR_INTERNAL);
+    }
+    
+    // if stack array allocation fails, error_exit() is called inside the function and all memory is freed
+    scope_stack_init(g_scope_stack); 
+    // performes semantic_analysis
+    semantic_analysis(g_ast_root);
 
-    scope_stack_init(g_scope_stack); // if stack array allocation fails, error_exit() is called inside the function and all memory is freed
+    // global_name_gen init
+    allocate_global_name_gen(global_name_gen, g_scope_stack, g_ast_root, g_func_symtable, g_global_symtable);
 
-    // performes semantic_analysis and generates code after every successful semantic action
-    semantic_analysis(ast);
+    // traverses AST and generates final code
+    codegen(g_ast_root);
 
     // print_code_gen_names(ast); // !vymazat
 
     // free all allocated structures
-    scope_stack_dispose(g_scope_stack);
-    ast_free(ast);
-    st_dispose_tree(g_func_symtable);
-    st_dispose_tree(g_global_symtable);
+    glob_structs_clean_up(g_scope_stack, g_ast_root, g_func_symtable, g_global_symtable);
+    free_global_name_gen(global_name_gen);
     // parser calls scanner_cleanup
 
-    return COMPILATIONS_SUCCESS;
+    return COMPILATION_SUCCESS;
 }

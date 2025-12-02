@@ -1,12 +1,12 @@
 /**
  * @file symtable.h
- * @author xmezeim00
+ * @author Martin Mezei (xmezeim00)
  *
  * @brief Implementation of symtable using AVL binary tree.
  */
 
-#ifndef SYMTABLE_H
-#define SYMTABLE_H
+#ifndef _SYMTABLE_H_
+#define _SYMTABLE_H_
 
 typedef enum ID_Types
 {
