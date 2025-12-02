@@ -22,7 +22,7 @@
 
 #include "symtable.h"
 #include "ast.h"
-#include "code_gen_funs.h"
+#include "code_gen.h"
 #include "error.h"
 
 /**
