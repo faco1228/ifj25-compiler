@@ -62,7 +62,7 @@ main.o: compiler_main.c parser.h semantic_analysis.h scope_stack.h symtable.h gl
 
 # od tadialto nizsie to pred odovzdanim treba pre istotu zakomentovat 
 run: compiler
-	./compiler < test.txt > log.txt || echo "Compiler exited with code $$?"
+	./compiler < test.txt > frantisek.ifjcode || echo "Compiler exited with code $$?"
 
 #	valgrind --leak-check=full --show-leak-kinds=all
  
