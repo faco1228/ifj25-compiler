@@ -93,6 +93,14 @@ extern bool zero_divison_detected;
 // this is used when checking that break and continue keywords are used only inside loops
 extern unsigned loop_nesting_tracker;
 
+// current value of this counter is assigned to each code block inside the current function
+// it is used as a unique identifier for each block, so we can assign this id to every local variable that was created inside that block later on
+// value of this counter resets back to 0 everytime we enter a new function
+extern unsigned block_counter;
+
+// helper that tracks in what block are we currently searching when using the scope_stack_var_lookup() function
+extern unsigned current_block_id;
+
 /**
  * @brief Resets all semantic flags to their default values.
  */

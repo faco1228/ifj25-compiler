@@ -46,6 +46,35 @@ bool has_comp_op = false;
 
 // loop detection helper
 unsigned loop_nesting_tracker = 0;
+// block counter for local variable name mangling
+unsigned block_counter = 0;
+// currently searched block tracker
+unsigned current_block_id = 0;
+
+/**
+ * @brief Mangles a variable name using the id provided
+ *
+ * @param name Stores the name of the variable.
+ * @param block_id Id of the block to which the variable belongs to.
+ *
+ * @return Mangled variable name.
+ */
+char *mangle_name(const char *name, unsigned block_id)
+{
+
+    // snprinft will return the needed length of the string
+    int len = snprintf(NULL, 0, "%s%u", name, block_id);
+
+    char *mangled = malloc(len + 1);
+
+    if (!mangled)
+        error_exit(ERR_INTERNAL);
+
+    // now we can actually created the new formatted string
+    snprintf(mangled, len + 1, "%s%u", name, block_id);
+
+    return mangled;
+}
 
 /**
  * @brief Resets all semantic flags to their default values.
@@ -85,9 +114,9 @@ bool verify_var_redec(Key *key, ST_Node *symtable)
  * @param key Pointer to the key of the symbol.
  * @param scope_stack Pointer to the scope stack.
  */
-bool verify_var_existence(Key *key) 
+bool verify_var_existence(Key *key)
 {
-    ST_Node *search_result = scope_stack_var_lookup(g_scope_stack, key);
+    ST_Node *search_result = scope_stack_var_lookup(g_scope_stack, key, &current_block_id);
 
     if (search_result) // local variable found
         return true;
@@ -183,6 +212,7 @@ bool main_exists()
 void args_exist(ASTNode_ptr call_node)
 {
     unsigned args_count = call_node->data.function_call.param_count;
+    Key *key = NULL;
 
     for (unsigned idx = 0; idx < args_count; idx++)
     {
@@ -192,13 +222,15 @@ void args_exist(ASTNode_ptr call_node)
         }
         else if (call_node->children[idx]->type == NODE_IDENTIFIER)
         {
-
-            Key *key = st_create_variable_key(call_node->children[idx]->data.identifier.name);
+            key = st_create_variable_key(call_node->children[idx]->data.identifier.name);
             if (!verify_var_existence(key))
             {
-                free(key);
+                key_dispose(key);
                 error_exit(ERR_SEM_UNDEFINED);
             }
+
+            call_node->children[idx]->data.identifier.code_gen_name = mangle_name(key->name, current_block_id);
+            key_dispose(key);
         }
     }
 }
@@ -298,6 +330,8 @@ void exp_analysis(ASTNode_ptr exp_root)
                     error_exit(ERR_SEM_UNDEFINED);
                 }
             }
+
+            exp_root->data.identifier.code_gen_name = mangle_name(key->name, current_block_id);
         }
 
         key_dispose(key);
@@ -452,6 +486,9 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
     }
     case NODE_FUNCTION_DEF:
     {
+        // every time we enter a new function block counter can be set to 0 again because every function is going to have it's own local frame
+        block_counter = 0;
+
         // creates a separate symtable for the function arguments
         // this symtable is always going to be on the bottom of the stack, so all args will be visible to lower level scopes
         scope_stack_push(g_scope_stack, NULL);
@@ -464,7 +501,7 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
         {
             // new symbol is created
             Key *key = st_create_variable_key(node_to_handle->children[idx]->data.identifier.name);
-            ST_Node *arg_node = st_create_node(key);
+            ST_Node *arg_node = st_create_node(key, block_counter); // function args are stored in a block with id == 0
 
             if (!arg_node)
                 error_exit(ERR_INTERNAL);
@@ -505,9 +542,9 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
 
             if (!search_result) // new global variable defined
             {
-                ST_Node *new_glob_var = st_create_node(key);
+                ST_Node *new_glob_var = st_create_node(key, block_counter);
 
-                if(!new_glob_var)
+                if (!new_glob_var)
                     error_exit(ERR_INTERNAL);
 
                 g_global_symtable = st_insert_node(g_global_symtable, new_glob_var);
@@ -529,12 +566,16 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
         }
         else // new local var needs to be added to current_scope
         {
-            ST_Node *new_node = st_create_node(key);
+            ST_Node *new_node = st_create_node(key, block_counter);
 
             if (!new_node)
                 error_exit(ERR_INTERNAL);
 
             *current_scope = st_insert_node(*current_scope, new_node);
+
+            // assign the newly create mangled variable name
+            node_to_handle->data.identifier.code_gen_name = mangle_name(key->name, new_node->block_id);
+
             free(key);
         }
 
@@ -542,13 +583,15 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
     }
     case NODE_BLOCK: // creates new empty scope
     {
-        scope_stack_push(g_scope_stack, NULL);
+        block_counter++; // we entered a new block so we need to increment the block_counter here
+
+        scope_stack_push(g_scope_stack, NULL); // new empty scope is created
         break;
     }
     case NODE_IDENTIFIER: // can only be a local or global var, because function nodes have a separate node type
     {
         if (node_to_handle->data.identifier.id_type == SETTER || node_to_handle->data.identifier.id_type == GETTER)
-            break; // node was already checked because id_type was assigned
+            break; // node was already checked because id_type is assigned
 
         Key *var_key = st_create_variable_key(node_to_handle->data.identifier.name);
 
@@ -559,6 +602,8 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
                 free(var_key);
                 error_exit(ERR_SEM_UNDEFINED);
             }
+
+            node_to_handle->data.identifier.code_gen_name = mangle_name(var_key->name, current_block_id);
         }
 
         break;
@@ -582,11 +627,13 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
         ASTNode_ptr iterator = node_to_handle->children[0];
 
         Key *iter_key = st_create_variable_key(iterator->data.identifier.name);
-        ST_Node *iter_node = st_create_node(iter_key);
 
-        if (!iter_node) 
+        block_counter++;                                              // block counter needs to be incremented
+        ST_Node *iter_node = st_create_node(iter_key, block_counter); // iterator is stored in it's own block
+
+        if (!iter_node)
             error_exit(ERR_INTERNAL);
-        
+
         scope_stack_push(g_scope_stack, iter_node);
 
         /* NOTE:

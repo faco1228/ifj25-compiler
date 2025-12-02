@@ -18,7 +18,6 @@
 //**HELPER FUNCTION PROTOTYPES**//
 static char *str_duplicate(char *to_duplicate);
 static void node_dispose(ST_Node *node, Key *key);
-static ST_Node *find_max_node(ST_Node *node);
 static ST_Node *left_rotation(ST_Node *root_ptr);
 static ST_Node *right_rotation(ST_Node *root_ptr);
 static ST_Node *balance_tree(ST_Node *critical_node);
@@ -95,11 +94,12 @@ Key *st_create_variable_key(char *name)
 /**
  * @brief Creates a new instance of a Variable_Node and initializes it's attributes.
  *
- * @param key Key of the new node. Needs to be created before using create_function_key or create_variable_key functions
+ * @param key Key of the new node. Needs to be created before using st_create_function_key or st_create_variable_key functions.
+ * @param block_id Block id is used to determined in which block exactly was a local variable declared.
  *
  * @return New Variable_Node.
  */
-ST_Node *st_create_node(Key *key)
+ST_Node *st_create_node(Key *key, unsigned block_id)
 {
     ST_Node *node = malloc(sizeof(ST_Node));
 
@@ -122,6 +122,7 @@ ST_Node *st_create_node(Key *key)
     }
 
     node->key.name = name_copy;
+    node->block_id = block_id;
 
     return node;
 }
@@ -161,85 +162,6 @@ ST_Node *st_insert_node(ST_Node *root_ptr, ST_Node *to_insert)
     set_balance_factor(root_ptr);
 
     // if needed
-    return balance_tree(root_ptr);
-}
-
-/**
- * @brief Removes an existing ST_Node.
- *
- * @param root_ptr Pointer to the root ST_Node of a symtable.
- * @param key Key that is used to locate the ST_Node that will be removed.
- *
- * @return Pointer to the (possibly new) root of the subtree after removal,
- *         or NULL if the subtree becomes empty or removal fails.
- */
-ST_Node *st_remove_node(ST_Node *root_ptr, Key *key)
-{
-    if (!root_ptr)
-    {
-        return NULL;
-    }
-
-    // here we can try to look for the node to remove
-    int key_cmp_result = key_cmp(key, &root_ptr->key);
-
-    if (key_cmp_result < 0) // go to the left subtree
-    {
-        root_ptr->left = st_remove_node(root_ptr->left, key);
-    }
-    else if (key_cmp_result > 0) // go to the right subtree
-    {
-        root_ptr->right = st_remove_node(root_ptr->right, key);
-    }
-    else // node found
-    {
-        if (!root_ptr->right && !root_ptr->left) // ST_Node has no children
-        {
-            node_dispose(root_ptr, &root_ptr->key);
-            return NULL;
-        }
-        else if (root_ptr->right && root_ptr->left) // ST_Node has both children
-        {
-            ST_Node *max_node = find_max_node(root_ptr->left);
-
-            free(root_ptr->key.name); // old name needs to be freed in case str_duplicate fails
-
-            // copy of the key is made
-            root_ptr->key.name = str_duplicate(max_node->key.name);
-
-            if (!root_ptr->key.name)
-                // has to be exited because there is no way to know that removal failed based on the return value of remove_node
-                error_exit(ERR_INTERNAL);
-
-            root_ptr->key.args_count = max_node->key.args_count;
-            root_ptr->key.id_type = max_node->key.id_type;
-
-            // max node is removed
-            root_ptr->left = st_remove_node(root_ptr->left, &max_node->key);
-        }
-        else if (root_ptr->left && !root_ptr->right) // only left child present
-        {
-            ST_Node *onlyChild = root_ptr->left;
-            node_dispose(root_ptr, &root_ptr->key);
-
-            // tree needs to be balanced after removal
-            set_balance_factor(onlyChild);
-            return balance_tree(onlyChild);
-        }
-        else // only right child present
-        {
-            ST_Node *onlyChild = root_ptr->right;
-            node_dispose(root_ptr, &root_ptr->key);
-
-            // tree needs to be balanced after removal
-            set_balance_factor(onlyChild);
-            return balance_tree(onlyChild);
-        }
-    }
-
-    // tree needs to be balanced after removal
-    set_balance_factor(root_ptr);
-
     return balance_tree(root_ptr);
 }
 
@@ -327,6 +249,7 @@ static int key_cmp(Key *key1, Key *key2)
  * @brief Finds the height of a tree using recursive calls.
  *
  * @param root_ptr Root node of the tree.
+ * @param height Pointer to the adress to which the result will be written to.
  *
  * @return Height of the tree.
  */
@@ -416,7 +339,7 @@ static ST_Node *left_rotation(ST_Node *root_ptr)
 /**
  * @brief Balances the tree according to the type of imbalance.
  *
- * @param root_ptr Root node of an unbalanced subtree that has balance factor higher than 1 or lower than -1.
+ * @param critical_node Root node of an unbalanced subtree that has balance factor higher than 1 or lower than -1.
  *
  * @return New root_ptr of the subtree after balancing.
  */
@@ -473,21 +396,6 @@ static char *str_duplicate(char *to_duplicate)
     return strcpy(copy, to_duplicate);
 }
 
-/**
- * @brief Finds the most right ST_Node of the left subtree.
- *
- * @param root_ptr Root node of the subtree in which we want to find the min ST_Node.
- * @note Root of the left subtree needs to be passed!
- *
- * @return Min ST_Node pointer.
- */
-static ST_Node *find_max_node(ST_Node *node)
-{
-    if (!node->right) // no more right children
-        return node;
-    else
-        return find_max_node(node->right);
-}
 
 /**
  * @brief Deallocates data inside the node and the node itself.

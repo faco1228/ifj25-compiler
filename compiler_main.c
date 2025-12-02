@@ -18,7 +18,36 @@
 #include "compiler_main.h"
 #include "error.h"
 
-#define COMPILATION_SUCCESS 0
+//! vymazat - funkcia pre print stromu pomocou preorder prechodu
+void print_ast(ASTNode_ptr ast_root)
+{
+    if (!ast_root)
+        return;
+
+    printf("NODE TYPE: %d\n", ast_root->type);
+
+    for (size_t i = 0; i < ast_root->child_count; i++)
+    {
+        print_ast(ast_root->children[i]);
+    }
+}
+
+void print_code_gen_names(ASTNode_ptr ast_root) // !vymazat pre odovzdanim
+{
+
+    if (!ast_root)
+        return;
+
+    if (ast_root->type == NODE_IDENTIFIER || ast_root->type == NODE_VAR_DECL)
+        printf("CODE_GEN_NAME: %s\n", ast_root->data.identifier.code_gen_name);
+
+    for (size_t i = 0; i < ast_root->child_count; i++)
+    {
+        print_code_gen_names(ast_root->children[i]);
+    }
+}
+
+#define COMPILATIONS_SUCCESS 0
 
 ASTNode_ptr g_ast_root = NULL;
 ST_Node *g_func_symtable = NULL;
@@ -28,8 +57,8 @@ Scope_Stack *g_scope_stack = NULL;
 int main()
 {
     // syntactic analysis and creation of ast
-    g_ast_root = parse_program();
-    
+    ASTNode_ptr ast = parse_program(); //! bude vobec treba vratit ast ak je globalne? nestaci poslat ten globalny ptr? len na zamyslenie
+
     // print_ast(ast); //! vymazat - volanie pomocnej funkcie pre print ast cez pre order
 
     // scope_stack init
@@ -48,6 +77,8 @@ int main()
 
     // traverses AST and generates final code
     codegen(g_ast_root);
+
+    // print_code_gen_names(ast); // !vymazat
 
     // free all allocated structures
     glob_structs_clean_up(g_scope_stack, g_ast_root, g_func_symtable, g_global_symtable);

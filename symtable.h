@@ -8,9 +8,6 @@
 #ifndef _SYMTABLE_H_
 #define _SYMTABLE_H_
 
-// defining the ST_Node data type
-typedef struct ST_Node ST_Node;
-
 typedef enum ID_Types
 {
     FUNCTION,
@@ -27,22 +24,30 @@ typedef struct
     ID_Type id_type; // used to differentiate between function, setter, getters, etc. which share the same name, tertiary key
 } Key;
 
+// defining the ST_Node data type
+typedef struct ST_Node ST_Node;
+
+// NOTE: There was no time to do a major redesign of the ST_Node structure, so some data can be unused in certain cases, such as arg_count with variables or
+// block_id with functions and global variables. It does not cause any problems when it comes to the logic it just stores redundant data sometimes.
+
 struct ST_Node
 {
     Key key;            // contains information about the id that will help to differentiate between ids with the same name
     int balance_factor; // used to determine the balance of the Node's subtree
     ST_Node *left;      // left child pointer
     ST_Node *right;     // right child pointer
+
+    unsigned block_id; // stores an id of the block to which the variable belongs to
 };
 
 //**FUNCTION FOR CREATING KEYS**//
 
 /**
  * @brief Deallocates key struct and it's data.
- * 
+ *
  * @param key Key to dispose.
  */
-void key_dispose (Key *key);
+void key_dispose(Key *key);
 
 /**
  * @brief Used for creating function, setter and getter keys.
@@ -67,11 +72,12 @@ Key *st_create_variable_key(char *name);
 /**
  * @brief Creates a new instance of a Variable_Node and initializes it's attributes.
  *
- * @param key Key of the new node. Needs to be created before using st_create_function_key or st_create_variable_key functions
+ * @param key Key of the new node. Needs to be created before using st_create_function_key or st_create_variable_key functions.
+ * @param block_id Block id is used to determined in which block exactly was a local variable declared.
  *
  * @return New Variable_Node.
  */
-ST_Node *st_create_node(Key *key);
+ST_Node *st_create_node(Key *key, unsigned block_id);
 
 /**
  * @brief Inserts a new ST_Node.
@@ -83,16 +89,6 @@ ST_Node *st_create_node(Key *key);
  */
 ST_Node *st_insert_node(ST_Node *root_ptr, ST_Node *to_insert);
 
-/**
- * @brief Removes an existing Node.
- *
- * @param root_ptr Pointer to the root Node of a symtable.
- * @param key Key that is used to locate the Node that will be removed.
- *
- * @return Pointer to the (possibly new) root of the subtree after removal,
- *         or NULL if the subtree becomes empty or removal fails.
- */
-ST_Node *st_remove_node(ST_Node *root_ptr, Key *key);
 
 /**
  * @brief Searches for a ST_Node based on a provided key. Can be used to verify existance of a ST_Node or to obtain a pointer to it's adress.
