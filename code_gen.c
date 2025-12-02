@@ -26,6 +26,7 @@
 #include "code_gen.h"
 #include "error.h"
 #include "built_in_funs.h"
+#include "global_structures.h"
 
 // Global instance of data type holding different kinds of information nececssary for code-gen
 name_generator_ptr global_name_gen = NULL;
@@ -57,6 +58,9 @@ void codegen(ASTNode_ptr node)
         // Skipping built in functions defined at the beginning of each program
         printf("JUMP _program_start_\n");
         printf("\n");
+
+        // Declares all global variables
+        // gen_all_glob_vars_dec();
 
         // At the beginning of the program, there are implementations of builtin functions
         gen_built_in_read_str();
@@ -236,6 +240,22 @@ void codegen(ASTNode_ptr node)
         global_name_gen->in_loop = false;
         gen_while_end(node);
     }
+}
+
+/**
+ * @brief Prints declarations of all global variables from symtable at the
+ *        beginning of programe
+ * 
+ */
+void gen_all_glob_vars_dec(){
+    // Reccursion end
+    if (!g_global_symtable)
+        return;
+    // Prints variable declaration
+    printf("DEFVAR GF@%s\n", g_global_symtable->key.name);
+    // Recursively traverses symtable
+    gen_all_glob_vars_dec(g_global_symtable->left);
+    gen_all_glob_vars_dec(g_global_symtable->right);
 }
 
 /**

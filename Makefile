@@ -24,7 +24,7 @@ compiler: scanner.o error.o lex_funs.o ast.o semantic_analysis.o parser.o scope_
 scanner.o: scanner.c scanner.h error.h lex_funs.h
 	$(CC) $(CFLAGS) -c scanner.c
 
-error.o: error.c error.h
+error.o: error.c error.h scanner.h 
 	$(CC) $(CFLAGS) -c error.c
 
 lex_funs.o: lex_funs.c lex_funs.h scanner.h error.h
@@ -54,10 +54,10 @@ symtable.o: symtable.c symtable.h error.h global_structures.h
 built_in_funs.o: built_in_funs.c built_in_funs.h
 	$(CC) $(CFLAGS) -c built_in_funs.c
 
-code_gen.o: code_gen.c code_gen.h ast.h global_structures.h built_in_funs.h scope_stack.h symtable.h semantic_analysis.h
+code_gen.o: code_gen.c code_gen.h ast.h global_structures.h built_in_funs.h scope_stack.h symtable.h semantic_analysis.h error.c error.h
 	$(CC) $(CFLAGS) -c code_gen.c
 
-main.o: compiler_main.c parser.h semantic_analysis.h scope_stack.h symtable.h global_structures.h code_gen.h compiler_main.h ast.h
+main.o: compiler_main.c parser.h semantic_analysis.h scope_stack.h symtable.h global_structures.h code_gen.h compiler_main.h ast.h error.c error.h
 	$(CC) $(CFLAGS) -c compiler_main.c -o main.o
 
 # od tadialto nizsie to pred odovzdanim treba pre istotu zakomentovat 
