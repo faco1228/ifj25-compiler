@@ -484,4 +484,9 @@ void gen_eval_plus_op();
  */
 void gen_eval_range_op();
 
+/**
+ * @brief Helper function that generates all label names that are needed inside expression evaluation codes.
+ */
+void create_label_names();
+
 #endif
