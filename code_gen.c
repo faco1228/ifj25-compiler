@@ -60,7 +60,7 @@ void codegen(ASTNode_ptr node)
         printf("\n");
 
         // Declares all global variables
-        // gen_all_glob_vars_dec();
+        gen_all_glob_vars_dec(g_global_symtable);
 
         // At the beginning of the program, there are implementations of builtin functions
         gen_built_in_read_str();
@@ -247,15 +247,15 @@ void codegen(ASTNode_ptr node)
  *        beginning of programe
  * 
  */
-void gen_all_glob_vars_dec(){
+void gen_all_glob_vars_dec(ST_Node* symtable){
     // Reccursion end
-    if (!g_global_symtable)
+    if (!symtable)
         return;
     // Prints variable declaration
-    printf("DEFVAR GF@%s\n", g_global_symtable->key.name);
+    printf("DEFVAR GF@%s\n", symtable->key.name);
     // Recursively traverses symtable
-    gen_all_glob_vars_dec(g_global_symtable->left);
-    gen_all_glob_vars_dec(g_global_symtable->right);
+    gen_all_glob_vars_dec(symtable->left);
+    gen_all_glob_vars_dec(symtable->right);
 }
 
 /**
