@@ -70,6 +70,8 @@ void codegen(ASTNode_ptr node)
         gen_built_in_ord();
         gen_built_in_chr();
 
+        printf("############# BUILT IN FUNCTIONS END #############\n");
+
         // This is where actual compilation begins
         printf("\n");
         printf("\nLABEL _program_start_\n");
@@ -110,7 +112,7 @@ void codegen(ASTNode_ptr node)
         break;
     case NODE_ASSIGN:
         // This function takes care of the right side of the assignment
-        eval_exp(node->children[1]);
+        eval_exp(node->children[1]->children[0]);
         // Calls corresponding code generating function
         gen_assign(node);
 
@@ -886,55 +888,55 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
                  global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
         break;
     case STR_ITER:
-        snprintf(global_name_gen->mul, MAX_FUNCTION_NAME, "_str_iter_%s_%u_%lld",
+        snprintf(global_name_gen->str_iter, MAX_FUNCTION_NAME, "_str_iter_%s_%u_%lld",
                  global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
         break;
     case MUL_END:
-        snprintf(global_name_gen->mul, MAX_FUNCTION_NAME, "_mul_end_%s_%u_%lld",
+        snprintf(global_name_gen->mul_end, MAX_FUNCTION_NAME, "_mul_end_%s_%u_%lld",
                  global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
         break;
     case ADD:
-        snprintf(global_name_gen->mul, MAX_FUNCTION_NAME, "_add_%s_%u_%lld",
+        snprintf(global_name_gen->add, MAX_FUNCTION_NAME, "_add_%s_%u_%lld",
                  global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
         break;
     case CONCAT:
-        snprintf(global_name_gen->mul, MAX_FUNCTION_NAME, "_concat_%s_%u_%lld",
+        snprintf(global_name_gen->concat, MAX_FUNCTION_NAME, "_concat_%s_%u_%lld",
                  global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
         break;
     case ADD_END:
-        snprintf(global_name_gen->mul, MAX_FUNCTION_NAME, "_add_end_%s_%u_%lld",
+        snprintf(global_name_gen->add_end, MAX_FUNCTION_NAME, "_add_end_%s_%u_%lld",
                  global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
         break;
     case SUB:
-        snprintf(global_name_gen->mul, MAX_FUNCTION_NAME, "_sub_%s_%u_%lld",
+        snprintf(global_name_gen->sub, MAX_FUNCTION_NAME, "_sub_%s_%u_%lld",
                  global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
         break;
     case EVAL:
-        snprintf(global_name_gen->mul, MAX_FUNCTION_NAME, "_eval_%s_%u_%lld",
+        snprintf(global_name_gen->eval, MAX_FUNCTION_NAME, "_eval_%s_%u_%lld",
                  global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
         break;
     case LOG_END:
-        snprintf(global_name_gen->mul, MAX_FUNCTION_NAME, "_log_end_%s_%u_%lld",
+        snprintf(global_name_gen->log_end, MAX_FUNCTION_NAME, "_log_end_%s_%u_%lld",
                  global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
         break;
     case LEFT_TO_FLOAT:
-        snprintf(global_name_gen->mul, MAX_FUNCTION_NAME, "_left_to_float_%s_%u_%lld",
+        snprintf(global_name_gen->left_to_float, MAX_FUNCTION_NAME, "_left_to_float_%s_%u_%lld",
                  global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
         break;
     case RIGHT_TO_FLOAT:
-        snprintf(global_name_gen->mul, MAX_FUNCTION_NAME, "_right_to_float_%s_%u_%lld",
+        snprintf(global_name_gen->right_to_float, MAX_FUNCTION_NAME, "_right_to_float_%s_%u_%lld",
                  global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
         break;
     case ZERO_DIV_CHECK_FLOAT:
-        snprintf(global_name_gen->mul, MAX_FUNCTION_NAME, "_zero_div_check_float_%s_%u_%lld",
+        snprintf(global_name_gen->zero_div_check_float, MAX_FUNCTION_NAME, "_zero_div_check_float_%s_%u_%lld",
                  global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
         break;
     case ZERO_DIV_CHECK_INT:
-        snprintf(global_name_gen->mul, MAX_FUNCTION_NAME, "_zero_div_check_int_%s_%u_%lld",
+        snprintf(global_name_gen->zero_div_check_int, MAX_FUNCTION_NAME, "_zero_div_check_int_%s_%u_%lld",
                  global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
         break;
     case ZERO_DIV_CHECK_DONE:
-        snprintf(global_name_gen->mul, MAX_FUNCTION_NAME, "_zero_div_check_done_%s_%u_%lld",
+        snprintf(global_name_gen->zero_div_check_done, MAX_FUNCTION_NAME, "_zero_div_check_done_%s_%u_%lld",
                  global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
         break;
 
@@ -953,7 +955,7 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
  */
 void eval_exp(ASTNode_ptr exp_node)
 {
-    if (exp_node->child_count == 0)
+    if (!exp_node->children)
         return;
 
     eval_exp(exp_node->children[0]); // left subtree
@@ -972,13 +974,13 @@ void eval_exp(ASTNode_ptr exp_node)
             gen_push_variable(exp_node);
     }
     else if (exp_node->type == NODE_STR_LIT)
-        printf("PUSHS string@%s", exp_node->data.literal.data.str_value);
+        printf("PUSHS string@%s\n", exp_node->data.literal.data.str_value);
     else if (exp_node->type == NODE_INT_LIT)
-        printf("PUSHS int@%lld", exp_node->data.literal.data.int_val);
+        printf("PUSHS int@%lld\n", exp_node->data.literal.data.int_val);
     else if (exp_node->type == NODE_FLOAT_LIT)
-        printf("PUSHS float@%La", exp_node->data.literal.data.float_val);
+        printf("PUSHS float@%La\n", exp_node->data.literal.data.float_val);
     else if (exp_node->type == NODE_NULL_LIT)
-        printf("PUSHS nil@nil");
+        printf("PUSHS nil@nil\n");
     else if (exp_node->type == NODE_CALL)
         gen_jmp_function(exp_node);
 
