@@ -429,9 +429,11 @@ void gen_lit_string(char *value)
 
     for (int i = 0; value[i] != '\0'; i++)
     {
-        if (is_invalid_char(value[i]))
+        unsigned char ch = (unsigned char)value[i];
+        
+        if (is_invalid_char(ch))
         {
-            new_str_index += sprintf(&correct_value[new_str_index], "\\0%d", value[i]);
+            new_str_index += sprintf(&correct_value[new_str_index], "\\%03d", ch);
         }
         else
         {
@@ -442,8 +444,9 @@ void gen_lit_string(char *value)
 
     // Strings must be null terminated
     correct_value[new_str_index] = '\0';
-
+   
     printf("PUSHS string@%s\n", correct_value);
+
     free(correct_value);
 }
 
@@ -976,7 +979,7 @@ void eval_exp(ASTNode_ptr exp_node)
            
     }
     else if (exp_node->type == NODE_STR_LIT)
-        printf("PUSHS string@%s\n", exp_node->data.literal.data.str_value);
+        gen_lit_string(exp_node->data.literal.data.str_value);  // Calls the function on escape 
     else if (exp_node->type == NODE_INT_LIT)
         printf("PUSHS int@%lld\n", exp_node->data.literal.data.int_val);
     else if (exp_node->type == NODE_FLOAT_LIT)
