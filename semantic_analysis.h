@@ -1,18 +1,17 @@
 /**
  * @file semantic_analysis.h
- * @authors xmezeim00, xracekm00
- * @brief Contains function prototypes of semantic analysis used by the parser. // todo : upravit podla potreby
- * @version 0.1
+ * @author Martin Mezei (xmezeim00)
+ * @brief Contains function prototypes of the semantic analysis module.
+ * @version 0.2
  * @date 2025-11-14
  *
  * @copyright Copyright (c) 2025
  */
 
-#ifndef SEMANTIC_ANALYSIS_H
-#define SEMANTIC_ANALYSIS_H
+#ifndef _SEMANTIC_ANALYSIS_H_
+#define _SEMANTIC_ANALYSIS_H_
 
 #include "symtable.h"
-#include "scope_stack.h"
 #include "ast.h"
 #include <stdbool.h>
 
@@ -39,35 +38,37 @@ typedef struct Builtin_Function
 #define builtin_functions_arr_lenght 10
 
 // macro that determines if an expression has any relational operators
-#define IS_REL_OP(op) \
-    ((op) == OP_EQ  || \
+#define IS_REL_OP(op)  \
+    ((op) == OP_EQ ||  \
      (op) == OP_NEQ || \
-     (op) == OP_LT  || \
+     (op) == OP_LT ||  \
      (op) == OP_LTE || \
-     (op) == OP_GT  || \
+     (op) == OP_GT ||  \
      (op) == OP_GTE || \
      (op) == OP_IS)
 
 // macro that determines if an expression has >, <, >=, <= operators
 #define IS_COMP_OP(op) \
-    ((op) == OP_LT  || \
+    ((op) == OP_LT ||  \
      (op) == OP_LTE || \
-     (op) == OP_GT  || \
+     (op) == OP_GT ||  \
      (op) == OP_GTE)
 
 // this macro is used when type checking string iteration
-#define STR_ITER_INVALID(op1, op2) \
-    (((op1) == NODE_INT_LIT && \
-    (op2) == NODE_STR_LIT) || \
-    ((op1) == NODE_STR_LIT && \
-    (op2) == NODE_FLOAT_LIT) || \
-    (op2) == NODE_STR_LIT)
+#define STR_ITER_INVALID(op1, op2)                         \
+    (((op1) == NODE_INT_LIT && (op2) == NODE_STR_LIT) ||   \
+     ((op1) == NODE_STR_LIT && (op2) == NODE_FLOAT_LIT) || \
+     (op2) == NODE_STR_LIT)
+
+// this macro determines if a string iteration is present
+#define IS_STR_ITER(op1, op2) \
+    ((op1) == NODE_STR_LIT && (op2) == NODE_INT_LIT)
 
 // macro to determine if an ident is a GV
 #define IS_GLOB_VAR(name) \
-    ((name) != NULL && \
-     (name)[0] == '_' && \
-     (name)[1] == '_' && \
+    ((name) != NULL &&    \
+     (name)[0] == '_' &&  \
+     (name)[1] == '_' &&  \
      (name)[2] != '\0')
 
 // this macro checks if right operand of an expression that uses the is operator is valid
@@ -98,44 +99,36 @@ extern unsigned loop_nesting_tracker;
 void reset_flags();
 
 /**
- * @brief Called by parser when variable declaration is detected. Verifies if the the passed variable was not already declared.
- *        If the variable already exists inside the current scope, error_exit() is called.
+ * @brief Searches the current scope to verify if the variable was not redeclared.
  *
  * @param key Pointer to the key of the symbol.
- * @param symtable Pointer to the root node of a symtable that needs to be searched.
+ * @param symtable Pointer to the current cope
  *
  * @return True if function redec detected, false otherwise.
  */
 bool verify_var_redec(Key *key, ST_Node *symtable);
 
 /**
- * @brief Called by the parser when use of a variable is detected. Verifies if an undeclared variable was not
- *        used. If an undeclared variable was used, error_exit() is called.
+ * @brief Searches the current and all higher level scope to verify that a variable exists.
  *
  * @param key Pointer to the key of the symbol.
- * @param scope_stack Pointer to the scope stack to look for the symbol inside higher level scopes.
+ * @param scope_stack Pointer to the scope stack.
  */
-bool verify_var_existence(Key *key, Scope_Stack *scope_stack);
+bool verify_var_existence(Key *key);
 
 /**
- * @brief Called by the parser when function definition is detected. Verifies if a function, getter or a setter
- *        does not already exist inside the function symtable. If it does, error_exit() is called.
+ * @brief Checks if a user-defined function was not redefined somewhere else.
  *
  * @param key Pointer to the key of the glob variable.
- * @param func_symtable Pointer to the symtable of all setter, getters and functions.
  */
-void verify_func_redef(Key *key, ST_Node *func_symtable);
+void verify_func_redef(Key *key);
 
 /**
- * @brief Checks if main function with no args exists inside the programs body.
- *
- * @param func_symtable Pointer to the symtable of all setter, getters and functions.
+ * @brief Checks if main function with no args exists inside the class body.
  *
  * @return True if main exists, false otherwise.
  */
-bool main_exists(ST_Node *func_symtable);
-
-//! po tieto funkcie su tie, ktore samo zavola este v parser
+bool main_exists();
 
 /**
  * @brief Checks if the divider is equal to zero. Works only if the divider is a num literal, otherwise we cannot
@@ -153,39 +146,17 @@ bool zero_division(ASTNode_ptr divider);
  * @param root Root of the whole AST so it can be freed if needed.
  * @param call_node Node of the function call.
  * @param func_symtable Pointer to the symtable of functions.
- * @param scope_stack Pointer to the scope stack.
  */
-void handle_function_call(ASTNode_ptr call_node, ST_Node *func_symtable, Scope_Stack *scope_stack);
-
-/**
- * @brief Verifies whether the args count inside the function call matches the function
- *        definition inside func_symtable.
- *
- * @param func_symtable Pointer to the symtable of all setter, getters and functions.
- * @param key Pointer to a key containing function info.
- *
- * @return True if args count is correct, return false otherwise.
- */
-bool args_count_check(ST_Node *func_node, int args_count);
+void handle_function_call(ASTNode_ptr call_node);
 
 /**
  * @brief Verifies that a built-in function exists and that it was called with the correct num of arguments.
  *
  * @param name Name of the built in function.
  *
- * @return True if a built-in with this name exists, false otherwise.
+ * @return Pointer to the found built-in function or NULL if no function was found.
  */
-bool builtin_exists(char *name);
-
-/**
- * @brief Verifies that a built-in function was called with the correct num of arguments.
- *
- * @param name Name of the built-in function.
- * @param args_count Number of passed arguments inside the function call of a built-in function.
- *
- * @return True if args count is correct, false otherwise.
- */
-bool builtin_args_count_correct(char *name, unsigned args_count);
+builtin_function_t *builtin_exists(char *name);
 
 /**
  * @brief Loops through all the params inside the function call of a built-in and if a literal is found,
@@ -193,32 +164,40 @@ bool builtin_args_count_correct(char *name, unsigned args_count);
  *        it's existence is checked.
  *
  * @param name Name of the built-in function.
- * @param args_count Num of args inside the function call.
+ * @param builtin_ptr Pointer to a built-in structure.
  */
-bool builtin_args_type_check(ASTNode_ptr call_node, char *name, unsigned args_count,
-                        Scope_Stack *scope_stack, ST_Node *func_symtable);
+bool builtin_args_type_check(ASTNode_ptr call_node, builtin_function_t *builtin_ptr);
 
 /**
- * @brief While traversing the expression subtree, differnt expression flags are set. These flags are later used
- *        to determine if type mismatch occurs inside an expression.
- *        Function also handles identification of getters inside an expression or verifying that an ident exists.
+ * @brief If a function call or a variable is found inside args, it's existence is checked.
+ *
+ * @param call_node Node of the function call.
+ */
+void args_exist(ASTNode_ptr call_node);
+
+/**
+ * @brief Checks values of relevant combinations of expression flags and determines if type mismatch occured.
+ *        If certain flag combinations are detected, a prediction of the expression data type can be made and used for type checking later.
+ *
+ * @note Works for simple expressions only. Other errors are going to be detected in code gen.
  *
  * @param exp_root Root of the expression subtree.
- * @param func_symtable Pointer to the symtable of all setter, getters and functions.
- * @param glob_var_symtable Pointer to the symtable of all glob variables.
- * @param scope_stack Pointer to the scope stack.
  */
-void exp_analysis(ASTNode_ptr exp_root, ST_Node *func_symtable, Scope_Stack *scope_stack);
+void exp_analysis(ASTNode_ptr exp_root);
+
+/**
+ * @brief Checks values of relevant combinations of expression flags and determines if type mismatch occured.
+ *        If certain flag combinations are detected, a restriction code can be assigned to different expression nodes.
+ *
+ * @param exp_root Root of the expression subtree.
+ */
+bool eval_exp_flags(ASTNode_ptr exp_root);
 
 /**
  * @brief Traverses the tree and calls semantic functions based on the current node type.
  *
- * @param root Pointer to the root node of AST, needed so we can free the AST at anytime during the recursion
  * @param node_to_handle Helper pointer that will be used in recursive calls.
- * @param func_symtable Pointer to function symtable.
- * @param glob_var_symtable Pointer to a global variable symtable.
- * @param scope_stack Pointer to the scope_stack.
  */
-void semantic_analysis(ASTNode_ptr node_to_handle, ST_Node *func_symtable, Scope_Stack *scope_stack);
+void semantic_analysis(ASTNode_ptr node_to_handle);
 
 #endif

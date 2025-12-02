@@ -1,12 +1,12 @@
 /**
  * @file error.h
- * @author xcillik00
+ * @author Kristian Cilling (xcillik00)
  * @brief Declaration of functions used to handle exiting with corresponding error codes and 
  *        printing warnings to stdout.
  */
 
-#ifndef ERROR_H
-#define ERROR_H
+#ifndef _ERROR_H_
+#define _ERROR_H_
 
 #include <stdarg.h>
 

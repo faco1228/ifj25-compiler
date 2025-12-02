@@ -1,10 +1,17 @@
+// (4.1) Povinný prolog a povinná kostra programu
 import "ifj25" for Ifj
 
 class Program {
     static main() {
-            
+        __d = Ifj.write("Hello, IFJ25!\n")
     }
 
 }
 
-
+//*************************************************************
+fun1(x, y, z){
+    print("Ahoj")
+    x = y + z
+    var a
+    a = 1 * 2 * 3 + 6 - 7 / 8 - 
+}

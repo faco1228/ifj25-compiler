@@ -1,13 +1,12 @@
-
 /**
  * @file stack.c
- * @author xcillik00
+ * @author Kristian Cilling (xcillik00)
  * @brief Linked list implementation of stact for the precedence_analysis
  * @version 0.1
  * @date 2025-11-17
- * 
+ *
  * @copyright Copyright (c) 2025
- * 
+ *
  */
 
 #include <stdio.h>
@@ -15,31 +14,37 @@
 #include "stack.h"
 #include "error.h"
 
-void stack_init(Stack *s) {
-    s->head = NULL;   // beginning of the list and end of the stack
-    s->top = NULL;    // top of the stack and end of the list
+void stack_init(Stack *s)
+{
+    s->head = NULL;         // beginning of the list and end of the stack
+    s->top = NULL;          // top of the stack and end of the list
     s->top_terminal = NULL; // terminal on the top of the stack and end of the list
     s->stack_size = 0;
 }
 
-bool stack_is_empty(Stack *s) {
+bool stack_is_empty(Stack *s)
+{
     return (s->head == NULL && s->stack_size == 0);
 }
 
-void stack_push(Stack *s, token_ptr token) {
+void stack_push(Stack *s, token_ptr token)
+{
     // Create a new item
     StackItem *new_item = malloc(sizeof(StackItem));
-    if (!new_item) error_exit(ERR_INTERNAL);
-    // Set our new item 
+    if (!new_item)
+        error_exit(ERR_INTERNAL);
+    // Set our new item
     new_item->token = token;
     new_item->next = NULL;
 
     // if its the first item
-    if (s->head == NULL) {
+    if (s->head == NULL)
+    {
         s->head = new_item;
         s->top = new_item;
     }
-    else {
+    else
+    {
         // Pushes to the end of the list land sets the top on the last item in list
         s->top->next = new_item;
         s->top = new_item;
@@ -47,25 +52,29 @@ void stack_push(Stack *s, token_ptr token) {
     s->stack_size++;
 }
 
+void stack_pop(Stack *s)
+{
 
-void stack_pop(Stack *s) {
-
-    if (stack_is_empty(s)) return;
+    if (stack_is_empty(s))
+        return;
 
     StackItem *tmp = s->head;
     StackItem *prev = NULL;
     // sets the tmp on the last item of the list and prev to the one before the last
-    while (tmp->next != NULL) {
+    while (tmp->next != NULL)
+    {
         prev = tmp;
         tmp = tmp->next;
     }
-    // If there are more than 1 item 
-    if (prev) {
+    // If there are more than 1 item
+    if (prev)
+    {
         prev->next = NULL;
-        s->top = prev; 
-    } 
+        s->top = prev;
+    }
     // If its the last item
-    else {
+    else
+    {
         s->head = NULL;
         s->top = NULL;
     }
@@ -76,75 +85,82 @@ void stack_pop(Stack *s) {
     s->stack_size--;
 }
 
-
 // returns the top token of the stack
-token_ptr stack_top(Stack *s) {
-    if (stack_is_empty(s)) return NULL;
-    return s->top->token; 
+token_ptr stack_top(Stack *s)
+{
+    if (stack_is_empty(s))
+        return NULL;
+    return s->top->token;
 }
 
-
-void stack_free(Stack *s) {
-    while (!stack_is_empty(s)) stack_pop(s);
-    if (s->stack_size != 0) error_exit(ERR_INTERNAL);
+void stack_free(Stack *s)
+{
+    while (!stack_is_empty(s))
+        stack_pop(s);
+    if (s->stack_size != 0)
+        error_exit(ERR_INTERNAL);
 }
 
 // sets the pointer on the highest terminal in the stack/ latest terminal in the list (item is chosen in parse_expression)
-void stack_set_top_terminal_pointer(Stack *s, StackItem *item) {
+void stack_set_top_terminal_pointer(Stack *s, StackItem *item)
+{
     s->top_terminal = item;
 }
 
-// pushes marker '<' after the last terminal 
-void stack_push_after(Stack *s, token_ptr token) {
+// pushes marker '<' after the last terminal
+void stack_push_after(Stack *s, token_ptr token)
+{
     // if there is no terminal in the stack then it pushes it on the top of the stack
-    if (!s->top_terminal) {
+    if (!s->top_terminal)
+    {
         stack_push(s, token);
         return;
     }
 
     StackItem *new_item = malloc(sizeof(StackItem));
-    if (!new_item) error_exit(ERR_INTERNAL);
+    if (!new_item)
+        error_exit(ERR_INTERNAL);
 
     new_item->token = token;
     new_item->next = s->top_terminal->next;
     s->top_terminal->next = new_item;
 
-    if (s->top_terminal == s->top) s->top = new_item; // if we gonna push after top then update the top
+    if (s->top_terminal == s->top)
+        s->top = new_item; // if we gonna push after top then update the top
 
     s->stack_size++;
 }
 
-
-void stack_pop_no_free(Stack *s) {
-    if (stack_is_empty(s)) return;
+void stack_pop_no_free(Stack *s)
+{
+    if (stack_is_empty(s))
+        return;
 
     StackItem *tmp = s->head;
     StackItem *prev = NULL;
-    
+
     // Find last item
-    while (tmp->next != NULL) {
+    while (tmp->next != NULL)
+    {
         prev = tmp;
         tmp = tmp->next;
     }
-    
+
     // Update pointers
-    if (prev) {
+    if (prev)
+    {
         prev->next = NULL;
-        s->top = prev; 
-    } else {
+        s->top = prev;
+    }
+    else
+    {
         s->head = NULL;
         s->top = NULL;
     }
-    
+
     //  DON'T free token - we still need it in items[]
     // if (tmp->token) free_token(tmp->token);
-    
-    free(tmp);  // Only free the StackItem structure
+
+    free(tmp); // Only free the StackItem structure
     s->stack_size--;
 }
-
-
-
-
-
-

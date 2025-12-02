@@ -1,15 +1,23 @@
 /**
  * @file ast.h
- * @author Samuel Facka (xfackas00)
- * @brief
+ * @author Samuel Facka (xfackas00), 
+ *         Martin Racek (xracekm00)
+ * @brief Abstract Syntax Tree (AST) structures and builder functions.
+ *
+ * The AST represents the parsed IFJ25 program in a structured tree form.
+ * Each node has:
+ *  - a NodeType describing its role (statement, expression, literal, ...),
+ *  - an array of children (for tree structure),
+ *  - a union with node-specific data.
+ *
  * @version 0.1
  * @date 2025-11-10
  *
  * @copyright Copyright (c) 2025
- *
  */
 
-#pragma once
+#ifndef _AST_H_
+#define _AST_H_
 
 #include "error.h"
 #include "symtable.h"
@@ -18,14 +26,9 @@
 #include <stdbool.h>
 #include <string.h>
 
-typedef enum
-{
-    ONLY_NUM,
-    ONLY_STR,
-    UNDETERMINED
-} exp_restriction_t;
-
-// Data type representing values of logical and aritmetical operators
+/**
+ * @brief Supported operators for expressions.
+ */
 typedef enum
 {
     OP_PLUS,
@@ -39,27 +42,34 @@ typedef enum
     OP_GT,
     OP_GTE,
     OP_IS,
+    OP_RANGE,
     OP_ERROR
 } operator_types;
 
-// Data type for function/getter/setter
+/**
+ * @brief Function type: normal function, getter, or setter.
+ */
 typedef enum
 {
-    FUN_F,
-    FUN_G,
-    FUN_S
+    FUN_F, // normal function
+    FUN_G, // getter
+    FUN_S  // setter
 } function_type;
 
-// data types for expression
+/**
+ * @brief Static type of an expression (used mainly during semantic analysis).
+ */
 typedef enum
 {
     TYPE_UNKNOWN,
     TYPE_NUM,
     TYPE_STRING,
     TYPE_BOOL
-} ValueType;
+} value_type;
 
-// Data type representing different types of AST nodes
+/**
+ * @brief All node types used inside the AST.
+ */
 typedef enum
 {
     // Basic program structure and declarations
@@ -91,176 +101,295 @@ typedef enum
     NODE_FLOAT_LIT,
     NODE_STR_LIT,
     NODE_NULL_LIT,
+    NODE_TYPE_LIT,
 } NodeType;
 
 // Forward declaration and pointer alias for the ASTNode structure
 typedef struct ASTNode ASTNode_t, *ASTNode_ptr;
 
-// Data type representing AST node
+/**
+ * @brief Single AST node.
+ *
+ * Common rules for children:
+ *  - For NODE_FUNCTION_DEF, children are: [0..arg_count-1] params, [arg_count] body.
+ *  - For NODE_IF: [0] condition, [1] then-block, [2] else-block (if present).
+ *  - For NODE_WHILE: [0] condition, [1] body.
+ *  - For NODE_FOR: [0] iterator identifier, [1] range/expression, [2] body.
+ *  - For NODE_ASSIGN: [0] lhs, [1] rhs.
+ *  - For NODE_TERNARY: [0] condition, [1] then-expression, [2] else-expression.
+ *  - For NODE_RANGE: [0] start, [1] end.
+ *  - For NODE_EXPR_STMNT: [0] expression.
+ */
 struct ASTNode
 {
     NodeType type;
 
-    // used with other node types
-    ASTNode_ptr *children; // pole ukazatelov na children nodes
-    size_t child_count;    // pocet prvkov pola pre lahsi priamy pristup
+    // Structure of the tree
+    ASTNode_ptr *children; // Dynamic array of child pointers
+    size_t child_count;    // Number of children for index access
 
-    // different data one node can store
+    // Different data one node can store
     union
     {
-        // IDENT, VAR_DECL
+        // Identifier usage and variable declarations
         struct
-        { // bool is_initialized
+        {
             char *name;
             char *code_gen_name;
             ID_Type id_type;
             bool is_global;
+            bool declared_in_loop;
         } identifier;
 
-        // FUNCTION_DEF
+        // Function definition
         struct
         {
             char *name;
-            unsigned arg_count;
-            function_type type;
-            // ASTNode_ptr body; // do children [0]
+            unsigned arg_count; // Number of parameters
+            function_type type; // Normal function/getter/setter
         } function_def;
 
-        // CALL - keep as is
+        // Function call
         struct
         {
-            char *name;           // fun() or Ifj.write()
-            unsigned param_count; // num of args
-            bool is_builtin;      // true for IFj.*
+            char *name;           // Function name, normal or built-in
+            unsigned param_count; // Number of call arguments
+            bool is_builtin;      // Is true for Ifj.* built-in functions
         } function_call;
 
-        // // ASSIGN
-        // struct
-        // {
-        //     // ASTNode_ptr lhs; // typicky NODE_IDENTIFIER // children
-        //     // ASTNode_ptr rhs; // expression // children
-        // } assign;
-
-        // BINARY operation
+        // Binary operations
         struct
         {
-            // ASTNode_ptr lhs;  // children [0]
-            // ASTNode_ptr rhs;  // children [1]
-            operator_types op_type;
+            operator_types op_type; // plus, minus, equal, not equal, ...
         } binary_operator;
 
-        // UNARY operation
+        // For loops
         struct
         {
-            // ASTNode_ptr expres; // children
-            operator_types op_type; // unary minus - OP_MINUS
-        } unary_operator;
-
-        // IF
-        // struct
-        // {
-        //     // ASTNode_ptr condition; // children [0]
-        //     // ASTNode_ptr block_then; // NODE_BLOCK // children [1]
-        //     // ASTNode_ptr block_else; // NODE_BLOCK or NULL // children [2]
-        // } if_statement;
-
-        // WHILE
-        // struct
-        // {
-        //     // ASTNode_ptr condition; // children [0]
-        //     // ASTNode_ptr body; // NODE_BLOCK children [1]
-        // } while_statement;
-
-        // FOR
-        struct
-        {
-            char *name_iter;
-            // ASTNode_ptr expr_iter; // NODE_RANGE // children [0]
-            // ASTNode_ptr body; // children [1]
+            char *name_iter; // Iterator var name
         } for_statement;
 
-        // RETURN
-        // struct
-        // {
-        //     // ASTNode_ptr value; // children [0]
-        // } ret;
-
-        // EXPRESION statement;
-        struct
-        { // 0-left 1-right
-            // ASTNode_ptr exp; // children [0]
-            ValueType result_type;
-            exp_restriction_t restriction; 
-        } exp_statement;
-
-        // RANGE
+        // Expression statement wrapper
         struct
         {
-            // ASTNode_ptr start; // children [0]
-            // ASTNode_ptr stop; // children [1]
-            bool inclusive; // true: a..b (inclusive, "<a,b>"); false: a...b (excluisive, "<a,b)")
+            value_type exp_type; // Type of expression if known, else TYPE_UNKNOWN
+        } exp_statement;
+
+        // Range (required in for loops)
+        struct
+        {
+            bool inclusive; // true: a..b includes end, false: a...b excludes end
         } range;
 
-        // TERNARY
-        // struct
-        // {
-        //     // ASTNode_ptr condition; // children [0]
-        //     // ASTNode_ptr expr_then; // children [1]
-        //     // ASTNode_ptr expr_else; // children [2]
-        // } ternary;
-
-        // LITERAL
+        // Literals
         struct
         {
             union
-            { // prerobit na union
+            {
                 long long int int_val;
                 long double float_val;
                 char *str_value;
             } data;
         } literal;
-
     } data;
 };
 
-// Data type representing AST root
+/**
+ * @brief Wrapper around the AST root (not heavily used at the moment).
+ */
 typedef struct
 {
     ASTNode_ptr root;
 } ASTree;
 
-////////// functions declarations //////////
+/*******************  Core functions declarations ********************/
 
-// core functions
+/**
+ * @brief Allocate and initialize a new AST node of the given type.
+ *
+ * @param type Node type to assign to the new node.
+ * @return Newly allocated AST node.
+ * @note On allocation error, calls error_exit(ERR_INTERNAL).
+ */
 ASTNode_ptr ast_create(NodeType type);
+
+/**
+ * @brief Append a child to a parent node.
+ *
+ * @param parent Parent node (must not be NULL).
+ * @param child  Child node to append (must not be NULL).
+ */
 void add_child(ASTNode_ptr parent, ASTNode_ptr child);
+
+/**
+ * @brief Recursively free an AST subtree.
+ *
+ * Frees:
+ *  - all children,
+ *  - node-specific dynamically allocated strings,
+ *  - the node itself.
+ *
+ * @param node Root of the subtree to free (can be NULL).
+ */
 void ast_free(ASTNode_ptr node);
 
-// walk-through
-// void ast_walk(ASTNode_ptr root);
+/*******************  AST builder functions declarations - parser ********************/
 
-// builders - parser
+/**
+ * @brief Create the root node of the whole program (NODE_PROGRAM).
+ */
 ASTNode_ptr ast_create_program(void);
-ASTNode_ptr ast_create_function(const char *name, unsigned args, function_type type, ASTNode_ptr body);
-ASTNode_ptr ast_create_block(void);
-ASTNode_ptr ast_create_var_dec(const char *name);
-ASTNode_ptr ast_create_assignment(ASTNode_ptr lhs, ASTNode_ptr rhs);
-ASTNode_ptr ast_create_if(ASTNode_ptr cond, ASTNode_ptr b_then, ASTNode_ptr b_else);
-ASTNode_ptr ast_create_return(ASTNode_ptr val);
-ASTNode_ptr ast_create_while(ASTNode_ptr cond, ASTNode_ptr body);
-ASTNode_ptr ast_create_for(const char *name, ASTNode_ptr iter, ASTNode_ptr body);
-ASTNode_ptr ast_create_break(void);
-ASTNode_ptr ast_create_continue(void);
-ASTNode_ptr ast_create_exp_statement(ASTNode_ptr exp);
-ASTNode_ptr ast_create_ident(const char *name);
 
-// builders - PSA
+/**
+ * @brief Create a function definition node (NODE_FUNCTION_DEF).
+ *
+ * @param name Name of the function (string is copied).
+ * @param args Number of parameters the function takes.
+ * @param type Kind of function (FUN_F, FUN_G, FUN_S).
+ * @param body Body node (usually NODE_BLOCK), may be NULL and added later.
+ *
+ * @return New function definition node.
+ */
+ASTNode_ptr ast_create_function(const char *name, unsigned args, function_type type, ASTNode_ptr body);
+
+/**
+ * @brief Create an empty block node (NODE_BLOCK).
+ */
+ASTNode_ptr ast_create_block(void);
+
+/**
+ * @brief Create a variable declaration node (NODE_VAR_DECL).
+ *
+ * @param name Variable name (string is copied).
+ */
+ASTNode_ptr ast_create_var_dec(const char *name);
+
+/**
+ * @brief Create an assignment node (NODE_ASSIGN).
+ *
+ * @param lhs Left-hand side expression (e.g. identifier).
+ * @param rhs Right-hand side expression.
+ */
+ASTNode_ptr ast_create_assignment(ASTNode_ptr lhs, ASTNode_ptr rhs);
+
+/**
+ * @brief Create an if-else node (NODE_IF).
+ *
+ * @param cond   Condition expression.
+ * @param b_then Then-branch block.
+ * @param b_else Else-branch block (may be NULL).
+ */
+ASTNode_ptr ast_create_if(ASTNode_ptr cond, ASTNode_ptr b_then, ASTNode_ptr b_else);
+
+/**
+ * @brief Create a return statement node (NODE_RETURN).
+ *
+ * @param val Optional expression to return (may be NULL).
+ */
+ASTNode_ptr ast_create_return(ASTNode_ptr val);
+
+/**
+ * @brief Create a while loop node (NODE_WHILE).
+ *
+ * @param cond Condition expression.
+ * @param body Loop body block.
+ */
+ASTNode_ptr ast_create_while(ASTNode_ptr cond, ASTNode_ptr body);
+
+/**
+ * @brief Create a for loop node (NODE_FOR).
+ *
+ * @param name Iterator variable name.
+ * @param iter Range/expression node used for iteration.
+ * @param body Loop body block.
+ */
+ASTNode_ptr ast_create_for(const char *name, ASTNode_ptr iter, ASTNode_ptr body);
+
+/**
+ * @brief Create a break statement node (NODE_BREAK).
+ */
+ASTNode_ptr ast_create_break(void);
+
+/**
+ * @brief Create a continue statement node (NODE_CONTINUE).
+ */
+ASTNode_ptr ast_create_continue(void);
+
+/**
+ * @brief Wrap an expression into a redundand statement node (NODE_EXPR_STMNT).
+ *
+ * @param exp Expression node.
+ */
+ASTNode_ptr ast_create_exp_statement(ASTNode_ptr exp);
+
+/**
+ * @brief Create an identifier node (NODE_IDENTIFIER).
+ *
+ * @param name      Identifier name (string is copied).
+ * @param is_global True if this refers to a global variable.
+ */
+ASTNode_ptr ast_create_ident(const char *name, bool is_global);
+
+/*******************  AST builder functions declarations - psa ********************/
+
+/**
+ * @brief Create a binary operator node (NODE_BINARY_OP).
+ *
+ * @param lhs Left-hand side operand.
+ * @param rhs Right-hand side operand.
+ * @param op  Operator type.
+ */
 ASTNode_ptr ast_create_binary(ASTNode_ptr lhs, ASTNode_ptr rhs, operator_types op);
-ASTNode_ptr ast_create_unary(operator_types op, ASTNode_ptr exp);
+
+/**
+ * @brief Create a function call node (NODE_CALL).
+ *
+ * @param name     Function name (string is copied).
+ * @param param_c  Number of arguments (will be updated later if needed).
+ * @param builtin  True for Ifj.* built-in calls.
+ */
 ASTNode_ptr ast_create_call(const char *name, unsigned param_c, bool builtin);
-ASTNode_ptr ast_create_ternary(ASTNode_ptr cond, ASTNode_ptr b_then, ASTNode_ptr b_else);
+
+/**
+ * @brief Create a range node (NODE_RANGE).
+ *
+ * @param l         Start expression.
+ * @param r         End expression.
+ * @param inclusive True for inclusive range (a..b), false for exclusive (a...b).
+ */
 ASTNode_ptr ast_create_range(ASTNode_ptr l, ASTNode_ptr r, bool inclusive);
+
+/**
+ * @brief Create an integer literal node (NODE_INT_LIT).
+ *
+ * @param val Integer value.
+ */
 ASTNode_ptr ast_create_int(long long int val);
+
+/**
+ * @brief Create a float literal node (NODE_FLOAT_LIT).
+ *
+ * @param val Floating-point value.
+ */
 ASTNode_ptr ast_create_float(long double val);
+
+/**
+ * @brief Create a string literal node (NODE_STR_LIT).
+ *
+ * @param string Null-terminated string (copied).
+ */
 ASTNode_ptr ast_create_str(const char *string);
+
+/**
+ * @brief Create a null literal node (NODE_NULL_LIT).
+ */
 ASTNode_ptr ast_create_null(void);
+
+/**
+ * @brief Create a type literal node (NODE_TYPE_LIT).
+ *
+ * @param type_name Type name (Num/String/Null) – string is copied.
+ */
+ASTNode_ptr ast_create_type_lit(const char *type_name);
+
+#endif

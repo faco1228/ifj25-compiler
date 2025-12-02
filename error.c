@@ -1,9 +1,8 @@
 /**
  * @file error.c
- * @author xcillik00
+ * @author Kristian Cilling (xcillik00)
  * @brief Handles different errors that might come up during compilation. Warnings are printed to stdout,
  *        error_exit() handles exiting the program with the corresponding error code.
- * 
  */
 
 #include <stdio.h>

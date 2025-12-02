@@ -1,23 +1,46 @@
 /**
- * @file psa.c
+ * @file parser_expression.h
+ * @authors Samuel Facka (xfackas00),
+ *          Kristian Cilling (xcillik00)
  * @brief Precedence syntax analyzer (PSA) for expressions.
  *
- * Podporované:
- *  - aritmetika: + - * /
- *  - relačné operátory: < > <= >=
- *  - typový operátor: is
- *  - rovnostné: == !=
- *  - rozsahy: .. ...
- *  - FUNEXP: volania funkcií ako operand (user + Ifj.*)
- *  - (TODO) unárny mínus
+ * Supported:
+ *  - arithmetic : + - * /
+ *  - relational : < > <= >=
+ *  - equality :   == !=
+ *  - type test :  is
+ *  - ranges :     .. ...
+ *  - FUNEXP : function calls as operands (user + Ifj.*)
  */
 
 #include "parser_expression.h"
 #include "global_structures.h"
 
+// Forward declarations of static (internal) functions
 static char *str_copy(const char *str);
 static bool token_is_type_keyword(token_ptr t);
+static token_ptr find_top_terminal(Stack *stack);
+static bool token_is_is_operator(token_ptr t);
+static bool token_is_ifj_keyword(token_ptr t);
+static ASTNode_ptr ast_from_operand_token(token_ptr t);
+static operator_types map_op_to_ast(enum other_value_type op_val);
+static bool psa_eol_end_expr(token_ptr current_token);
+static precedence_index token_to_index(token_ptr token);
+static bool psa_fun_call_starts_here(token_ptr first_token);
+static void psa_parse_call_args(ASTNode_ptr call_node);
+static ASTNode_ptr psa_parse_fun_call_operand(token_ptr first_token);
+static ASTNode_ptr psa_parse_operand(token_ptr first_token);
+static void psa_reduce_fun(Stack *stack, token_ptr recognition_token);
+static bool psa_table_compare(Stack *stack, token_ptr current_token, token_ptr *top_terminal, token_ptr recognition_token);
 
+/*******************  Helper functions implementation ********************/
+
+/**
+ * @brief Allocate and copy a null-terminated C string.
+ *
+ * @param str Source string (may be NULL).
+ * @return Newly allocated copy or NULL if str is NULL or allocation fails.
+ */
 static char *str_copy(const char *str)
 {
     if (!str)
@@ -33,7 +56,15 @@ static char *str_copy(const char *str)
     return copy;
 }
 
-/* Pomocná funkcia na nájdenie top terminálu */
+/**
+ * @brief Find the topmost terminal symbol on the PSA stack.
+ *
+ * @note
+ *  - Skips internal markers (MARKER) and reduced nonterminals (NONTERMINAL_E).
+ *
+ * @param stack PSA stack.
+ * @return Pointer to the topmost terminal token or NULL if none found.
+ */
 static token_ptr find_top_terminal(Stack *stack)
 {
     StackItem *tmp = stack->head;
@@ -51,6 +82,9 @@ static token_ptr find_top_terminal(Stack *stack)
     return top_terminal;
 }
 
+/**
+ * @brief Check if the token is the 'is' operator.
+ */
 static bool token_is_is_operator(token_ptr t)
 {
     return (t->type == KEY_WORD &&
@@ -58,7 +92,9 @@ static bool token_is_is_operator(token_ptr t)
             strcmp(t->value.str_value, "is") == 0);
 }
 
-/* KEY_WORD "Ifj" – prefix pre built-in volania Ifj.* */
+/**
+ * @brief Check if the token is the 'Ifj' keyword (prefix for built-in calls).
+ */
 static bool token_is_ifj_keyword(token_ptr t)
 {
     return (t->type == KEY_WORD &&
@@ -66,52 +102,77 @@ static bool token_is_ifj_keyword(token_ptr t)
             strcmp(t->value.str_value, "Ifj") == 0);
 }
 
-/* ------------------------------------------------------------------------
- *  Pomocné funkcie pre vytváranie AST z operandov a operátorov
- * ------------------------------------------------------------------------ */
+/*******************  Helpers for building AST from operands and operators   ********************/
 
-static ASTNode_ptr ast_from_operand_token(token_ptr t) // is token pre num str null
+/**
+ * @brief Convert a single operand token into an AST node.
+ *
+ * Handles:
+ *  - IDENT / GLOB_VAR,
+ *  - numeric literals,
+ *  - string literals,
+ *  - type literals (Num/String/Null),
+ *  - null literal (keyword "null").
+ *
+ * @param token Token to convert. On errors, this function frees token and calls error_exit().
+ */
+static ASTNode_ptr ast_from_operand_token(token_ptr token)
 {
-    switch (t->type)
+    switch (token->type)
     {
     case IDENT:
+        // If the token already carries an AST (e.g. CALL), reuse it
+        if (token->ast != NULL)
+        {
+            return (ASTNode_ptr)token->ast;
+        }
+        // Normal ident
+        return ast_create_ident(token->value.str_value, false);
     case GLOB_VAR:
-        return ast_create_ident(t->value.str_value);
+        return ast_create_ident(token->value.str_value, true);
 
     case INT_LIT:
-        return ast_create_int(t->value.int_value);
+        return ast_create_int(token->value.int_value);
 
     case FLOAT_LIT:
-        return ast_create_float(t->value.float_value);
+        return ast_create_float(token->value.float_value);
 
     case ONE_L_STRING:
     case MUL_L_STRING:
-        return ast_create_str(t->value.str_value);
-
-    // case NULL_LIT:
-    //     return ast_create_null();
+        return ast_create_str(token->value.str_value);
 
     case KEY_WORD:
-        if (token_is_type_keyword(t))
-        {
-            return ast_create_str(t->value.str_value);
+        if (token_is_type_keyword(token))
+        {   // Type literal used in 'is' operator
+            return ast_create_type_lit(token->value.str_value);
+        }
+        else if (token->value.str_value != NULL && strcmp(token->value.str_value, "null") == 0)
+        {   // Null literal as a keyword
+            return ast_create_null();
         }
         else
         {
-            /* jiný keyword tu být nesmí */
-            free_token(t);
+            // Different keywords are not valid operands
+            free_token(token);
             error_exit(ERR_SYNTACTIC);
             return NULL;
         }
 
     default:
-        free_token(t);
+        // Any other token type: internal error
+        free_token(token);
         error_exit(ERR_INTERNAL);
         return NULL;
     }
     return NULL;
 }
 
+/**
+ * @brief Map operator token value to AST operator type.
+ *
+ * @param op_val Token's other_value field.
+ * @return Corresponding operator_types value.
+ */
 static operator_types map_op_to_ast(enum other_value_type op_val)
 {
     switch (op_val)
@@ -145,11 +206,11 @@ static operator_types map_op_to_ast(enum other_value_type op_val)
     return OP_ERROR;
 }
 
-/* ------------------------------------------------------------------------
- *  Rozpoznanie špeciálnych tokenov
- * ------------------------------------------------------------------------ */
+/*******************  Recognizing special tokens ********************/
 
-// skontroluje ci je keyword Num alebo String alebo Null
+/**
+ * @brief Check if keyword is one of the type keywords: Num, String, Null.
+ */
 static bool token_is_type_keyword(token_ptr t)
 {
     return (t->type == KEY_WORD &&
@@ -159,7 +220,12 @@ static bool token_is_type_keyword(token_ptr t)
              strcmp(t->value.str_value, "Null") == 0));
 }
 
-/* EOL môže ukončiť výraz? (heuristika pre assignment/return) */
+/**
+ * @brief Decide whether an EOL can safely terminate the current expression.
+ * 
+ * @note
+ *  - Used as a heuristic mainly for assignment and return contexts.
+ */
 static bool psa_eol_end_expr(token_ptr current_token)
 {
     switch (current_token->type)
@@ -168,20 +234,31 @@ static bool psa_eol_end_expr(token_ptr current_token)
     case GLOB_VAR:
     case INT_LIT:
     case FLOAT_LIT:
-    // case NULL_LIT:
     case ONE_L_STRING:
     case MUL_L_STRING:
     case RIGHT_PAR:
         return true;
+
+    case KEY_WORD:
+        if (token_is_type_keyword(current_token) ||
+            (current_token->value.str_value != NULL &&
+            strcmp(current_token->value.str_value, "null") == 0))
+        {
+            return true;
+        }
+        return false;
+
     default:
         return false;
     }
 }
 
-/* ------------------------------------------------------------------------
- *  Mapovanie tokenov na indexy precedenčnej tabuľky
- * ------------------------------------------------------------------------ */
 
+/******************* Mapping tokens to precedence table indices ********************/
+
+/**
+ * @brief Map a token to a precedence_index used in the precedence table.
+ */
 static precedence_index token_to_index(token_ptr token)
 {
     switch (token->type)
@@ -223,15 +300,14 @@ static precedence_index token_to_index(token_ptr token)
         return OP_UNRECOGNISED;
 
     case DOUBLE_DOT:
-        return OP_D_DOT; // ..
+        return OP_D_DOT;
     case TRIPLE_DOT:
-        return OP_T_DOT; // ...
+        return OP_T_DOT;
 
     case IDENT:
     case GLOB_VAR:
     case INT_LIT:
     case FLOAT_LIT:
-    // case NULL_LIT:
     case ONE_L_STRING:
     case MUL_L_STRING:
         return OP_OPERAND;
@@ -240,8 +316,11 @@ static precedence_index token_to_index(token_ptr token)
         if (token_is_is_operator(token))
             return OP_IS_TOK;
         if (token_is_ifj_keyword(token))
-            return OP_OPERAND; // <-- PRIDANÉ: Ifj je operand
+            return OP_OPERAND;
         if (token_is_type_keyword(token))
+            return OP_OPERAND;
+        if (token->value.str_value != NULL &&
+            strcmp(token->value.str_value, "null") == 0)
             return OP_OPERAND;
         return OP_UNRECOGNISED;
 
@@ -253,101 +332,94 @@ static precedence_index token_to_index(token_ptr token)
     }
 }
 
-/* ------------------------------------------------------------------------
- *  Precedenčná tabuľka
- * ------------------------------------------------------------------------ */
+/*******************  Precedence table  ********************/
 
 static const precedence_relation precedence_table[OP_END + 1][OP_END + 1] = {
     //          +,−         *,/         <           >           <=          >=          ==          !=          (           )              i           is           ..          ...         $
-    /* +,− */ {psa_reduce, psa_shift, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_reduce, psa_reduce, psa_reduce, psa_reduce},
-    /* *,/ */ {psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_reduce, psa_reduce, psa_reduce, psa_reduce},
-    /* <   */ {psa_shift, psa_shift, psa_error, psa_error, psa_error, psa_error, psa_reduce, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_shift, psa_reduce},
-    /* >   */ {psa_shift, psa_shift, psa_error, psa_error, psa_error, psa_error, psa_reduce, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_shift, psa_reduce},
-    /* <=  */ {psa_shift, psa_shift, psa_error, psa_error, psa_error, psa_error, psa_reduce, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_shift, psa_reduce},
-    /* >=  */ {psa_shift, psa_shift, psa_error, psa_error, psa_error, psa_error, psa_reduce, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_shift, psa_reduce},
-    /* ==  */ {psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_error, psa_error, psa_shift, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_shift, psa_reduce},
-    /* !=  */ {psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_error, psa_error, psa_shift, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_shift, psa_reduce},
-    /* (   */ {psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_eq_reduce, psa_shift, psa_shift, psa_shift, psa_shift, psa_error},
-    /* )   */ {psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_error, psa_reduce, psa_error, psa_reduce, psa_reduce, psa_reduce, psa_reduce},
-    /* i   */ {psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_shift, psa_reduce, psa_error, psa_reduce, psa_reduce, psa_reduce, psa_reduce},
-    /* is  */ {psa_shift, psa_shift, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_error, psa_reduce, psa_reduce, psa_reduce},
-    /* ..  */ {psa_shift, psa_shift, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_reduce, psa_error, psa_error, psa_reduce},
-    /* ... */ {psa_shift, psa_shift, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_shift, psa_reduce, psa_shift, psa_reduce, psa_error, psa_error, psa_reduce},
-    /* $   */ {psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_shift, psa_error, psa_shift, psa_shift, psa_shift, psa_shift, psa_finish}};
+    /* +,− */ {psa_reduce, psa_shift,  psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_shift, psa_reduce,    psa_shift, psa_reduce, psa_reduce, psa_reduce, psa_reduce},
+    /* *,/ */ {psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_shift, psa_reduce,    psa_shift, psa_reduce, psa_reduce, psa_reduce, psa_reduce},
+    /* <   */ {psa_shift,  psa_shift,  psa_error,  psa_error,  psa_error,  psa_error,  psa_reduce, psa_reduce, psa_shift, psa_reduce,    psa_shift, psa_reduce, psa_shift,  psa_shift,  psa_reduce},
+    /* >   */ {psa_shift,  psa_shift,  psa_error,  psa_error,  psa_error,  psa_error,  psa_reduce, psa_reduce, psa_shift, psa_reduce,    psa_shift, psa_reduce, psa_shift,  psa_shift,  psa_reduce},
+    /* <=  */ {psa_shift,  psa_shift,  psa_error,  psa_error,  psa_error,  psa_error,  psa_reduce, psa_reduce, psa_shift, psa_reduce,    psa_shift, psa_reduce, psa_shift,  psa_shift,  psa_reduce},
+    /* >=  */ {psa_shift,  psa_shift,  psa_error,  psa_error,  psa_error,  psa_error,  psa_reduce, psa_reduce, psa_shift, psa_reduce,    psa_shift, psa_reduce, psa_shift,  psa_shift,  psa_reduce},
+    /* ==  */ {psa_shift,  psa_shift,  psa_shift,  psa_shift,  psa_shift,  psa_shift,  psa_error,  psa_error,  psa_shift, psa_reduce,    psa_shift, psa_reduce, psa_shift,  psa_shift,  psa_reduce},
+    /* !=  */ {psa_shift,  psa_shift,  psa_shift,  psa_shift,  psa_shift,  psa_shift,  psa_error,  psa_error,  psa_shift, psa_reduce,    psa_shift, psa_reduce, psa_shift,  psa_shift,  psa_reduce},
+    /* (   */ {psa_shift,  psa_shift,  psa_shift,  psa_shift,  psa_shift,  psa_shift,  psa_shift,  psa_shift,  psa_shift, psa_eq_reduce, psa_shift, psa_shift,  psa_shift,  psa_shift,  psa_error},
+    /* )   */ {psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_error, psa_reduce,    psa_error, psa_reduce, psa_reduce, psa_reduce, psa_reduce},
+    /* i   */ {psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_shift, psa_reduce,    psa_error, psa_reduce, psa_reduce, psa_reduce, psa_reduce},
+    /* is  */ {psa_shift,  psa_shift,  psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_shift, psa_reduce,    psa_shift, psa_error,  psa_reduce, psa_reduce, psa_reduce},
+    /* ..  */ {psa_shift,  psa_shift,  psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_shift, psa_reduce,    psa_shift, psa_reduce, psa_error,  psa_error,  psa_reduce},
+    /* ... */ {psa_shift,  psa_shift,  psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_reduce, psa_shift, psa_reduce,    psa_shift, psa_reduce, psa_error,  psa_error,  psa_reduce},
+    /* $   */ {psa_shift,  psa_shift,  psa_shift,  psa_shift,  psa_shift,  psa_shift,  psa_shift,  psa_shift,  psa_shift, psa_error,     psa_shift, psa_shift,  psa_shift,  psa_shift,  psa_finish}};
 
-/* ------------------------------------------------------------------------
- *  FUNEXP – volanie funkcie ako operand (user aj Ifj.*)
- * ------------------------------------------------------------------------ */
 
-ASTNode_ptr parse_expression(token_ptr recognition_token);
+/******************* FUNEXP – function call as operand (user + Ifj.*)  ********************/
 
-/* Rozhodne, či tento token je začiatkom volania funkcie (FUNEXP). */
+/**
+ * @brief Decide whether this token is the start of a function call (FUNEXP).
+ *
+ * @note
+ *  - user function: IDENT '(' ...
+ *  - built-in: Ifj '.' IDENT '(' ...
+ */
 static bool psa_fun_call_starts_here(token_ptr first_token)
 {
     token_ptr la;
 
-    /* User funkcia: foo(...) */
+    // User function: foo(...)
     if (first_token->type == IDENT)
     {
-        /* pozrieme sa na ďalší token zo scanneru */
-        la = get_token();
-
-        if (la->type == LEFT_PAR)
-        {
-            /* je to foo( ... ) → volanie funkcie */
-            push_token(la);
-            return true;
-        }
-
-        /* nie je to volanie, vrátime token späť a berieme to ako obyčajný ident */
-        push_token(la);
-        return false;
+        la = look_ahead();
+        return (la->type == LEFT_PAR);
     }
 
-    /* Built-in: Ifj.something(...) */
-    if (token_is_ifj_keyword(first_token)) /* KEY_WORD "Ifj" */
+    // Built-in: Ifj.name(...)
+    if (token_is_ifj_keyword(first_token))
     {
-        la = get_token();
-
-        if (la->type == DOT)
-        {
-            /* Ifj . ... → začiatok built-in volania */
-            push_token(la);
-            return true;
-        }
-
-        push_token(la);
-        return false;
+        la = look_ahead();
+        return (la->type == DOT);
     }
 
     return false;
 }
 
-/* <arg_list> ::= ε | <expression> ( "," <expression> )* */
+/**
+ * @brief Parse a call argument list: <arg_list> ::= ε | <expr> ("," <expr>)*.
+ * 
+ * @code
+ * <arg_list> ::= ε | <expression> ( "," <expression> )*
+ * @endcode
+ *
+ * Grammar previously designed for parser
+ * 
+ * Each argument is parsed as a full expression via PSA and wrapped in
+ * NODE_EXPR_STMNT before being attached to the CALL node.
+ */
 static void psa_parse_call_args(ASTNode_ptr call_node)
 {
     unsigned arg_count = 0;
 
-    /* sme už za menom a za '(' */
+    // We are already after the function name and '('
     consume_eols();
     token_ptr la = get_token();
 
     if (la->type == RIGHT_PAR)
     {
-        /* volanie bez argumentov: foo() / Ifj.read_str() */
+        // Call without arguments
         free_token(la);
         call_node->data.function_call.param_count = 0;
         return;
     }
 
-    /* nie je hneď ')', vrátime token späť a čítame prvý výraz */
+    // Not immediately ')', so push back and parse first expression*/
     push_token(la);
 
     while (1)
     {
-        /* každý argument je výraz – PSA, bez špeciálneho recognition tokenu */
-        ASTNode_ptr arg = parse_expression(NULL);
-        add_child(call_node, arg);
+        // Each argument is a full expression
+        ASTNode_ptr arg_expr = parse_expression(NULL);
+        ASTNode_ptr arg_stmt = ast_create_exp_statement(arg_expr);
+        add_child(call_node, arg_stmt);
         arg_count++;
 
         consume_eols();
@@ -355,20 +427,20 @@ static void psa_parse_call_args(ASTNode_ptr call_node)
 
         if (t->type == COMMA)
         {
-            /* ďalší argument */
+            // Next argument follows
             free_token(t);
             consume_eols();
             continue;
         }
         else if (t->type == RIGHT_PAR)
         {
-            /* koniec argumentov */
+            // End of argument list
             free_token(t);
             break;
         }
         else
         {
-            /* čokoľvek iné je syntaktická chyba */
+            // Anything else is syntax error
             free_token(t);
             error_exit(ERR_SYNTACTIC);
         }
@@ -377,74 +449,55 @@ static void psa_parse_call_args(ASTNode_ptr call_node)
     call_node->data.function_call.param_count = arg_count;
 }
 
-/* Parsuje volanie funkcie (user aj built-in Ifj.*) ako operand. */
+/**
+ * @brief Parse function call as an operand (user or built-in).
+ *
+ * @param first_token Token that triggered call detection (IDENT or Ifj keyword).
+ * @return AST CALL node.
+ */
 static ASTNode_ptr psa_parse_fun_call_operand(token_ptr first_token)
 {
     bool is_builtin = false;
     char *func_name = NULL;
-    token_ptr t;
 
     if (first_token->type == IDENT)
     {
-        /* user funkcia: foo(...) */
+        // User function: foo(...)
         func_name = first_token->value.str_value;
         is_builtin = false;
 
-        t = get_token();
-        if (t->type != LEFT_PAR)
-        {
-            free_token(t);
-            error_exit(ERR_SYNTACTIC);
-        }
-        free_token(t);
+        free_token(expect_type(LEFT_PAR));
     }
     else if (token_is_ifj_keyword(first_token))
     {
-        /* built-in: Ifj.read_str(...) */
-        t = get_token();
-        if (t->type != DOT)
-        {
-            free_token(t);
-            error_exit(ERR_SYNTACTIC);
-        }
-        free_token(t);
+        // Built-in: Ifj.read_str(...)
+        free_token(expect_type(DOT));
 
-        t = get_token();
-        if (t->type != IDENT)
-        {
-            free_token(t);
-            error_exit(ERR_SYNTACTIC);
-        }
-        func_name = str_copy(t->value.str_value); /* meno built-inu (read_str, write, ...) */
+        token_ptr ident_tok = expect_ident();
+        func_name = str_copy(ident_tok->value.str_value); // Name of the built-in function
+        free_token(ident_tok);
 
-        free_token(t);
-
-        t = get_token();
-        if (t->type != LEFT_PAR)
-        {
-            free_token(t);
-            error_exit(ERR_SYNTACTIC);
-        }
-        free_token(t);
+        free_token(expect_type(LEFT_PAR));
 
         is_builtin = true;
     }
     else
     {
-        /* sem by sme sa nemali dostať, ak psa_fun_call_starts_here funguje správne */
+        // Should not happen if psa_fun_call_starts_here is correct
         error_exit(ERR_INTERNAL);
     }
 
-    /* vytvor CALL node, počet parametrov doplníme po parsovaní arg listu */
     ASTNode_ptr call = ast_create_call(func_name, 0, is_builtin);
 
-    /* naparsuj argumenty a nastav param_count */
+    // Parse arguments and fill param_count
     psa_parse_call_args(call);
 
     return call;
 }
 
-/* Vráti operand pre PSA – buď obyčajný literal/ident, alebo volanie funkcie. */
+/**
+ * @brief Return operand AST for PSA: literal, identifier or function call.
+ */
 static ASTNode_ptr psa_parse_operand(token_ptr first_token)
 {
     if (psa_fun_call_starts_here(first_token))
@@ -457,10 +510,17 @@ static ASTNode_ptr psa_parse_operand(token_ptr first_token)
     }
 }
 
-/* ------------------------------------------------------------------------
- *  Redukcia – handle → NONTERMINAL_E + AST
- * ------------------------------------------------------------------------ */
+/******************* Reduction: handle → NONTERMINAL_E + AST ********************/
 
+/**
+ * @brief Perform a single reduction step according to grammar patterns.
+ *
+ * @note
+ *  - pops tokens until MARKER is found,
+ *  - matches patterns like "E", "(E)", "E op E",
+ *  - builds corresponding AST nodes,
+ *  - pushes NEW NONTERMINAL_E token carrying the reduced AST.
+ */
 static void psa_reduce_fun(Stack *stack, token_ptr recognition_token)
 {
     if (stack_is_empty(stack))
@@ -474,6 +534,7 @@ static void psa_reduce_fun(Stack *stack, token_ptr recognition_token)
     token_ptr items[5];
     int count = 0;
 
+    // Pop until we hit the MARKER, collect items to reduce
     while (!stack_is_empty(stack))
     {
         token_ptr t = stack_top(stack);
@@ -513,7 +574,7 @@ static void psa_reduce_fun(Stack *stack, token_ptr recognition_token)
     ASTNode_ptr reduced_ast = NULL;
     bool matched = false;
 
-    /* E -> i */
+    // E -> i (single operand)
     if (!matched &&
         count == 1 &&
         first_stack_item->type != MARKER &&
@@ -523,7 +584,7 @@ static void psa_reduce_fun(Stack *stack, token_ptr recognition_token)
         matched = true;
     }
 
-    /* E -> E */
+    // E -> E (already reduced nonterminal)
     if (!matched &&
         count == 1 &&
         first_stack_item->type == NONTERMINAL_E)
@@ -532,7 +593,7 @@ static void psa_reduce_fun(Stack *stack, token_ptr recognition_token)
         matched = true;
     }
 
-    /* E -> (E) */
+    // E -> ( E )
     if (!matched &&
         count == 3 &&
         first_stack_item->type == LEFT_PAR &&
@@ -543,7 +604,7 @@ static void psa_reduce_fun(Stack *stack, token_ptr recognition_token)
         matched = true;
     }
 
-    /* E -> E op E (binárne + is + .. + ...) */
+    // E -> E op E (binary ops including is, ranges)
     if (!matched &&
         count == 3 &&
         first_stack_item->type == NONTERMINAL_E &&
@@ -579,6 +640,12 @@ static void psa_reduce_fun(Stack *stack, token_ptr recognition_token)
         }
         else if (token_is_is_operator(op_tok))
         {
+            // RHS must be a type literal for 'is'
+            if (rhs->type != NODE_TYPE_LIT)
+            {
+                error_exit(ERR_SEM_TYPE_MISMATCH);
+            }
+
             reduced_ast = ast_create_binary(lhs, rhs, OP_IS);
             matched = true;
         }
@@ -590,8 +657,6 @@ static void psa_reduce_fun(Stack *stack, token_ptr recognition_token)
         }
     }
 
-    /* TODO: E -> -E (unárny mínus) */
-
     if (!matched)
     {
         for (int i = 0; i < count; i++)
@@ -602,6 +667,7 @@ static void psa_reduce_fun(Stack *stack, token_ptr recognition_token)
         error_exit(ERR_SYNTACTIC);
     }
 
+    // Create NONTERMINAL_E token holding the reduced AST
     token_ptr newE = malloc(sizeof(token_t));
     if (!newE)
     {
@@ -623,14 +689,19 @@ static void psa_reduce_fun(Stack *stack, token_ptr recognition_token)
         free_token(items[i]);
 }
 
-/* ------------------------------------------------------------------------
- *  Porovnanie podľa precedenčnej tabuľky
- * ------------------------------------------------------------------------ */
+/******************* Precedence table operation ********************/
 
-static bool psa_table_compare(Stack *stack,
-                              token_ptr current_token,
-                              token_ptr *top_terminal,
-                              token_ptr recognition_token)
+/**
+ * @brief Compare top-of-stack operator and current token via precedence table.
+ *
+ * @note
+ *  - psa_shift: push marker '<' and current token, return true (caller reads next).
+ *  - psa_eq_reduce: just push current token, return true.
+ *  - psa_reduce: perform reduction, return false (caller re-processes token).
+ *  - psa_finish: '$' to '$', parsing finished, return true.
+ *  - psa_error: syntax error.
+ */
+static bool psa_table_compare(Stack *stack, token_ptr current_token, token_ptr *top_terminal, token_ptr recognition_token)
 {
     token_ptr top_token = stack_top(stack);
     if (!top_token)
@@ -646,6 +717,7 @@ static bool psa_table_compare(Stack *stack,
     StackItem *tmp = stack->head;
     StackItem *last_terminal_item = NULL;
 
+    // Find last terminal in the stack
     while (tmp != NULL)
     {
         if (tmp->token->type != NONTERMINAL_E &&
@@ -695,6 +767,7 @@ static bool psa_table_compare(Stack *stack,
     {
     case psa_shift:
     {
+        // Insert marker '<' after last terminal and then push token
         token_ptr marker = malloc(sizeof(token_t));
         if (!marker)
         {
@@ -735,15 +808,37 @@ static bool psa_table_compare(Stack *stack,
     return true;
 }
 
-/* ------------------------------------------------------------------------
- *  Hlavná funkcia – parse_expression
- * ------------------------------------------------------------------------ */
+/******************* Main PSA function – parse_expression ********************/
 
+/**
+ * @brief Parse an expression using the precedence syntax analyzer.
+ *
+ * Different contexts are handled using the recognition token:
+ *  - NULL : standalone expression terminated by EOL, ',', ')' or EOF.
+ *  - KEY_WORD "return" : right side of return.
+ *  - KEY_WORD "in" : expression inside for (... in <expr>).
+ *  - OPERATOR '=' : right-hand side of assignment.
+ *  - LEFT_PAR '(' : expression inside parentheses.
+ *
+ * The function:
+ *  - builds a PSA stack with '$' sentinel,
+ *  - repeatedly uses the precedence table to shift/reduce,
+ *  - at the end returns AST root of the expression.
+ *
+ * @param recognition_token
+ *        Optional token describing the context where the expression starts.
+ *        Ownership is taken and it will be freed inside this function.
+ *        Pass NULL when parsing a standalone expression.
+ *
+ * @return AST node pointer representing the root of the parsed expression.
+ *         On syntax or internal errors, error_exit() is called.
+ */
 ASTNode_ptr parse_expression(token_ptr recognition_token)
 {
     Stack stack;
     stack_init(&stack);
 
+    // Push initial '$' sentinel on the stack
     token_ptr special_char = malloc(sizeof(token_t));
     if (!special_char)
     {
@@ -760,12 +855,38 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
     token_ptr current_token = get_token();
     token_ptr top_terminal = NULL;
 
-    /* ─────────────── základný (NULL) kontext ─────────────── */
+    // Basic (NULL) context
     if (recognition_token == NULL)
     {
         while (true)
         {
-            /* 1) Konec výrazu – tieto tokeny už PSA nesmie spotrebovať */
+            // Inline FUNEXP handling – user and built-in calls
+            if (current_token->type == IDENT || token_is_ifj_keyword(current_token))
+            {
+                if (psa_fun_call_starts_here(current_token))
+                {
+                    ASTNode_ptr call_ast = psa_parse_fun_call_operand(current_token);
+                    free_token(current_token);
+
+                    token_ptr call_token = malloc(sizeof(token_t));
+                    if (!call_token)
+                    {
+                        stack_free(&stack);
+                        if (recognition_token)
+                            free_token(recognition_token);
+                        error_exit(ERR_INTERNAL);
+                    }
+                    memset(call_token, 0, sizeof(token_t));
+
+                    // Treat as IDENT so token_to_index maps to OP_OPERAND
+                    call_token->type = IDENT;
+                    call_token->ast = call_ast;
+
+                    current_token = call_token;
+                }
+            }
+
+            // Expression end – these tokens are not consumed by PSA
             if (current_token->type == END_OF_LINE ||
                 current_token->type == END_OF_FILE ||
                 current_token->type == COMMA ||
@@ -777,28 +898,7 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
 
             top_terminal = find_top_terminal(&stack);
 
-            /* 2a) FUNEXP heuristika – built-in: Ifj . something(...) */
-            if (current_token->type == DOT &&
-                top_terminal &&
-                token_is_ifj_keyword(top_terminal))
-            {
-                /* '.' nemá ísť do PSA – necháme ho na psa_parse_fun_call_operand() */
-                push_token(current_token);
-                break;
-            }
-
-            /* 2b) FUNEXP heuristika – user/built-in volanie: ident/Ifj + '(' */
-            if (current_token->type == LEFT_PAR &&
-                top_terminal &&
-                (top_terminal->type == IDENT ||
-                 token_is_ifj_keyword(top_terminal)))
-            {
-                /* '(' nemá ísť do PSA – necháme ju na psa_parse_fun_call_operand() */
-                push_token(current_token);
-                break;
-            }
-
-            /* 3) Normálny PSA režim */
+            // Normal PSA step
             bool should_advance =
                 psa_table_compare(&stack, current_token, &top_terminal, NULL);
 
@@ -819,19 +919,42 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
         }
     }
 
-    /* ─────────────── špeciálne kontexty (return, =, in, '(') ─────────────── */
+    // Special contexts
     else
     {
         switch (recognition_token->type)
         {
         case KEY_WORD:
-            /* return <expr> */
+            // return <expr>
             if (recognition_token->value.str_value != NULL &&
                 strcmp(recognition_token->value.str_value, "return") == 0)
             {
 
                 while (true)
                 {
+                    // Inline FUNEXP in return expressions
+                    if (current_token->type == IDENT || token_is_ifj_keyword(current_token))
+                    {
+                        if (psa_fun_call_starts_here(current_token))
+                        {
+                            ASTNode_ptr call_ast = psa_parse_fun_call_operand(current_token);
+                            free_token(current_token);
+
+                            token_ptr call_token = malloc(sizeof(token_t));
+                            if (!call_token)
+                            {
+                                stack_free(&stack);
+                                free_token(recognition_token);
+                                error_exit(ERR_INTERNAL);
+                            }
+                            memset(call_token, 0, sizeof(token_t));
+
+                            call_token->type = IDENT;
+                            call_token->ast = call_ast;
+
+                            current_token = call_token;
+                        }
+                    }
                     bool should_advance =
                         psa_table_compare(&stack, current_token, &top_terminal, recognition_token);
 
@@ -846,13 +969,12 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
                         }
                         else if (psa_eol_end_expr(current_token))
                         {
-                            token_ptr peek_token = get_token();
+                            // Peek ahead with get_token/push_token, not parser's look_ahead
+                            token_ptr peek_token = look_ahead();
                             if (peek_token->type == END_OF_LINE)
                             {
-                                push_token(peek_token);
                                 break;
                             }
-                            push_token(peek_token);
                         }
 
                         current_token = get_token();
@@ -870,22 +992,71 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
                     }
                 }
             }
-            /* for (... in <expr>) */
+            // for (... in <expr>)
             else if (strcmp(recognition_token->value.str_value, "in") == 0)
             {
+                int par_depth = 0; // Depth of inner parentheses inside the expression
+                bool token_is_new = true;
+
                 while (true)
                 {
-                    bool should_advance =
-                        psa_table_compare(&stack, current_token, &top_terminal, recognition_token);
+                    // Inline FUNEXP in 'in' expressions
+                    if (current_token->type == IDENT || token_is_ifj_keyword(current_token))
+                    {
+                        if (psa_fun_call_starts_here(current_token))
+                        {
+                            ASTNode_ptr call_ast = psa_parse_fun_call_operand(current_token);
+                            free_token(current_token);
+
+                            token_ptr call_token = malloc(sizeof(token_t));
+                            if (!call_token)
+                            {
+                                stack_free(&stack);
+                                free_token(recognition_token);
+                                error_exit(ERR_INTERNAL);
+                            }
+                            memset(call_token, 0, sizeof(token_t));
+
+                            call_token->type = IDENT;
+                            call_token->ast = call_ast;
+
+                            current_token = call_token;
+
+                            token_is_new = true;
+                        }
+                    }
+
+                    // Track inner parentheses only once per new token
+                    if (token_is_new)
+                    {
+                        if (current_token->type == LEFT_PAR)
+                        {
+                            par_depth++;
+                        }
+                        else if (current_token->type == RIGHT_PAR)
+                        {
+                            if (par_depth == 0)
+                            {
+                                // This ')' belongs to the for header, not the expression
+                                push_token(current_token);
+                                break;
+                            }
+                            else
+                            {
+                                par_depth--;
+                            }
+                        }
+                    }
+
+                    bool should_advance = psa_table_compare(&stack, current_token, &top_terminal, recognition_token);
+
+                    // Current token has just been processed, do not treat it as new again
+                    token_is_new = false;
 
                     if (should_advance)
                     {
                         current_token = get_token();
-                        if (current_token->type == RIGHT_PAR)
-                        {
-                            push_token(current_token);
-                            break;
-                        }
+                        token_is_new = true; // new token from scanner
                     }
                     else
                     {
@@ -903,37 +1074,35 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
             break;
 
         case OPERATOR:
-            /* assignment RHS: = <expr> */
+            // assignment RHS: = <expr>
             if (recognition_token->value.other_value == EQUAL_SIGN_V)
             {
                 while (true)
                 {
-                    /* FUNEXP heuristika – rovnaká ako hore v NULL kontexte */
-
-                    top_terminal = find_top_terminal(&stack);
-
-                    /* 2a) built-in: Ifj . something(...) */
-                    if (current_token->type == DOT &&
-                        top_terminal &&
-                        token_is_ifj_keyword(top_terminal))
+                    // Inline FUNEXP on RHS of '='
+                    if (current_token->type == IDENT || token_is_ifj_keyword(current_token))
                     {
-                        /* '.' nemá ísť do PSA – necháme ho na psa_parse_fun_call_operand() */
-                        push_token(current_token);
-                        break;
+                        if (psa_fun_call_starts_here(current_token))
+                        {
+                            ASTNode_ptr call_ast = psa_parse_fun_call_operand(current_token);
+                            free_token(current_token);
+
+                            token_ptr call_token = malloc(sizeof(token_t));
+                            if (!call_token)
+                            {
+                                stack_free(&stack);
+                                free_token(recognition_token);
+                                error_exit(ERR_INTERNAL);
+                            }
+                            memset(call_token, 0, sizeof(token_t));
+
+                            call_token->type = IDENT;
+                            call_token->ast = call_ast;
+
+                            current_token = call_token;
+                        }
                     }
 
-                    /* 2b) user/built-in volanie: ident/Ifj + '(' */
-                    if (current_token->type == LEFT_PAR &&
-                        top_terminal &&
-                        (top_terminal->type == IDENT ||
-                         token_is_ifj_keyword(top_terminal)))
-                    {
-                        /* '(' nemá ísť do PSA – necháme ju na psa_parse_fun_call_operand() */
-                        push_token(current_token);
-                        break;
-                    }
-
-                    /* 3) Normálny PSA režim */
                     bool should_advance =
                         psa_table_compare(&stack, current_token, &top_terminal, recognition_token);
 
@@ -948,13 +1117,11 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
                         }
                         else if (psa_eol_end_expr(current_token))
                         {
-                            token_ptr peek_token = get_token();
+                            token_ptr peek_token = look_ahead();
                             if (peek_token->type == END_OF_LINE)
                             {
-                                push_token(peek_token);
                                 break;
                             }
-                            push_token(peek_token);
                         }
 
                         current_token = get_token();
@@ -979,12 +1146,36 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
             int left_par_count = 1;
             int right_par_count = 0;
 
+            // Push the initial '(' into the PSA stack
             (void)psa_table_compare(&stack, recognition_token, &top_terminal, NULL);
-            recognition_token = NULL; /* už je v zásobníku */
+            recognition_token = NULL; // already in stack
 
             while (left_par_count > right_par_count)
             {
                 consume_eols();
+
+                // FUNEXP inline – calls inside parentheses (Ifj.write(""))
+                if (current_token->type == IDENT || token_is_ifj_keyword(current_token))
+                {
+                    if (psa_fun_call_starts_here(current_token))
+                    {
+                        ASTNode_ptr call_ast = psa_parse_fun_call_operand(current_token);
+                        free_token(current_token);
+
+                        token_ptr call_token = malloc(sizeof(token_t));
+                        if (!call_token)
+                        {
+                            stack_free(&stack);
+                            error_exit(ERR_INTERNAL);
+                        }
+                        memset(call_token, 0, sizeof(token_t));
+
+                        call_token->type = IDENT;
+                        call_token->ast = call_ast;
+
+                        current_token = call_token;
+                    }
+                }
 
                 bool should_advance =
                     psa_table_compare(&stack, current_token, &top_terminal, NULL);
@@ -1024,7 +1215,7 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
         }
     }
 
-    /* ─────────────── finálne doredukovanie pomocou '$' ─────────────── */
+    // Final reduction using '$'
 
     token_ptr end_token = malloc(sizeof(token_t));
     if (!end_token)
@@ -1072,5 +1263,5 @@ ASTNode_ptr parse_expression(token_ptr recognition_token)
         stack_free(&stack);
         error_exit(ERR_SYNTACTIC);
     }
-    return NULL;
+    return NULL; // Unreachable
 }
