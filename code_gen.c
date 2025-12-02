@@ -53,14 +53,13 @@ void codegen(ASTNode_ptr node)
     {
     case NODE_PROGRAM:
         // IFJcode25 code starts with this line
-        printf(".IFJcode25\n");
-
-        // Skipping built in functions defined at the beginning of each program
-        printf("JUMP _program_start_\n");
-        printf("\n");
+        printf(".IFJcode25\n\n");
 
         // Declares all global variables
         gen_all_glob_vars_dec(g_global_symtable);
+
+        // Skipping built in functions defined at the beginning of each program
+        printf("\nJUMP _program_start_\n");
 
         // At the beginning of the program, there are implementations of builtin functions
         gen_built_in_read_str();
@@ -176,11 +175,6 @@ void codegen(ASTNode_ptr node)
         gen_continue();
 
         break;
-    case NODE_CALL:
-        // Call corresponding code generating function
-        gen_jmp_function(node);
-
-        break;
     default:
         /**
          * @brief There is nothing to be done for this type of nodes:
@@ -189,7 +183,7 @@ void codegen(ASTNode_ptr node)
          * @note These nodes are processed by some other functions and
          *       dont have to be handeled:
          *       NODE_RANGE, NODE_INT_LIT, NODE_FLOAT_LIT, NODE_STR_LIT, NODE_NULL_LIT,
-         *       NODE_IDENTIFIER
+         *       NODE_IDENTIFIER, NODE_CALL
          */
 
         break;
