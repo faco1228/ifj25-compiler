@@ -11,6 +11,8 @@
 
 #include <stdio.h>
 
+#include "built_in_funs.h"
+
 /******************** IFJ_read_str ********************/
 
 void gen_built_in_read_str() {

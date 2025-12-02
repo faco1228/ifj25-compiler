@@ -3,5 +3,9 @@ import "ifj25" for Ifj
 class Program {
     static main() {
         var x
+        x = 1
+        for(i in 1..3){
+            __d = Ifj.write(x)
+        }
     }
 }

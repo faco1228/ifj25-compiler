@@ -262,6 +262,13 @@ extern name_generator_ptr global_name_gen;
 void codegen(ASTNode_ptr node);
 
 /**
+ * @brief Prints declarations of all global variables from symtable at the
+ *        beginning of programe
+ * 
+ */
+void gen_all_glob_vars_dec();
+
+/**
  * @brief sets all name_generator_t attributes to default values
  *
  * @note used for reset when entering new function_def node
@@ -477,5 +484,10 @@ void gen_eval_plus_op();
  * @brief Generates instructions to type check an operation that uses the range operator.
  */
 void gen_eval_range_op();
+
+/**
+ * @brief Helper function that generates all label names that are needed inside expression evaluation codes.
+ */
+void create_label_names();
 
 #endif
