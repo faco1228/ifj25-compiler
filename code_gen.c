@@ -376,7 +376,8 @@ void gen_func_start(ASTNode_ptr node)
     printf("CREATEFRAME\n");
     printf("PUSHFRAME\n");
 
-    if (node->data.function_def.arg_count != 0){
+    if (node->data.function_def.arg_count != 0)
+    {
         printf("\n# Store params into local variables\n");
 
         // Creates local vaiables
@@ -403,8 +404,9 @@ void gen_return()
     // Generate function end
     printf("POPFRAME\n");
     // Prints return only when the current function isnt main
-    if (strcmp("main", global_name_gen->curr_function)){
-        printf("RETURN\n");    
+    if (strcmp("main", global_name_gen->curr_function))
+    {
+        printf("RETURN\n");
     }
 }
 
@@ -948,6 +950,27 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
 }
 
 /**
+ * @brief Helper function that generates all label names that are needed inside expression evaluation codes.
+ */
+void create_label_names(ASTNode_ptr exp_node)
+{
+    create_unique_name(exp_node, MUL);
+    create_unique_name(exp_node, STR_ITER);
+    create_unique_name(exp_node, MUL_END);
+    create_unique_name(exp_node, ADD);
+    create_unique_name(exp_node, CONCAT);
+    create_unique_name(exp_node, ADD_END);
+    create_unique_name(exp_node, SUB);
+    create_unique_name(exp_node, EVAL);
+    create_unique_name(exp_node, LOG_END);
+    create_unique_name(exp_node, LEFT_TO_FLOAT);
+    create_unique_name(exp_node, RIGHT_TO_FLOAT);
+    create_unique_name(exp_node, ZERO_DIV_CHECK_FLOAT);
+    create_unique_name(exp_node, ZERO_DIV_CHECK_INT);
+    create_unique_name(exp_node, ZERO_DIV_CHECK_DONE);
+}
+
+/**
  * @brief Traverses the expression AST subtree using the postorder traversal and evaluates each binary operation of the expression.
  *        The postorder traversal simulates the postfix notation. All results of evaluations are pushed to the data stack.
  *
@@ -963,6 +986,7 @@ void eval_exp(ASTNode_ptr exp_node)
     if (exp_node->type == NODE_BINARY_OP)
     {
         global_name_gen->bin_op_counter++;
+        create_label_names(exp_node);
         eval_bin_op(exp_node);
     }
     else if (exp_node->type == NODE_IDENTIFIER) // name mangled idents are already inside the ast nodes
@@ -973,7 +997,6 @@ void eval_exp(ASTNode_ptr exp_node)
         {
             gen_push_variable(exp_node);
         }
-           
     }
     else if (exp_node->type == NODE_STR_LIT)
         printf("PUSHS string@%s\n", exp_node->data.literal.data.str_value);
@@ -1585,5 +1608,3 @@ void free_global_name_gen(name_generator_ptr global_name_gen)
     // Free the vole oject
     free(global_name_gen);
 }
-
-
