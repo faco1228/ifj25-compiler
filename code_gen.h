@@ -46,6 +46,7 @@ typedef struct {
     unsigned long long loop_counter;
     unsigned long long if_counter;
     unsigned long long temp_var_counter;
+    unsigned long long bin_op_counter;
 
     // Prevents reading from an empty stack
     unsigned stack_depth;
