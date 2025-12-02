@@ -1,7 +1,7 @@
 /**
  * @file built_in_funs.h
  * @author Kristian Cilling (xcillik00)
- * @brief Header file for vuilt_in_funs.h containg function prototypes
+ * @brief Header file for built_in_funs.h containg function prototypes
  * @version 0.1
  * @date 2025-12-01
  * 

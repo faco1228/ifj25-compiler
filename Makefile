@@ -27,7 +27,7 @@ scanner.o: scanner.c scanner.h error.h lex_funs.h
 error.o: error.c error.h scanner.h ast.h symtable.h global_structures.h
 	$(CC) $(CFLAGS) -c error.c
 
-lex_funs.o: lex_funs.c lex_funs.h scanner.h error.h
+lex_funs.o: lex_funs.c lex_funs.h scanner.h error.h built_in_funs.h
 	$(CC) $(CFLAGS) -c lex_funs.c
 
 ast.o: ast.c ast.h global_structures.h error.h symtable.h
