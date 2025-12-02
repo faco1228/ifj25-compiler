@@ -121,7 +121,7 @@ void gen_built_in_floor() {
 
     // Runtime type error (exit code 25)
     printf("\nLABEL _Ifj.floor_type_err\n");
-    printf("EXIT int@25\n");
+    printf("JUMP !ERROR_ARG_L\n");
 }
 
 /******************** Ifj.str(term) ********************/
@@ -188,7 +188,7 @@ void gen_built_in_str() {
 
     // Unknown type (should not happen)
     printf("\nLABEL _Ifj.str_type_err\n");
-    printf("EXIT int@25\n");
+    printf("JUMP !ERROR_ARG_L\n");
 
     printf("\nLABEL _Ifj.str_return\n");
     printf("PUSHS LF@result\n");
@@ -221,7 +221,7 @@ void gen_built_in_length() {
     printf("RETURN\n");
 
     printf("\nLABEL _Ifj.length_type_err\n");
-    printf("EXIT int@25\n");
+    printf("JUMP !ERROR_ARG_L\n");
 }
 
 /******************** Ifj.substring(s : String, i : Num, j : Num) ********************/
@@ -347,11 +347,11 @@ void gen_built_in_substring() {
 
     // Type error (exit 25)
     printf("\nLABEL _Ifj.substring_type_err\n");
-    printf("EXIT int@25\n");
+    printf("JUMP !ERROR_ARG_L\n");
 
     // Integer check failed (exit 26)
     printf("\nLABEL _Ifj.substring_not_int\n");
-    printf("EXIT int@26\n");
+    printf("JUMP !ERROR_EXP_L\n");
 }
 
 /******************** Ifj.strcmp(s1 : String, s2 : String) ********************/
@@ -436,7 +436,7 @@ void gen_built_in_strcmp() {
     printf("RETURN\n");
 
     printf("\nLABEL _Ifj.strcmp_type_err\n");
-    printf("EXIT int@25\n");
+    printf("JUMP !ERROR_ARG_L\n");
 }
 
 /******************** Ifj.ord(s : String, i : Num) ********************/
@@ -506,10 +506,10 @@ void gen_built_in_ord() {
     printf("RETURN\n");
 
     printf("\nLABEL _Ifj.ord_type_err\n");
-    printf("EXIT int@25\n");
+    printf("JUMP !ERROR_ARG_L\n");
 
     printf("\nLABEL _Ifj.ord_not_int\n");
-    printf("EXIT int@26\n");
+    printf("JUMP !ERROR_EXP_L\n");
 }
 
 /******************** Ifj.chr(i : Num) ********************/
@@ -554,8 +554,8 @@ void gen_built_in_chr() {
     printf("RETURN\n");
 
     printf("\nLABEL _Ifj.chr_type_err\n");
-    printf("EXIT int@25\n");
+    printf("JUMP !ERROR_ARG_L\n");
 
     printf("\nLABEL _Ifj.chr_not_int\n");
-    printf("EXIT int@26\n");
+    printf("JUMP !ERROR_EXP_L\n");
 }
