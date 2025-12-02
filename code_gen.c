@@ -184,7 +184,8 @@ void codegen(ASTNode_ptr node)
          *
          * @note These nodes are processed by some other functions and
          *       dont have to be handeled:
-         *       NODE_RANGE, NODE_INT_LIT, NODE_FLOAT_LIT, NODE_STR_LIT, NODE_NULL_LIT
+         *       NODE_RANGE, NODE_INT_LIT, NODE_FLOAT_LIT, NODE_STR_LIT, NODE_NULL_LIT,
+         *       NODE_IDENTIFIER
          */
 
         break;
@@ -375,13 +376,15 @@ void gen_func_start(ASTNode_ptr node)
     printf("CREATEFRAME\n");
     printf("PUSHFRAME\n");
 
-    printf("\n# Store params into local variables\n");
+    if (node->data.function_def.arg_count != 0){
+        printf("\n# Store params into local variables\n");
 
-    // Creates local vaiables
-    for (int i = (node->data.function_def.arg_count - 1); i >= 0; i--)
-    {
-        printf("DEFVAR LF@%s\n", node->children[i]->data.identifier.code_gen_name);
-        printf("POPS LF@%s\n", node->children[i]->data.identifier.code_gen_name);
+        // Creates local vaiables
+        for (int i = (node->data.function_def.arg_count - 1); i >= 0; i--)
+        {
+            printf("DEFVAR LF@%s\n", node->children[i]->data.identifier.code_gen_name);
+            printf("POPS LF@%s\n", node->children[i]->data.identifier.code_gen_name);
+        }
     }
 }
 
@@ -399,7 +402,10 @@ void gen_return()
 
     // Generate function end
     printf("POPFRAME\n");
-    printf("RETURN\n");
+    // Prints return only when the current function isnt main
+    if (strcmp("main", global_name_gen->curr_function)){
+        printf("RETURN\n");    
+    }
 }
 
 /**
@@ -474,43 +480,43 @@ void gen_jmp_function(ASTNode_ptr node)
     {
         if (!strcmp(node->data.function_call.name, "read_str"))
         {
-            printf("CALL Ifj.read_str\n");
+            printf("CALL IFJ_read_str\n");
         }
         else if (!strcmp(node->data.function_call.name, "read_num"))
         {
-            printf("CALL Ifj.read_num\n");
+            printf("CALL IFJ_read_num\n");
         }
         else if (!strcmp(node->data.function_call.name, "write"))
         {
-            printf("CALL Ifj.write\n");
+            printf("CALL IFJ_write\n");
         }
         else if (!strcmp(node->data.function_call.name, "floor"))
         {
-            printf("CALL Ifj.floor\n");
+            printf("CALL IFJ_floor\n");
         }
         else if (!strcmp(node->data.function_call.name, "str"))
         {
-            printf("CALL Ifj.str\n");
+            printf("CALL IFJ_str\n");
         }
         else if (!strcmp(node->data.function_call.name, "length"))
         {
-            printf("CALL Ifj.length\n");
+            printf("CALL IFJ_length\n");
         }
         else if (!strcmp(node->data.function_call.name, "substring"))
         {
-            printf("CALL Ifj.substring\n");
+            printf("CALL IFJ_substring\n");
         }
         else if (!strcmp(node->data.function_call.name, "strcmp"))
         {
-            printf("CALL Ifj.strcmp\n");
+            printf("CALL IFJ_strcmp\n");
         }
         else if (!strcmp(node->data.function_call.name, "ord"))
         {
-            printf("CALL Ifj.ord\n");
+            printf("CALL IFJ_ord\n");
         }
         else
         {
-            printf("CALL Ifj.chr\n");
+            printf("CALL IFJ_chr\n");
         }
     }
     else
@@ -1579,3 +1585,5 @@ void free_global_name_gen(name_generator_ptr global_name_gen)
     // Free the vole oject
     free(global_name_gen);
 }
+
+
