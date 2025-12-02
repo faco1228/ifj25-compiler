@@ -280,6 +280,20 @@ void name_gen_init(ASTNode_ptr node)
     memset(global_name_gen->loop_start_label, 0, MAX_LABEL_NAME);
     memset(global_name_gen->loop_end_label, 0, MAX_LABEL_NAME);
     memset(global_name_gen->called_function, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->mul, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->str_iter, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->mul_end, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->add, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->concat, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->add_end, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->sub, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->eval, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->log_end, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->left_to_float, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->right_to_float, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->zero_div_check_float, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->zero_div_check_int, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->zero_div_check_done, 0, MAX_LABEL_NAME);
 
     // Store current function name and parameter count
     strcpy(global_name_gen->curr_function, node->data.function_def.name);
