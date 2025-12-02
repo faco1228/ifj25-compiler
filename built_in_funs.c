@@ -16,7 +16,7 @@
 void gen_built_in_read_str() {
     // Prints the label where this function begins
     // The interpreter jumps here when calling Ifj.read_str
-    printf("LABEL Ifj.read_str\n");
+    printf("\nLABEL Ifj.read_str\n");
     
     // CREATEFRAME – creates a new TEMPORARY frame (TF)
     // Needed for the function’s local variables
@@ -49,7 +49,7 @@ void gen_built_in_read_str() {
 /******************** Ifj.read_num ********************/
 
 void gen_built_in_read_num() {
-    printf("LABEL Ifj.read_num\n");
+    printf("\nLABEL Ifj.read_num\n");
     printf("CREATEFRAME\n");
     printf("PUSHFRAME\n");
 
@@ -67,7 +67,7 @@ void gen_built_in_read_num() {
 /******************** Ifj.write ********************/
 
 void gen_built_in_write() {
-    printf("LABEL Ifj.write\n");
+    printf("\nLABEL Ifj.write\n");
     printf("CREATEFRAME\n");
     printf("PUSHFRAME\n");
 
@@ -89,7 +89,7 @@ void gen_built_in_write() {
 /******************** Ifj.floor(term : Num) ********************/
 
 void gen_built_in_floor() {
-    printf("LABEL Ifj.floor\n");
+    printf("\nLABEL Ifj.floor\n");
     printf("CREATEFRAME\n");
     printf("PUSHFRAME\n");
 
@@ -106,28 +106,28 @@ void gen_built_in_floor() {
     printf("JUMP _Ifj.floor_type_err\n");
 
     // If already int, floor(x) = x
-    printf("LABEL _Ifj.floor_is_int\n");
+    printf("\nLABEL _Ifj.floor_is_int\n");
     printf("MOVE LF@result LF@arg\n");
     printf("JUMP _Ifj.floor_end_compute\n");
 
     // If float, truncate decimal part
-    printf("LABEL _Ifj.floor_is_float\n");
+    printf("\nLABEL _Ifj.floor_is_float\n");
     printf("FLOAT2INT LF@result LF@arg\n");
 
-    printf("LABEL _Ifj.floor_end_compute\n");
+    printf("\nLABEL _Ifj.floor_end_compute\n");
     printf("PUSHS LF@result\n");
     printf("POPFRAME\n");
     printf("RETURN\n");
 
     // Runtime type error (exit code 25)
-    printf("LABEL _Ifj.floor_type_err\n");
+    printf("\nLABEL _Ifj.floor_type_err\n");
     printf("EXIT int@25\n");
 }
 
 /******************** Ifj.str(term) ********************/
 
 void gen_built_in_str() {
-    printf("LABEL Ifj.str\n");
+    printf("\nLABEL Ifj.str\n");
     printf("CREATEFRAME\n");
     printf("PUSHFRAME\n");
 
@@ -146,19 +146,19 @@ void gen_built_in_str() {
     printf("JUMP _Ifj.str_return\n");
 
     // NULL -> convert to string "null"
-    printf("LABEL _Ifj.str_check_nil\n");
+    printf("\nLABEL _Ifj.str_check_nil\n");
     printf("JUMPIFNEQ _Ifj.str_check_int LF@type string@nil\n");
     printf("MOVE LF@result string@null\n");
     printf("JUMP _Ifj.str_return\n");
 
     // INT -> convert using INT2STR
-    printf("LABEL _Ifj.str_check_int\n");
+    printf("\nLABEL _Ifj.str_check_int\n");
     printf("JUMPIFNEQ _Ifj.str_check_float LF@type string@int\n");
     printf("INT2STR LF@result LF@arg\n");
     printf("JUMP _Ifj.str_return\n");
 
     // FLOAT -> check if whole number
-    printf("LABEL _Ifj.str_check_float\n");
+    printf("\nLABEL _Ifj.str_check_float\n");
     printf("JUMPIFNEQ _Ifj.str_check_bool LF@type string@float\n");
 
     // Check if float has zero fractional part
@@ -171,26 +171,26 @@ void gen_built_in_str() {
     printf("JUMP _Ifj.str_return\n");
 
     // Non-whole float -> use FLOAT2STR (%.2f format)
-    printf("LABEL _Ifj.str_float_nonint\n");
+    printf("\nLABEL _Ifj.str_float_nonint\n");
     printf("FLOAT2STR LF@result LF@arg\n");
     printf("JUMP _Ifj.str_return\n");
 
     // BOOL -> convert to "true" or "false" (for extensions)
-    printf("LABEL _Ifj.str_check_bool\n");
+    printf("\nLABEL _Ifj.str_check_bool\n");
     printf("JUMPIFNEQ _Ifj.str_type_err LF@type string@bool\n");
     printf("JUMPIFEQ _Ifj.str_bool_true LF@arg bool@true\n");
     printf("MOVE LF@result string@false\n");
     printf("JUMP _Ifj.str_return\n");
 
-    printf("LABEL _Ifj.str_bool_true\n");
+    printf("\nLABEL _Ifj.str_bool_true\n");
     printf("MOVE LF@result string@true\n");
     printf("JUMP _Ifj.str_return\n");
 
     // Unknown type (should not happen)
-    printf("LABEL _Ifj.str_type_err\n");
+    printf("\nLABEL _Ifj.str_type_err\n");
     printf("EXIT int@25\n");
 
-    printf("LABEL _Ifj.str_return\n");
+    printf("\nLABEL _Ifj.str_return\n");
     printf("PUSHS LF@result\n");
     printf("POPFRAME\n");
     printf("RETURN\n");
@@ -199,7 +199,7 @@ void gen_built_in_str() {
 /******************** Ifj.length(s : String) ********************/
 
 void gen_built_in_length() {
-    printf("LABEL Ifj.length\n");
+    printf("\nLABEL Ifj.length\n");
     printf("CREATEFRAME\n");
     printf("PUSHFRAME\n");
 
@@ -220,14 +220,14 @@ void gen_built_in_length() {
     printf("POPFRAME\n");
     printf("RETURN\n");
 
-    printf("LABEL _Ifj.length_type_err\n");
+    printf("\nLABEL _Ifj.length_type_err\n");
     printf("EXIT int@25\n");
 }
 
 /******************** Ifj.substring(s : String, i : Num, j : Num) ********************/
 
 void gen_built_in_substring() {
-    printf("LABEL Ifj.substring\n");
+    printf("\nLABEL Ifj.substring\n");
     printf("CREATEFRAME\n");
     printf("PUSHFRAME\n");
 
@@ -260,14 +260,14 @@ void gen_built_in_substring() {
     printf("JUMPIFEQ _Ifj.substring_i_type_ok LF@type string@int\n");
     printf("JUMPIFEQ _Ifj.substring_i_type_ok LF@type string@float\n");
     printf("JUMP _Ifj.substring_type_err\n");
-    printf("LABEL _Ifj.substring_i_type_ok\n");
+    printf("\nLABEL _Ifj.substring_i_type_ok\n");
 
     // Type check: j must be Num
     printf("TYPE LF@type LF@j\n");
     printf("JUMPIFEQ _Ifj.substring_j_type_ok LF@type string@int\n");
     printf("JUMPIFEQ _Ifj.substring_j_type_ok LF@type string@float\n");
     printf("JUMP _Ifj.substring_type_err\n");
-    printf("LABEL _Ifj.substring_j_type_ok\n");
+    printf("\nLABEL _Ifj.substring_j_type_ok\n");
 
     // Check if i and j are integers (exit 26 if not)
     printf("ISINT LF@is_int LF@i\n");
@@ -280,18 +280,18 @@ void gen_built_in_substring() {
     printf("JUMPIFEQ _Ifj.substring_i_already_int LF@type string@int\n");
     printf("FLOAT2INT LF@i_int LF@i\n");
     printf("JUMP _Ifj.substring_i_int_done\n");
-    printf("LABEL _Ifj.substring_i_already_int\n");
+    printf("\nLABEL _Ifj.substring_i_already_int\n");
     printf("MOVE LF@i_int LF@i\n");
-    printf("LABEL _Ifj.substring_i_int_done\n");
+    printf("\nLABEL _Ifj.substring_i_int_done\n");
 
     // Convert j to int
     printf("TYPE LF@type LF@j\n");
     printf("JUMPIFEQ _Ifj.substring_j_already_int LF@type string@int\n");
     printf("FLOAT2INT LF@j_int LF@j\n");
     printf("JUMP _Ifj.substring_j_int_done\n");
-    printf("LABEL _Ifj.substring_j_already_int\n");
+    printf("\nLABEL _Ifj.substring_j_already_int\n");
     printf("MOVE LF@j_int LF@j\n");
-    printf("LABEL _Ifj.substring_j_int_done\n");
+    printf("\nLABEL _Ifj.substring_j_int_done\n");
 
     // Get string length
     printf("STRLEN LF@len LF@s\n");
@@ -321,7 +321,7 @@ void gen_built_in_substring() {
     printf("MOVE LF@index LF@i_int\n");
     printf("MOVE LF@result string@\n");
 
-    printf("LABEL _Ifj.substring_loop\n");
+    printf("\nLABEL _Ifj.substring_loop\n");
     // Loop condition: index < j
     printf("LT LF@cmp LF@index LF@j_int\n");
     printf("JUMPIFEQ _Ifj.substring_loop_end LF@cmp bool@false\n");
@@ -334,30 +334,30 @@ void gen_built_in_substring() {
     printf("ADD LF@index LF@index int@1\n");
     printf("JUMP _Ifj.substring_loop\n");
 
-    printf("LABEL _Ifj.substring_loop_end\n");
+    printf("\nLABEL _Ifj.substring_loop_end\n");
     printf("PUSHS LF@result\n");
     printf("POPFRAME\n");
     printf("RETURN\n");
 
     // Return null on validation failure
-    printf("LABEL _Ifj.substring_return_null\n");
+    printf("\nLABEL _Ifj.substring_return_null\n");
     printf("PUSHS nil@nil\n");
     printf("POPFRAME\n");
     printf("RETURN\n");
 
     // Type error (exit 25)
-    printf("LABEL _Ifj.substring_type_err\n");
+    printf("\nLABEL _Ifj.substring_type_err\n");
     printf("EXIT int@25\n");
 
     // Integer check failed (exit 26)
-    printf("LABEL _Ifj.substring_not_int\n");
+    printf("\nLABEL _Ifj.substring_not_int\n");
     printf("EXIT int@26\n");
 }
 
 /******************** Ifj.strcmp(s1 : String, s2 : String) ********************/
 
 void gen_built_in_strcmp() {
-    printf("LABEL Ifj.strcmp\n");
+    printf("\nLABEL Ifj.strcmp\n");
     printf("CREATEFRAME\n");
     printf("PUSHFRAME\n");
 
@@ -389,7 +389,7 @@ void gen_built_in_strcmp() {
     printf("MOVE LF@index int@0\n");
 
     // Lexicographic comparison: compare character by character
-    printf("LABEL _Ifj.strcmp_loop\n");
+    printf("\nLABEL _Ifj.strcmp_loop\n");
     // Exit loop if we've reached end of either string
     printf("LT LF@cmp LF@index LF@len1\n");
     printf("JUMPIFEQ _Ifj.strcmp_after_loop LF@cmp bool@false\n");
@@ -412,7 +412,7 @@ void gen_built_in_strcmp() {
     printf("JUMP _Ifj.strcmp_loop\n");
 
     // All compared characters equal, decide by length
-    printf("LABEL _Ifj.strcmp_after_loop\n");
+    printf("\nLABEL _Ifj.strcmp_after_loop\n");
     printf("LT LF@cmp LF@len1 LF@len2\n");
     printf("JUMPIFEQ _Ifj.strcmp_s1_lt_s2 LF@cmp bool@true\n");
     printf("LT LF@cmp LF@len2 LF@len1\n");
@@ -422,27 +422,27 @@ void gen_built_in_strcmp() {
     printf("MOVE LF@result int@0\n");
     printf("JUMP _Ifj.strcmp_return\n");
 
-    printf("LABEL _Ifj.strcmp_s1_lt_s2\n");
+    printf("\nLABEL _Ifj.strcmp_s1_lt_s2\n");
     printf("MOVE LF@result int@-1\n");
     printf("JUMP _Ifj.strcmp_return\n");
 
-    printf("LABEL _Ifj.strcmp_s1_gt_s2\n");
+    printf("\nLABEL _Ifj.strcmp_s1_gt_s2\n");
     printf("MOVE LF@result int@1\n");
     printf("JUMP _Ifj.strcmp_return\n");
 
-    printf("LABEL _Ifj.strcmp_return\n");
+    printf("\nLABEL _Ifj.strcmp_return\n");
     printf("PUSHS LF@result\n");
     printf("POPFRAME\n");
     printf("RETURN\n");
 
-    printf("LABEL _Ifj.strcmp_type_err\n");
+    printf("\nLABEL _Ifj.strcmp_type_err\n");
     printf("EXIT int@25\n");
 }
 
 /******************** Ifj.ord(s : String, i : Num) ********************/
 
 void gen_built_in_ord() {
-    printf("LABEL Ifj.ord\n");
+    printf("\nLABEL Ifj.ord\n");
     printf("CREATEFRAME\n");
     printf("PUSHFRAME\n");
 
@@ -468,7 +468,7 @@ void gen_built_in_ord() {
     printf("JUMPIFEQ _Ifj.ord_i_type_ok LF@type string@int\n");
     printf("JUMPIFEQ _Ifj.ord_i_type_ok LF@type string@float\n");
     printf("JUMP _Ifj.ord_type_err\n");
-    printf("LABEL _Ifj.ord_i_type_ok\n");
+    printf("\nLABEL _Ifj.ord_i_type_ok\n");
 
     // Check if i is integer (exit 26 if not)
     printf("ISINT LF@is_int LF@i\n");
@@ -479,9 +479,9 @@ void gen_built_in_ord() {
     printf("JUMPIFEQ _Ifj.ord_i_already_int LF@type string@int\n");
     printf("FLOAT2INT LF@i_int LF@i\n");
     printf("JUMP _Ifj.ord_i_int_done\n");
-    printf("LABEL _Ifj.ord_i_already_int\n");
+    printf("\nLABEL _Ifj.ord_i_already_int\n");
     printf("MOVE LF@i_int LF@i\n");
-    printf("LABEL _Ifj.ord_i_int_done\n");
+    printf("\nLABEL _Ifj.ord_i_int_done\n");
 
     printf("STRLEN LF@len LF@s\n");
 
@@ -500,22 +500,22 @@ void gen_built_in_ord() {
     printf("POPFRAME\n");
     printf("RETURN\n");
 
-    printf("LABEL _Ifj.ord_return_zero\n");
+    printf("\nLABEL _Ifj.ord_return_zero\n");
     printf("PUSHS int@0\n");
     printf("POPFRAME\n");
     printf("RETURN\n");
 
-    printf("LABEL _Ifj.ord_type_err\n");
+    printf("\nLABEL _Ifj.ord_type_err\n");
     printf("EXIT int@25\n");
 
-    printf("LABEL _Ifj.ord_not_int\n");
+    printf("\nLABEL _Ifj.ord_not_int\n");
     printf("EXIT int@26\n");
 }
 
 /******************** Ifj.chr(i : Num) ********************/
 
 void gen_built_in_chr() {
-    printf("LABEL Ifj.chr\n");
+    printf("\nLABEL Ifj.chr\n");
     printf("CREATEFRAME\n");
     printf("PUSHFRAME\n");
 
@@ -532,7 +532,7 @@ void gen_built_in_chr() {
     printf("JUMPIFEQ _Ifj.chr_i_type_ok LF@type string@int\n");
     printf("JUMPIFEQ _Ifj.chr_i_type_ok LF@type string@float\n");
     printf("JUMP _Ifj.chr_type_err\n");
-    printf("LABEL _Ifj.chr_i_type_ok\n");
+    printf("\nLABEL _Ifj.chr_i_type_ok\n");
 
     // Check if i is integer (exit 26 if not)
     printf("ISINT LF@is_int LF@i\n");
@@ -543,9 +543,9 @@ void gen_built_in_chr() {
     printf("JUMPIFEQ _Ifj.chr_i_already_int LF@type string@int\n");
     printf("FLOAT2INT LF@i_int LF@i\n");
     printf("JUMP _Ifj.chr_i_int_done\n");
-    printf("LABEL _Ifj.chr_i_already_int\n");
+    printf("\nLABEL _Ifj.chr_i_already_int\n");
     printf("MOVE LF@i_int LF@i\n");
-    printf("LABEL _Ifj.chr_i_int_done\n");
+    printf("\nLABEL _Ifj.chr_i_int_done\n");
 
     // Convert ASCII value to character 
     printf("INT2CHAR LF@result LF@i_int\n");
@@ -553,9 +553,9 @@ void gen_built_in_chr() {
     printf("POPFRAME\n");
     printf("RETURN\n");
 
-    printf("LABEL _Ifj.chr_type_err\n");
+    printf("\nLABEL _Ifj.chr_type_err\n");
     printf("EXIT int@25\n");
 
-    printf("LABEL _Ifj.chr_not_int\n");
+    printf("\nLABEL _Ifj.chr_not_int\n");
     printf("EXIT int@26\n");
 }
