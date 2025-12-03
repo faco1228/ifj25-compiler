@@ -332,8 +332,6 @@ void exp_analysis(ASTNode_ptr exp_root)
                     error_exit(ERR_SEM_UNDEFINED);
                 }
             }
-            else // only mangle the name if the identifier is not a global variable
-                exp_root->data.identifier.code_gen_name = mangle_name(key->name, current_block_id);
         }
 
         key_dispose(key);
