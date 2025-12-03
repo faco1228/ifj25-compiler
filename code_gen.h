@@ -319,7 +319,6 @@ void gen_func_start(ASTNode_ptr node);
 
 /**
  * @brief This function is called at the end of function or when return node is encountered
- *
  */
 void gen_return();
 

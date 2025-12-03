@@ -75,10 +75,6 @@ void codegen(ASTNode_ptr node)
 
         printf("############# BUILT IN FUNCTIONS END #############\n");
 
-        // This is where actual compilation begins
-        printf("\n");
-        printf("\nLABEL _program_start_\n");
-
         break;
     case NODE_FUNCTION_DEF:
         // Reset global name_gen_t object
@@ -403,6 +399,13 @@ void gen_func_start(ASTNode_ptr node)
 
     // Creates and print unique function label name,
     create_unique_name(node, FUN_LABEL);
+
+    if (!strcmp(global_name_gen->fun_label, "_fun_main_0")){
+        // This is where actual compilation begins
+        printf("\n");
+        printf("\nLABEL _program_start_\n");
+    }
+
     printf("\nLABEL %s\n", global_name_gen->fun_label);
     printf("CREATEFRAME\n");
     printf("PUSHFRAME\n");
@@ -435,7 +438,7 @@ void gen_return()
     // Generate function end
     printf("POPFRAME\n");
     // Prints return only when the current function isnt main
-    if (strcmp("main", global_name_gen->curr_function))
+    if (strcmp(global_name_gen->fun_label, "_fun_main_0"))
     {
         printf("RETURN\n");
     }
@@ -763,6 +766,7 @@ void gen_program_end()
     printf("EXIT int@26\n");
 
     printf("LABEL _program_end_\n");
+    printf("EXIT int@0\n");
 }
 
 /**
