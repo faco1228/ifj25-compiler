@@ -426,7 +426,10 @@ void gen_return()
     if (strcmp("main", global_name_gen->curr_function))
     {
         printf("RETURN\n");
-    }
+    } 
+    else 
+        printf("JUMP _program_end_\n");
+
 }
 
 /**
@@ -739,6 +742,8 @@ void gen_program_end()
     // here program exits with err code 25 - invalid data type in an expression
     printf("LABEL !ERROR_EXP_L\n");
     printf("EXIT int@26\n");
+
+    prinft("LABEL _program_end_\n");
 }
 
 /**
