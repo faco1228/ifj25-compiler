@@ -287,24 +287,22 @@ bool builtin_args_type_check(ASTNode_ptr call_node, builtin_function_t *builtin_
     for (unsigned idx = 0; idx < builtin_ptr->args_count; idx++) // loops through the args of the function call
     {
         ASTNode_ptr arg = call_node->children[idx];
-        ASTNode_ptr exp = ast_create_exp_statement(NULL); // !temp fix!!!!!!
 
-        //! sem potom bude treba pridat arg->children[0]
-        exp_analysis(arg); // all args can be an expression so we call exp_analysis function here
+        exp_analysis(arg->children[0]); // all args can be an expression so we call exp_analysis function here
 
-        if (!eval_exp_flags(exp)) //! sem pridam exp stmt node
+        if (!eval_exp_flags(arg))
             error_exit(ERR_SEM_TYPE_MISMATCH);
 
-        // !treba nahradit exp za arg !!!
+        printf("TYPE: %d\n", arg->data.exp_statement.exp_type);
+
         // there is node need to check arg types or we could not determine the type of the expression passed
-        if (builtin_ptr->arg_types[idx] == ANY_TYPE || exp->data.exp_statement.exp_type == TYPE_UNKNOWN)
+        if (builtin_ptr->arg_types[idx] == ANY_TYPE || arg->data.exp_statement.exp_type == TYPE_UNKNOWN)
             continue;
 
-        // !treba nahradit exp za arg !!!+
-        // if possible check if type mismatch dit not occur
-        if (exp->data.exp_statement.exp_type != TYPE_STRING && builtin_ptr->arg_types[idx] == STR_TYPE)
+        // if possible check if type mismatch did not occur
+        if (arg->data.exp_statement.exp_type != TYPE_STRING && builtin_ptr->arg_types[idx] == STR_TYPE)
             return false;
-        else if (exp->data.exp_statement.exp_type != TYPE_NUM && builtin_ptr->arg_types[idx] == NUM_TYPE)
+        else if (arg->data.exp_statement.exp_type != TYPE_NUM && builtin_ptr->arg_types[idx] == NUM_TYPE)
             return false;
     }
 
@@ -350,6 +348,8 @@ void exp_analysis(ASTNode_ptr exp_root)
                     key_dispose(key);
                     error_exit(ERR_SEM_UNDEFINED);
                 }
+
+                exp_root->data.identifier.code_gen_name = mangle_name(key->name, block_counter);
             }
             else
             {
@@ -460,8 +460,6 @@ bool eval_exp_flags(ASTNode_ptr exp_root)
     if (has_minus_or_slash) // these operands cannot be used with strings
         exp_root->data.exp_statement.exp_type = TYPE_NUM;
     else if (has_only_plus_op && has_num_lit) // when number literal is present here, + operator can only be used as addition
-        exp_root->data.exp_statement.exp_type = TYPE_NUM;
-    else if (!has_string_lit) // no string literals present so for now we can say that it is a number
         exp_root->data.exp_statement.exp_type = TYPE_NUM;
     else if (has_string_lit) // when string literal is present here, + operator can only be used as concat
         exp_root->data.exp_statement.exp_type = TYPE_STRING;
