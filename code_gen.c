@@ -114,6 +114,9 @@ void codegen(ASTNode_ptr node)
 
         break;
     case NODE_ASSIGN:
+        // Print to make IFJcode25 code more readable
+        printf("\n#Expression evaluation follows\n");
+
         // This function takes care of the right side of the assignment
         eval_exp(node->children[1]->children[0]);
         // Calls corresponding code generating function
@@ -121,6 +124,9 @@ void codegen(ASTNode_ptr node)
 
         break;
     case NODE_IF:
+        // Print to make IFJcode25 code more readable
+        printf("\n#Expression evaluation follows\n");
+
         // Condition evaluation
         eval_exp(node->children[0]);
 
@@ -145,8 +151,12 @@ void codegen(ASTNode_ptr node)
     case NODE_RETURN:
         // Update global flag
         return_occured = true;
+
+        // Print to make IFJcode25 code more readable
+        printf("\n#Expression evaluation follows\n");
+
         // After the node return an expression follows
-        eval_exp(node->children[0]);
+        eval_exp(node->children[0]->children[0]);
         // Returns from the function
         gen_return();
 
@@ -292,6 +302,7 @@ void name_gen_init(ASTNode_ptr node)
     memset(global_name_gen->log_end, 0, MAX_LABEL_NAME);
     memset(global_name_gen->left_to_float, 0, MAX_LABEL_NAME);
     memset(global_name_gen->right_to_float, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->both_to_float, 0, MAX_LABEL_NAME);
     memset(global_name_gen->zero_div_check_float, 0, MAX_LABEL_NAME);
     memset(global_name_gen->zero_div_check_int, 0, MAX_LABEL_NAME);
     memset(global_name_gen->zero_div_check_done, 0, MAX_LABEL_NAME);
@@ -319,10 +330,11 @@ void gen_push_variable(ASTNode_ptr node)
     // Differentiates between global and local variable
     if (node->data.identifier.is_global)
     {
-        printf("PUSHS GF@%s\n", node->data.identifier.code_gen_name);
+        printf("PUSHS GF@%s\n", node->data.identifier.name);
     }
     else
     {
+        // printf("------------Tu je chyba-----------\n");
         printf("PUSHS LF@%s\n", node->data.identifier.code_gen_name);
     }
 
@@ -426,10 +438,9 @@ void gen_return()
     if (strcmp("main", global_name_gen->curr_function))
     {
         printf("RETURN\n");
-    } 
-    else 
+    }
+    else
         printf("JUMP _program_end_\n");
-
 }
 
 /**
@@ -501,6 +512,8 @@ void gen_jmp_function(ASTNode_ptr node)
      */
 
     if(node->type == NODE_CALL){
+        // Print to make IFJcode25 code more readable
+        printf("\n#Expression evaluation of parameters follows\n");
         // First the arguments are pushed on data strack (left to right) but
         // has to be treated as potential expression
         for (unsigned i = 0; i < node->data.function_call.param_count; i++)
@@ -587,6 +600,9 @@ void gen_for_start(ASTNode_ptr node)
     // Have to read NODE_RANGE children
     ASTNode_ptr range_node = node->children[1]->children[0];
 
+
+    // Print to make IFJcode25 code more readable
+    printf("\n#Expression evaluation of range follows\n");
     // This function will return start and end of the range on stack data
     eval_exp(range_node);
 
@@ -666,6 +682,9 @@ void gen_while_start(ASTNode_ptr node)
 
     // Condition check
     printf("# Evaluate while condition\n");
+
+    // Print to make IFJcode25 code more readable
+    printf("\n#Expression evaluation follows\n");
 
     // This function will evaluate the condition and leave the result at data stack top
     eval_exp(node->children[0]);
@@ -979,6 +998,10 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
         snprintf(global_name_gen->right_to_float, MAX_FUNCTION_NAME, "_right_to_float_%s_%u_%lld",
                  global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
         break;
+    case BOTH_TO_FLOAT:
+        snprintf(global_name_gen->both_to_float, MAX_FUNCTION_NAME, "_both_to_float_%s_%u_%lld",
+                 global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
+        break;
     case ZERO_DIV_CHECK_FLOAT:
         snprintf(global_name_gen->zero_div_check_float, MAX_FUNCTION_NAME, "_zero_div_check_float_%s_%u_%lld",
                  global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
@@ -1013,6 +1036,7 @@ void create_label_names(ASTNode_ptr exp_node)
     create_unique_name(exp_node, LOG_END);
     create_unique_name(exp_node, LEFT_TO_FLOAT);
     create_unique_name(exp_node, RIGHT_TO_FLOAT);
+    create_unique_name(exp_node, BOTH_TO_FLOAT);
     create_unique_name(exp_node, ZERO_DIV_CHECK_FLOAT);
     create_unique_name(exp_node, ZERO_DIV_CHECK_INT);
     create_unique_name(exp_node, ZERO_DIV_CHECK_DONE);
@@ -1032,7 +1056,7 @@ void eval_exp(ASTNode_ptr exp_node)
     {
         /*
             NOTE: Tree traversal is ended so fun call args are not pushed to the data stack twice.
-            If break is not called, eval_exp will find the args of the function call, identify them as 
+            If break is not called, eval_exp will find the args of the function call, identify them as
             an identifier or a literal and push them to the data stack. Then function call is generated
             which is going to push these args again.
         */
@@ -1041,8 +1065,8 @@ void eval_exp(ASTNode_ptr exp_node)
 
         eval_exp(exp_node->children[idx]);
     }
-
-    if (exp_node->type == NODE_BINARY_OP)
+    
+    if (exp_node->type == NODE_BINARY_OP || exp_node->type == NODE_RANGE)
     {
         global_name_gen->bin_op_counter++;
         create_label_names(exp_node);
@@ -1449,7 +1473,7 @@ void gen_eval_slash_op()
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
     printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
-    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->zero_div_check_int);
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->both_to_float);
 
     // float / int scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
@@ -1467,23 +1491,25 @@ void gen_eval_slash_op()
     printf("JUMP !ERROR_EXP_L\n");
 
     // int to float conversions - right op
-    printf("LABEL %s\n", global_name_gen->right_to_float); // label
+    printf("LABEL %s\n", global_name_gen->right_to_float);
     printf("INT2FLOAT LF@op2 LF@op2\n");
     printf("JUMP %s\n", global_name_gen->zero_div_check_float);
 
     // int to float conversions - left op
-    printf("LABEL %s\n", global_name_gen->left_to_float); // label
+    printf("LABEL %s\n", global_name_gen->left_to_float);
     printf("INT2FLOAT LF@op1 LF@op1\n");
+    printf("JUMP %s\n", global_name_gen->zero_div_check_float);
+
+    // int to float conversions - both ops
+    printf("LABEL %s\n", global_name_gen->both_to_float);
+    printf("INT2FLOAT LF@op1 LF@op1\n");
+    printf("INT2FLOAT LF@op2 LF@op2\n");
     printf("JUMP %s\n", global_name_gen->zero_div_check_float);
 
     // zero divison check for floats
     printf("LABEL %s\n", global_name_gen->zero_div_check_float);
     printf("EQ LF@op_check2 LF@op2 float@0x0p+0\n");
     printf("JUMP %s\n", global_name_gen->zero_div_check_done);
-
-    // zero divison check for ints
-    printf("LABEL %s\n", global_name_gen->zero_div_check_int);
-    printf("EQ LF@op_check2 LF@op2 int@0\n");
 
     // evaluate zero division check
     printf("LABEL %s\n", global_name_gen->zero_div_check_done);
@@ -1632,6 +1658,10 @@ void gen_eval_range_op()
     printf("EQ LF@op_check2 LF@type2 string@int\n");
     printf("JUMPIFEQ !ERROR_EXP_L LF@op_check2 bool@false\n");
 
+    // check if left side is not the bigger number
+    printf("GT LF@op_check1 LF@op1 LF@op2\n");
+    printf("JUMPIFEQ !ERROR_EXP_L LF@op_check1 bool@true\n");
+
     // now i can just push the starting and ending iterator values back to the scope stack
     printf("PUSHS LF@op1\n");
     printf("PUSHS LF@op2\n");
@@ -1663,6 +1693,7 @@ void free_global_name_gen(name_generator_ptr global_name_gen)
     free(global_name_gen->log_end);
     free(global_name_gen->left_to_float);
     free(global_name_gen->right_to_float);
+    free(global_name_gen->both_to_float);
     free(global_name_gen->zero_div_check_float);
     free(global_name_gen->zero_div_check_int);
     free(global_name_gen->zero_div_check_done);
@@ -1686,6 +1717,7 @@ void free_global_name_gen(name_generator_ptr global_name_gen)
     global_name_gen->log_end = NULL;
     global_name_gen->left_to_float = NULL;
     global_name_gen->right_to_float = NULL;
+    global_name_gen->both_to_float = NULL;
     global_name_gen->zero_div_check_float = NULL;
     global_name_gen->zero_div_check_int = NULL;
     global_name_gen->zero_div_check_done = NULL;

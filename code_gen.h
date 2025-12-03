@@ -42,6 +42,7 @@ typedef enum
     LOG_END,
     LEFT_TO_FLOAT,
     RIGHT_TO_FLOAT,
+    BOTH_TO_FLOAT,
     ZERO_DIV_CHECK_FLOAT,
     ZERO_DIV_CHECK_INT,
     ZERO_DIV_CHECK_DONE
@@ -96,6 +97,7 @@ typedef struct
     char *log_end;
     char *left_to_float;
     char *right_to_float;
+    char *both_to_float;
     char *zero_div_check_float;
     char *zero_div_check_int;
     char *zero_div_check_done;
@@ -248,6 +250,11 @@ extern name_generator_ptr global_name_gen;
         {                                                                                                 \
             glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable);                \
         }                                                                                                 \
+        (global_name_gen->both_to_float) = calloc(MAX_LABEL_NAME, sizeof(char));                          \
+        if (global_name_gen->both_to_float == NULL)                                                       \
+        {                                                                                                 \
+            glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable);                \
+        }                                                                                                 \
     } while (0)
 
 /************************************ FUNCTION PROTOTYPES ************************************/
@@ -264,7 +271,7 @@ void codegen(ASTNode_ptr node);
 /**
  * @brief Prints declarations of all global variables from symtable at the
  *        beginning of programe
- * 
+ *
  * @param symtable Symtable that contains all global variables.
  */
 void gen_all_glob_vars_dec(ST_Node *symtable);

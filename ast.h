@@ -178,6 +178,7 @@ struct ASTNode
         struct
         {
             bool inclusive; // true: a..b includes end, false: a...b excludes end
+            
         } range;
 
         // Literals
