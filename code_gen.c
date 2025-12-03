@@ -1177,9 +1177,8 @@ void eval_bin_op(ASTNode_ptr operator)
 
     if (operator->type == NODE_RANGE) // special case for a range operator
         gen_eval_range_op();
-
-    // result of the expression evaluation
-    printf("PUSHS LF@result\n");
+    else // PUSHS does not have to be generated for the eval of node range
+        printf("PUSHS LF@result\n"); // result of the expression evaluation
 
     // cleanup after evaluating the expression
     printf("POPFRAME\n");
