@@ -112,6 +112,7 @@ typedef struct
     bool in_getter;
     bool in_setter;
     bool in_loop;
+    bool in_if;
 } name_generator_t, *name_generator_ptr;
 
 // Global flag, holds information whether the function contained return node

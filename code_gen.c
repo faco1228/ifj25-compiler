@@ -123,6 +123,9 @@ void codegen(ASTNode_ptr node)
         // Print to make IFJcode25 code more readable
         printf("\n#Expression evaluation follows\n");
 
+        // Sets location flag
+        global_name_gen->in_if = true;
+
         // Condition evaluation
         eval_exp(node->children[0]);
 
@@ -241,8 +244,13 @@ void codegen(ASTNode_ptr node)
         gen_while_end(node);
     }
 
-    if (node->type == NODE_PROGRAM)
+    if (node->type == NODE_PROGRAM){
         gen_program_end();
+    }
+
+    if (node->type == NODE_IF){
+        global_name_gen->in_if = false;
+    }
 }
 
 /**
@@ -312,6 +320,7 @@ void name_gen_init(ASTNode_ptr node)
     global_name_gen->in_getter = false;
     global_name_gen->in_setter = false;
     global_name_gen->in_loop = false;
+    global_name_gen->in_if = false;
 }
 
 /**
@@ -513,10 +522,16 @@ void gen_jmp_function(ASTNode_ptr node)
     {
         // Print to make IFJcode25 code more readable
         printf("\n#Expression evaluation of parameters follows\n");
+
+
+        printf("# Pocet deti tohoto uzlu: %d\n", node->data.function_call.param_count);
+
+
         // First the arguments are pushed on data strack (left to right) but
         // has to be treated as potential expression
         for (unsigned i = 0; i < node->data.function_call.param_count; i++)
         {
+            printf("# Dieta cislo: %d\n", i);
             eval_exp(node->children[i]);
         }
     }
