@@ -77,12 +77,31 @@ extern token_ptr pending_eof_token;
 
 //********************************* Function prototypes *********************************//
 
+/**
+ * @brief Returns token back to scanner
+ *
+ * @param token to be filled
+ */
 void push_token(token_ptr token);
 
+/**
+ * @brief Reads and decodes token from IFJ25 source code
+ *
+ * @return Pointer to newly allocated token structure
+ */
 token_ptr get_token();
 
+/**
+ * @brief Frees memory allocated for token
+ *
+ * @param token to be freed
+ */
 void free_token(token_ptr token);
 
+/**
+ * @brief After the parser is done using scanner, it need to call this function
+ *
+ */
 void scanner_cleanup();
 
 #endif
