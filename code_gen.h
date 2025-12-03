@@ -265,8 +265,9 @@ void codegen(ASTNode_ptr node);
  * @brief Prints declarations of all global variables from symtable at the
  *        beginning of programe
  * 
+ * @param symtable Symtable that contains all global variables.
  */
-void gen_all_glob_vars_dec();
+void gen_all_glob_vars_dec(ST_Node *symtable);
 
 /**
  * @brief sets all name_generator_t attributes to default values
@@ -386,6 +387,11 @@ void gen_if(ASTNode_ptr node);
  * @brief Handles beginning of else block of if statement
  */
 void gen_else();
+
+/**
+ * @brief Generates error labels at the end of the program.
+ */
+void gen_program_end();
 
 /**
  * @brief Creates a unique label name
