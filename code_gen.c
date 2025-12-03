@@ -53,14 +53,13 @@ void codegen(ASTNode_ptr node)
     {
     case NODE_PROGRAM:
         // IFJcode25 code starts with this line
-        printf(".IFJcode25\n");
-
-        // Skipping built in functions defined at the beginning of each program
-        printf("JUMP _program_start_\n");
-        printf("\n");
+        printf(".IFJcode25\n\n");
 
         // Declares all global variables
         gen_all_glob_vars_dec(g_global_symtable);
+
+        // Skipping built in functions defined at the beginning of each program
+        printf("\nJUMP _program_start_\n");
 
         // At the beginning of the program, there are implementations of builtin functions
         gen_built_in_read_str();
@@ -176,11 +175,6 @@ void codegen(ASTNode_ptr node)
         gen_continue();
 
         break;
-    case NODE_CALL:
-        // Call corresponding code generating function
-        gen_jmp_function(node);
-
-        break;
     default:
         /**
          * @brief There is nothing to be done for this type of nodes:
@@ -189,7 +183,7 @@ void codegen(ASTNode_ptr node)
          * @note These nodes are processed by some other functions and
          *       dont have to be handeled:
          *       NODE_RANGE, NODE_INT_LIT, NODE_FLOAT_LIT, NODE_STR_LIT, NODE_NULL_LIT,
-         *       NODE_IDENTIFIER
+         *       NODE_IDENTIFIER, NODE_CALL
          */
 
         break;
@@ -368,10 +362,11 @@ void gen_assign(ASTNode_ptr node)
     // When the lhs is a setter
     if (lhs->type == NODE_IDENTIFIER && lhs->data.identifier.id_type == SETTER)
     {
+        // The parameter is already on top of data stack
         gen_jmp_function(lhs);
     }
     else
-    { // The lhs needs to be a variable
+    { // The lhs has to be variable
         if (lhs->data.identifier.is_global)
         {
             printf("POPS GF@%s\n", lhs->data.identifier.name);
@@ -485,17 +480,24 @@ void gen_lit_string(char *value)
  */
 void gen_jmp_function(ASTNode_ptr node)
 {
-    // Checks whether the node is getter/setter/function
-    if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == SETTER)
-    {
-        eval_exp(node->children[1]);
-    }
-    else if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == GETTER)
-    {
-        ; // Nothing will be pushed
-    }
-    else
-    {
+    // // Checks whether the node is getter/setter/function
+    // if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == SETTER)
+    // {
+    //     eval_exp(node->children[1]);
+    // }
+    // else if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == GETTER)
+    // {
+    //     ; // Nothing will be pushed
+    // }
+    // else
+
+    /**
+     * @brief When this function is called for a setter, the argument is already
+     *        on top of the data stack.
+     *        When this function is called for a getter, there is no argument.
+     */
+
+    if(node->type == NODE_CALL){
         // First the arguments are pushed on data strack (left to right) but
         // has to be treated as potential expression
         for (unsigned i = 0; i < node->data.function_call.param_count; i++)
@@ -920,12 +922,12 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
         else if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == SETTER)
         {
             snprintf(global_name_gen->called_function, MAX_FUNCTION_NAME, "_setter_%s",
-                     node->data.identifier.code_gen_name);
+                     node->data.identifier.name);
         }
         else
         { // node->type == NODE_IDENTIFIER && node->data.identifier.id_type == GETTER
             snprintf(global_name_gen->called_function, MAX_FUNCTION_NAME, "_getter_%s",
-                     node->data.identifier.code_gen_name);
+                     node->data.identifier.name);
         }
         break;
     case MUL:

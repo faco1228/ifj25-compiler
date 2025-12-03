@@ -29,8 +29,6 @@ int main()
 {
     // syntactic analysis and creation of ast
     g_ast_root = parse_program();
-    
-    // print_ast(ast); //! vymazat - volanie pomocnej funkcie pre print ast cez pre order
 
     // scope_stack init
     g_scope_stack = malloc(sizeof(Scope_Stack));
