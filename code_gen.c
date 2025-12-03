@@ -498,17 +498,6 @@ void gen_lit_string(char *value)
  */
 void gen_jmp_function(ASTNode_ptr node)
 {
-    // // Checks whether the node is getter/setter/function
-    // if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == SETTER)
-    // {
-    //     eval_exp(node->children[1]);
-    // }
-    // else if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == GETTER)
-    // {
-    //     ; // Nothing will be pushed
-    // }
-    // else
-
     /**
      * @brief When this function is called for a setter, the argument is already
      *        on top of the data stack.
@@ -606,7 +595,7 @@ void gen_for_start(ASTNode_ptr node)
     ASTNode_ptr range_node = node->children[1]->children[0];
 
     // Print to make IFJcode25 code more readable
-    printf("\n#Expression evaluation of range follows\n");
+    printf("\n#Expression evaluation of range follows1\n");
     // This function will return start and end of the range on stack data
     eval_exp(range_node);
 
@@ -1146,39 +1135,45 @@ void eval_bin_op(ASTNode_ptr operator)
         printf("POPS LF@op1\n"); // first operand
     }
 
-    // based on the operator type a different version of binary op eval is generated
-    switch (operator->data.binary_operator.op_type)
+    if (operator->type == NODE_RANGE)
     {
-    case OP_PLUS:
-        gen_eval_plus_op();
-        break;
-    case OP_MINUS:
-        gen_eval_minus_op();
-        break;
-    case OP_MUL:
-        gen_eval_star_op();
-        break;
-    case OP_DIV:
-        gen_eval_slash_op();
-        break;
-    case OP_EQ:
-    case OP_NEQ:
-    case OP_GT:
-    case OP_GTE:
-    case OP_LT:
-    case OP_LTE:
-    case OP_IS:
-        gen_eval_logical_op(operator);
-        break;
-    default: // not a valid operator
-        error_exit(ERR_INTERNAL);
-        break;
+        gen_eval_range_op();
+    }
+    else // other binary operators
+    {
+        // based on the operator type a different version of binary op eval is generated
+        switch (operator->data.binary_operator.op_type)
+        {
+        case OP_PLUS:
+            gen_eval_plus_op();
+            break;
+        case OP_MINUS:
+            gen_eval_minus_op();
+            break;
+        case OP_MUL:
+            gen_eval_star_op();
+            break;
+        case OP_DIV:
+            gen_eval_slash_op();
+            break;
+        case OP_EQ:
+        case OP_NEQ:
+        case OP_GT:
+        case OP_GTE:
+        case OP_LT:
+        case OP_LTE:
+        case OP_IS:
+            gen_eval_logical_op(operator);
+            break;
+        default: // not a valid operator
+            error_exit(ERR_INTERNAL);
+            break;
+        }
+
+        printf("PUSHS LF@result\n"); // result of the expression evaluation
     }
 
-    if (operator->type == NODE_RANGE) // special case for a range operator
-        gen_eval_range_op();
-    else // PUSHS does not have to be generated for the eval of node range
-        printf("PUSHS LF@result\n"); // result of the expression evaluation
+    // NOTE: PUSHS does not have to be generated for the eval of node range
 
     // cleanup after evaluating the expression
     printf("POPFRAME\n");
