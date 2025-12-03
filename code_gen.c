@@ -880,21 +880,21 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
             snprintf(global_name_gen->else_block_label, MAX_LABEL_NAME, "_if_else_fun_%s_%u_%llu",
                      global_name_gen->curr_function,
                      global_name_gen->curr_param_count,
-                     global_name_gen->loop_counter);
+                     global_name_gen->if_counter);
         }
         else if (global_name_gen->in_getter)
         {
             // Creates unique name
             snprintf(global_name_gen->else_block_label, MAX_LABEL_NAME, "_if_else_getter_%s_0_%llu",
                      global_name_gen->curr_function,
-                     global_name_gen->loop_counter);
+                     global_name_gen->if_counter);
         }
         else
         {
             // Creates unique name
             snprintf(global_name_gen->else_block_label, MAX_LABEL_NAME, "if_else_setter_%s_1_%llu",
                      global_name_gen->curr_function,
-                     global_name_gen->loop_counter);
+                     global_name_gen->if_counter);
         }
 
         // Increments if counter
@@ -909,21 +909,21 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
             snprintf(global_name_gen->end_if_label, MAX_LABEL_NAME, "_if_end_fun_%s_%u_%llu",
                      global_name_gen->curr_function,
                      global_name_gen->curr_param_count,
-                     global_name_gen->loop_counter);
+                     global_name_gen->if_counter);
         }
         else if (global_name_gen->in_getter)
         {
             // Creates unique name
             snprintf(global_name_gen->end_if_label, MAX_LABEL_NAME, "_if_end_getter_%s_0_%llu",
                      global_name_gen->curr_function,
-                     global_name_gen->loop_counter);
+                     global_name_gen->if_counter);
         }
         else
         {
             // Creates unique name
             snprintf(global_name_gen->end_if_label, MAX_LABEL_NAME, "if_end_setter_%s_1_%llu",
                      global_name_gen->curr_function,
-                     global_name_gen->loop_counter);
+                     global_name_gen->if_counter);
         }
 
         break;
