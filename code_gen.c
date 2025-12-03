@@ -126,6 +126,14 @@ void codegen(ASTNode_ptr node)
         // Sets location flag
         global_name_gen->in_if = true;
 
+        if (node->children[0]->type != NODE_IDENTIFIER && node->children[0]->type != NODE_CALL)
+        {
+            if (node->children[0]->type == NODE_NULL_LIT)
+                printf("PUSHS bool@false");
+            else
+                printf("PUSHS bool@true");
+        }
+
         // Condition evaluation
         eval_exp(node->children[0]);
 
@@ -1105,13 +1113,6 @@ void eval_exp(ASTNode_ptr exp_node)
         printf("PUSHS nil@nil\n");
     else if (exp_node->type == NODE_CALL)
         gen_jmp_function(exp_node);
-    else if (global_name_gen->in_if)
-    {
-        if (exp_node->type == NODE_NULL_LIT)
-            printf("PUSHS bool@false");
-        else
-            printf("PUSHS bool@true");
-    }
 
     // NOTE: nothing has to be done for NODE_TYPE_LIT because I don't actually need it when evaluating IS
 }
