@@ -362,7 +362,7 @@ void exp_analysis(ASTNode_ptr exp_root)
                     error_exit(ERR_SEM_UNDEFINED);
                 }
 
-                exp_root->data.identifier.code_gen_name = mangle_name(key->name, block_counter);
+                exp_root->data.identifier.code_gen_name = mangle_name(key->name, current_block_id);
             }
             else
             {
