@@ -67,7 +67,7 @@ extern bool eof_reached;
 extern token_ptr pending_eof_token;
 
 //Defining max length of variable name
-#define MAX_NAME_LEN 100
+#define MAX_NAME_LEN 512
 
 //Defining max length of line
 #define MAX_LINE_LEN 1024
