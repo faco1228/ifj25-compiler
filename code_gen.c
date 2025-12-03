@@ -400,7 +400,8 @@ void gen_func_start(ASTNode_ptr node)
     // Creates and print unique function label name,
     create_unique_name(node, FUN_LABEL);
 
-    if (!strcmp(global_name_gen->fun_label, "_fun_main_0")){
+    if (!strcmp(global_name_gen->fun_label, "_fun_main_0"))
+    {
         // This is where actual compilation begins
         printf("\n");
         printf("\nLABEL _program_start_\n");
@@ -514,7 +515,8 @@ void gen_jmp_function(ASTNode_ptr node)
      *        When this function is called for a getter, there is no argument.
      */
 
-    if(node->type == NODE_CALL){
+    if (node->type == NODE_CALL)
+    {
         // Print to make IFJcode25 code more readable
         printf("\n#Expression evaluation of parameters follows\n");
         // First the arguments are pushed on data strack (left to right) but
@@ -602,7 +604,6 @@ void gen_for_start(ASTNode_ptr node)
 
     // Have to read NODE_RANGE children
     ASTNode_ptr range_node = node->children[1]->children[0];
-
 
     // Print to make IFJcode25 code more readable
     printf("\n#Expression evaluation of range follows\n");
@@ -1069,7 +1070,7 @@ void eval_exp(ASTNode_ptr exp_node)
 
         eval_exp(exp_node->children[idx]);
     }
-    
+
     if (exp_node->type == NODE_BINARY_OP || exp_node->type == NODE_RANGE)
     {
         global_name_gen->bin_op_counter++;
@@ -1145,12 +1146,6 @@ void eval_bin_op(ASTNode_ptr operator)
         printf("POPS LF@op1\n"); // first operand
     }
 
-    if (operator->type == NODE_RANGE) // special case for a range operator
-    {
-        gen_eval_range_op();
-        return;
-    }
-
     // based on the operator type a different version of binary op eval is generated
     switch (operator->data.binary_operator.op_type)
     {
@@ -1179,6 +1174,9 @@ void eval_bin_op(ASTNode_ptr operator)
         error_exit(ERR_INTERNAL);
         break;
     }
+
+    if (operator->type == NODE_RANGE) // special case for a range operator
+        gen_eval_range_op();
 
     // result of the expression evaluation
     printf("PUSHS LF@result\n");
