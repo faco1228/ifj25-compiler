@@ -319,7 +319,7 @@ void gen_push_variable(ASTNode_ptr node)
     // Differentiates between global and local variable
     if (node->data.identifier.is_global)
     {
-        printf("PUSHS GF@%s\n", node->data.identifier.code_gen_name);
+        printf("PUSHS GF@%s\n", node->data.identifier.name);
     }
     else
     {
