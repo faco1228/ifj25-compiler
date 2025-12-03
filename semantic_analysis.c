@@ -298,12 +298,11 @@ bool builtin_args_type_check(ASTNode_ptr call_node, builtin_function_t *builtin_
         }
 
         // cannot type predict identifiers
-        if (arg->type == NODE_IDENTIFIER)
+        if (arg->type == NODE_IDENTIFIER || arg->type == NODE_CALL)
+        {
+            reset_flags();
             continue;
-
-        // cannot type predict calls
-        if (arg->type == NODE_CALL)
-            continue;
+        }
 
         // there is node need to check arg types or we could not determine the type of the expression passed
         if (builtin_ptr->arg_types[idx] == ANY_TYPE || arg->data.exp_statement.exp_type == TYPE_UNKNOWN)
