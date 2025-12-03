@@ -120,18 +120,6 @@ bool verify_var_existence(Key *key)
     return search_result != NULL;
 }
 
-/**
- * @brief Searches the glob variable symtable to verify that the glob variable exists.
- *
- * @param key Pointer to the key of the variable.
- */
-bool verify_glob_var_existence(Key *key)
-{
-    ST_Node *search_result = st_search(g_global_symtable, key);
-
-    return search_result != NULL;
-}
-
 //**FUNCTION ANALYSIS FUNCTIONS**//
 
 /**
@@ -331,14 +319,6 @@ void exp_analysis(ASTNode_ptr exp_root)
             }
 
             exp_root->data.identifier.code_gen_name = mangle_name(key->name, current_block_id);
-        }
-        else
-        {
-            if (!verify_glob_var_existence(key))
-            {
-                key_dispose(key);
-                error_exit(ERR_SEM_UNDEFINED);
-            }
         }
 
         key_dispose(key);
@@ -545,7 +525,7 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
         key_dispose(key);
 
         // now we can check if a new global variable was not defined
-        if (IS_GLOB_VAR(assign_target->data.identifier.name))
+        if (assign_target->data.identifier.is_global)
         {
             key = st_create_variable_key(assign_target->data.identifier.name);
             search_result = st_search(g_global_symtable, key);

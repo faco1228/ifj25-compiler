@@ -123,12 +123,6 @@ bool verify_var_redec(Key *key, ST_Node *symtable);
  */
 bool verify_var_existence(Key *key);
 
-/**
- * @brief Searches the glob variable symtable to verify that the glob variable exists.
- *
- * @param key Pointer to the key of the variable.
- */
-bool verify_glob_var_existence(Key *key);
 
 /**
  * @brief Checks if a user-defined function was not redefined somewhere else.
