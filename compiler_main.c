@@ -3,7 +3,7 @@
  * @authors Martin Mezei (xmezeim00)
  * @brief Implements an executable main to run different modules of the compiler and allocate structure that are needed in multiple modules.
  * @version 0.1
- * @date 2025-11-17
+ * @date 2025-12-03
  *
  * @copyright Copyright (c) 2025
  */

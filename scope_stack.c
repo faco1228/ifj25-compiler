@@ -5,8 +5,8 @@
  * scopes according to the memory model of the IFJcode25 programming language.
  *
  * @version 0.1
- * @date 2025-11-17
- *
+ * @date 2025-11-20
+ * 
  * @copyright Copyright (c) 2025
  *
  */

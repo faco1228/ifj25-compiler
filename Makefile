@@ -2,15 +2,15 @@
 # @author 	Martin Racek (xracekm00)
 # @brief 	IFJ project - compiler
 # @version 	0.7
-# @date 	2025-11-17
+# @date 	2025-12-03
 # 
 # @details 	gcc (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0
 #				
 # @copyright Copyright (c) 2025
 
 CC = gcc
-CFLAGS = -g -std=c11 -pedantic -Wall -Wextra -fsanitize=address #-O2
-LDFLAGS = -fsanitize=address  # -lm Keby sme nahodou potrebovali matematicku kniznicu
+CFLAGS = -g -std=c11 -pedantic -Wall -Wextra #-fsanitize=address #-O2
+LDFLAGS = #-fsanitize=address  # -lm Keby sme nahodou potrebovali matematicku kniznicu
 
 # Pomocka
 # target: dependencies

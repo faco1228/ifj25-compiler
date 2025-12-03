@@ -2,6 +2,11 @@
  * @file ast.c
  * @author Samuel Facka (xfackas00)
  * @brief Implementation of AST helpers and builder functions.
+ * 
+ * @version 0.1
+ * @date 2025-11-10
+ *
+ * @copyright Copyright (c) 2025
  */
 
 #include "ast.h"
