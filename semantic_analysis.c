@@ -310,14 +310,9 @@ bool builtin_args_type_check(ASTNode_ptr call_node, builtin_function_t *builtin_
 
         // if possible check if type mismatch did not occur
         if (arg->data.exp_statement.exp_type != TYPE_STRING && builtin_ptr->arg_types[idx] == STR_TYPE)
-        {
             return false;
-        }
-
         else if (arg->data.exp_statement.exp_type != TYPE_NUM && builtin_ptr->arg_types[idx] == NUM_TYPE)
-        {
             return false;
-        }
 
         reset_flags();
     }
@@ -478,7 +473,9 @@ bool eval_exp_flags(ASTNode_ptr exp_root)
     else if (has_only_plus_op && has_num_lit) // when number literal is present here, + operator can only be used as addition
         exp_root->data.exp_statement.exp_type = TYPE_NUM;
     else if (has_string_lit) // when string literal is present here, + operator can only be used as concat
+    {
         exp_root->data.exp_statement.exp_type = TYPE_STRING;
+    }
     else // could not predict any restrictions
         exp_root->data.exp_statement.exp_type = TYPE_UNKNOWN;
 

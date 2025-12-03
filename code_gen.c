@@ -431,7 +431,7 @@ void gen_func_start(ASTNode_ptr node)
 void gen_return()
 {
     /**
-     * @note Returns nill when function didnt contain return, but only when the 
+     * @note Returns nill when function didnt contain return, but only when the
      *       function isn't main. Since main can not be calle by user, this function
      *       doesnt return anything though there exist a version with parameters which
      *       returns.
@@ -1444,15 +1444,56 @@ void gen_eval_star_op()
     printf("INT2FLOAT LF@op1 LF@op1\n");
 
     // multiplication
+    printf("\n");
     printf("\nLABEL %s\n", global_name_gen->mul);
     printf("MUL LF@result LF@op1 LF@op2\n");
     printf("JUMP %s\n", global_name_gen->mul_end);
 
     // string iter
+    printf("\n");
     printf("\nLABEL %s\n", global_name_gen->str_iter);
-    // todo : najst v historii commitov string iter
 
-    // no need to jump here
+    // define temporary variable for counter
+    printf("DEFVAR LF@temp_var_str_iter_%lld\n", ++global_name_gen->temp_var_counter);
+
+    // initialize result as an empty string
+    printf("MOVE LF@result string@\n");
+
+    // check if count is negative or zero - no string iterations will be done if true
+    printf("LT LF@op_check1 LF@op2 int@1\n");
+
+    printf("JUMPIFEQ %s LF@op_check1 bool@true\n", global_name_gen->mul_end);
+
+    // initialize counter to 0
+    // counter is going to be incremented until it reaches the number of iterations we need
+    printf("MOVE LF@temp_var_str_iter_%lld int@0\n", global_name_gen->temp_var_counter);
+
+    // create unique loop labels
+    create_unique_name(NULL, LOOP_START_L);
+    char loop_start[MAX_LABEL_NAME];
+    strcpy(loop_start, global_name_gen->loop_start_label);
+
+    create_unique_name(NULL, LOOP_END_L);
+    char loop_end[MAX_LABEL_NAME];
+    strcpy(loop_end, global_name_gen->loop_end_label);
+
+    // loop start
+    printf("LABEL %s\n", loop_start);
+
+    // if counter == count, jump to end
+    printf("JUMPIFEQ %s LF@temp_var_str_iter_%lld LF@op2\n", loop_end, global_name_gen->temp_var_counter);
+
+    // concat result with string
+    printf("CONCAT LF@result LF@result LF@op1\n");
+
+    // increment counter
+    printf("ADD LF@temp_var_str_iter_%lld LF@temp_var_str_iter_%lld int@1\n", global_name_gen->temp_var_counter, global_name_gen->temp_var_counter);
+
+    // repeat the loop
+    printf("JUMP %s\n", loop_start);
+
+    // all iterations done
+    printf("LABEL %s\n", loop_end);
 
     // end of the function that handles the * operator
     printf("\nLABEL %s\n", global_name_gen->mul_end);
