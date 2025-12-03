@@ -115,11 +115,7 @@ void codegen(ASTNode_ptr node)
         break;
     case NODE_ASSIGN:
         // This function takes care of the right side of the assignment
-        // but only when the lhs is not a setter
-        if (node->children[0]->data.identifier.id_type == VAR){
-            eval_exp(node->children[1]->children[0]);
-        }
-
+        eval_exp(node->children[1]->children[0]);
         // Calls corresponding code generating function
         gen_assign(node);
 
@@ -362,10 +358,11 @@ void gen_assign(ASTNode_ptr node)
     // When the lhs is a setter
     if (lhs->type == NODE_IDENTIFIER && lhs->data.identifier.id_type == SETTER)
     {
+        // The parameter is already on top of data stack
         gen_jmp_function(lhs);
     }
     else
-    { // The lhs needs to be a variable
+    { // The lhs has to be variable
         if (lhs->data.identifier.is_global)
         {
             printf("POPS GF@%s\n", lhs->data.identifier.name);
@@ -479,17 +476,24 @@ void gen_lit_string(char *value)
  */
 void gen_jmp_function(ASTNode_ptr node)
 {
-    // Checks whether the node is getter/setter/function
-    if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == SETTER)
-    {
-        eval_exp(node->children[1]->children[0]);
-    }
-    else if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == GETTER)
-    {
-        ; // Nothing will be pushed
-    }
-    else
-    {
+    // // Checks whether the node is getter/setter/function
+    // if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == SETTER)
+    // {
+    //     eval_exp(node->children[1]);
+    // }
+    // else if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == GETTER)
+    // {
+    //     ; // Nothing will be pushed
+    // }
+    // else
+
+    /**
+     * @brief When this function is called for a setter, the argument is already
+     *        on top of the data stack.
+     *        When this function is called for a getter, there is no argument.
+     */
+
+    if(node->type == NODE_CALL){
         // First the arguments are pushed on data strack (left to right) but
         // has to be treated as potential expression
         for (unsigned i = 0; i < node->data.function_call.param_count; i++)
@@ -900,12 +904,12 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
         else if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == SETTER)
         {
             snprintf(global_name_gen->called_function, MAX_FUNCTION_NAME, "_setter_%s",
-                     node->data.identifier.code_gen_name);
+                     node->data.identifier.name);
         }
         else
         { // node->type == NODE_IDENTIFIER && node->data.identifier.id_type == GETTER
             snprintf(global_name_gen->called_function, MAX_FUNCTION_NAME, "_getter_%s",
-                     node->data.identifier.code_gen_name);
+                     node->data.identifier.name);
         }
         break;
     case MUL:
