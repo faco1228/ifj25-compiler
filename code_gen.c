@@ -302,6 +302,7 @@ void name_gen_init(ASTNode_ptr node)
     memset(global_name_gen->log_end, 0, MAX_LABEL_NAME);
     memset(global_name_gen->left_to_float, 0, MAX_LABEL_NAME);
     memset(global_name_gen->right_to_float, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->both_to_float, 0, MAX_LABEL_NAME);
     memset(global_name_gen->zero_div_check_float, 0, MAX_LABEL_NAME);
     memset(global_name_gen->zero_div_check_int, 0, MAX_LABEL_NAME);
     memset(global_name_gen->zero_div_check_done, 0, MAX_LABEL_NAME);
@@ -437,10 +438,9 @@ void gen_return()
     if (strcmp("main", global_name_gen->curr_function))
     {
         printf("RETURN\n");
-    } 
-    else 
+    }
+    else
         printf("JUMP _program_end_\n");
-
 }
 
 /**
@@ -998,6 +998,10 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
         snprintf(global_name_gen->right_to_float, MAX_FUNCTION_NAME, "_right_to_float_%s_%u_%lld",
                  global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
         break;
+    case BOTH_TO_FLOAT:
+        snprintf(global_name_gen->both_to_float, MAX_FUNCTION_NAME, "_both_to_float_%s_%u_%lld",
+                 global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
+        break;
     case ZERO_DIV_CHECK_FLOAT:
         snprintf(global_name_gen->zero_div_check_float, MAX_FUNCTION_NAME, "_zero_div_check_float_%s_%u_%lld",
                  global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
@@ -1032,6 +1036,7 @@ void create_label_names(ASTNode_ptr exp_node)
     create_unique_name(exp_node, LOG_END);
     create_unique_name(exp_node, LEFT_TO_FLOAT);
     create_unique_name(exp_node, RIGHT_TO_FLOAT);
+    create_unique_name(exp_node, BOTH_TO_FLOAT);
     create_unique_name(exp_node, ZERO_DIV_CHECK_FLOAT);
     create_unique_name(exp_node, ZERO_DIV_CHECK_INT);
     create_unique_name(exp_node, ZERO_DIV_CHECK_DONE);
@@ -1051,7 +1056,7 @@ void eval_exp(ASTNode_ptr exp_node)
     {
         /*
             NOTE: Tree traversal is ended so fun call args are not pushed to the data stack twice.
-            If break is not called, eval_exp will find the args of the function call, identify them as 
+            If break is not called, eval_exp will find the args of the function call, identify them as
             an identifier or a literal and push them to the data stack. Then function call is generated
             which is going to push these args again.
         */
@@ -1468,7 +1473,7 @@ void gen_eval_slash_op()
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
     printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
-    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->zero_div_check_int);
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->both_to_float);
 
     // float / int scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
@@ -1486,23 +1491,25 @@ void gen_eval_slash_op()
     printf("JUMP !ERROR_EXP_L\n");
 
     // int to float conversions - right op
-    printf("LABEL %s\n", global_name_gen->right_to_float); // label
+    printf("LABEL %s\n", global_name_gen->right_to_float);
     printf("INT2FLOAT LF@op2 LF@op2\n");
     printf("JUMP %s\n", global_name_gen->zero_div_check_float);
 
     // int to float conversions - left op
-    printf("LABEL %s\n", global_name_gen->left_to_float); // label
+    printf("LABEL %s\n", global_name_gen->left_to_float);
     printf("INT2FLOAT LF@op1 LF@op1\n");
+    printf("JUMP %s\n", global_name_gen->zero_div_check_float);
+
+    // int to float conversions - both ops
+    printf("LABEL %s\n", global_name_gen->both_to_float);
+    printf("INT2FLOAT LF@op1 LF@op1\n");
+    printf("INT2FLOAT LF@op2 LF@op2\n");
     printf("JUMP %s\n", global_name_gen->zero_div_check_float);
 
     // zero divison check for floats
     printf("LABEL %s\n", global_name_gen->zero_div_check_float);
     printf("EQ LF@op_check2 LF@op2 float@0x0p+0\n");
     printf("JUMP %s\n", global_name_gen->zero_div_check_done);
-
-    // zero divison check for ints
-    printf("LABEL %s\n", global_name_gen->zero_div_check_int);
-    printf("EQ LF@op_check2 LF@op2 int@0\n");
 
     // evaluate zero division check
     printf("LABEL %s\n", global_name_gen->zero_div_check_done);
@@ -1686,6 +1693,7 @@ void free_global_name_gen(name_generator_ptr global_name_gen)
     free(global_name_gen->log_end);
     free(global_name_gen->left_to_float);
     free(global_name_gen->right_to_float);
+    free(global_name_gen->both_to_float);
     free(global_name_gen->zero_div_check_float);
     free(global_name_gen->zero_div_check_int);
     free(global_name_gen->zero_div_check_done);
@@ -1709,6 +1717,7 @@ void free_global_name_gen(name_generator_ptr global_name_gen)
     global_name_gen->log_end = NULL;
     global_name_gen->left_to_float = NULL;
     global_name_gen->right_to_float = NULL;
+    global_name_gen->both_to_float = NULL;
     global_name_gen->zero_div_check_float = NULL;
     global_name_gen->zero_div_check_int = NULL;
     global_name_gen->zero_div_check_done = NULL;

@@ -112,14 +112,22 @@ bool verify_var_redec(Key *key, ST_Node *symtable)
  * @brief Searches the current and all higher level scope to verify that a variable exists.
  *
  * @param key Pointer to the key of the symbol.
- * @param scope_stack Pointer to the scope stack.
  */
 bool verify_var_existence(Key *key)
 {
     ST_Node *search_result = scope_stack_var_lookup(g_scope_stack, key, &current_block_id);
 
-    if (search_result) // local variable found
-        return true;
+    return search_result != NULL;
+}
+
+/**
+ * @brief Searches the glob variable symtable to verify that the glob variable exists.
+ *
+ * @param key Pointer to the key of the variable.
+ */
+bool verify_glob_var_existence(Key *key)
+{
+    ST_Node *search_result = st_search(g_global_symtable, key);
 
     return search_result != NULL;
 }
@@ -223,14 +231,25 @@ void args_exist(ASTNode_ptr call_node)
         else if (call_node->children[idx]->type == NODE_IDENTIFIER)
         {
             key = st_create_variable_key(call_node->children[idx]->data.identifier.name);
-            if (!verify_var_existence(key))
-            {
-                key_dispose(key);
-                error_exit(ERR_SEM_UNDEFINED);
-            }
 
             if (!IS_GLOB_VAR(key->name)) // only local vars get name mangled
+            {
+                if (!verify_glob_var_existence(key))
+                {
+                    key_dispose(key);
+                    error_exit(ERR_SEM_UNDEFINED);
+                }
+                
                 call_node->children[idx]->data.identifier.code_gen_name = mangle_name(key->name, current_block_id);
+            }
+            else
+            {
+                if (!verify_var_existence(key))
+                {
+                    key_dispose(key);
+                    error_exit(ERR_SEM_UNDEFINED);
+                }
+            }
 
             key_dispose(key);
         }
@@ -327,6 +346,14 @@ void exp_analysis(ASTNode_ptr exp_root)
             if (!IS_GLOB_VAR(key->name)) // we only need to look for local variables
             {
                 if (!verify_var_existence(key))
+                {
+                    key_dispose(key);
+                    error_exit(ERR_SEM_UNDEFINED);
+                }
+            }
+            else
+            {
+                if (!verify_glob_var_existence(key))
                 {
                     key_dispose(key);
                     error_exit(ERR_SEM_UNDEFINED);

@@ -120,9 +120,15 @@ bool verify_var_redec(Key *key, ST_Node *symtable);
  * @brief Searches the current and all higher level scope to verify that a variable exists.
  *
  * @param key Pointer to the key of the symbol.
- * @param scope_stack Pointer to the scope stack.
  */
 bool verify_var_existence(Key *key);
+
+/**
+ * @brief Searches the glob variable symtable to verify that the glob variable exists.
+ *
+ * @param key Pointer to the key of the variable.
+ */
+bool verify_glob_var_existence(Key *key);
 
 /**
  * @brief Checks if a user-defined function was not redefined somewhere else.
