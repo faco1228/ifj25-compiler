@@ -293,7 +293,7 @@ bool builtin_args_type_check(ASTNode_ptr call_node, builtin_function_t *builtin_
         if (!eval_exp_flags(arg))
             error_exit(ERR_SEM_TYPE_MISMATCH);
 
-        printf("TYPE: %d\n", arg->data.exp_statement.exp_type);
+        //printf("TYPE: %d\n", arg->data.exp_statement.exp_type);
 
         // there is node need to check arg types or we could not determine the type of the expression passed
         if (builtin_ptr->arg_types[idx] == ANY_TYPE || arg->data.exp_statement.exp_type == TYPE_UNKNOWN)
