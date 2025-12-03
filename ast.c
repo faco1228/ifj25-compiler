@@ -64,6 +64,7 @@ void ast_free(ASTNode_ptr node)
     if (type == NODE_IDENTIFIER || type == NODE_VAR_DECL)
     {
         free(node->data.identifier.name);
+        free(node->data.identifier.code_gen_name);
     }
     else if (type == NODE_FUNCTION_DEF)
     {

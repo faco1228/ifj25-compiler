@@ -601,6 +601,7 @@ static void psa_reduce_fun(Stack *stack, token_ptr recognition_token)
         third_stack_item->type == RIGHT_PAR)
     {
         reduced_ast = (ASTNode_ptr)second_stack_item->ast;
+        second_stack_item = NULL;
         matched = true;
     }
 
@@ -643,6 +644,9 @@ static void psa_reduce_fun(Stack *stack, token_ptr recognition_token)
             // RHS must be a type literal for 'is'
             if (rhs->type != NODE_TYPE_LIT)
             {
+                ast_free(lhs);
+                ast_free(rhs);
+                ast_free(reduced_ast);
                 error_exit(ERR_SEM_TYPE_MISMATCH);
             }
 
@@ -655,6 +659,12 @@ static void psa_reduce_fun(Stack *stack, token_ptr recognition_token)
             reduced_ast = ast_create_range(lhs, rhs, inclusive);
             matched = true;
         }
+
+        if (matched) {
+            first_stack_item->ast = NULL;
+            third_stack_item->ast = NULL;
+        }
+
     }
 
     if (!matched)
@@ -664,6 +674,8 @@ static void psa_reduce_fun(Stack *stack, token_ptr recognition_token)
         stack_free(stack);
         if (recognition_token)
             free_token(recognition_token);
+
+        ast_free(reduced_ast);
         error_exit(ERR_SYNTACTIC);
     }
 
