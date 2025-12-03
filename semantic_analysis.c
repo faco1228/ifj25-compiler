@@ -229,7 +229,9 @@ void args_exist(ASTNode_ptr call_node)
                 error_exit(ERR_SEM_UNDEFINED);
             }
 
-            call_node->children[idx]->data.identifier.code_gen_name = mangle_name(key->name, current_block_id);
+            if (!IS_GLOB_VAR(key->name)) // only local vars get name mangled
+                call_node->children[idx]->data.identifier.code_gen_name = mangle_name(key->name, current_block_id);
+
             key_dispose(key);
         }
     }
@@ -330,8 +332,8 @@ void exp_analysis(ASTNode_ptr exp_root)
                     error_exit(ERR_SEM_UNDEFINED);
                 }
             }
-
-            exp_root->data.identifier.code_gen_name = mangle_name(key->name, current_block_id);
+            else // only mangle the name if the identifier is not a global variable
+                exp_root->data.identifier.code_gen_name = mangle_name(key->name, current_block_id);
         }
 
         key_dispose(key);

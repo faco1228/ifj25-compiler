@@ -118,7 +118,7 @@ extern bool return_occured;
 extern name_generator_ptr global_name_gen;
 
 // Macro, used for string convertion into valid format, to make code more readable
-// Macro, used for string convertion into valid format, to make code more readable
+
 #define is_invalid_char(ch) \
     (((ch) <= 32) || (ch) == 35 || (ch) == 92)
 
