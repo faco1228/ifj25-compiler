@@ -743,7 +743,7 @@ void gen_program_end()
     printf("LABEL !ERROR_EXP_L\n");
     printf("EXIT int@26\n");
 
-    prinft("LABEL _program_end_\n");
+    printf("LABEL _program_end_\n");
 }
 
 /**
