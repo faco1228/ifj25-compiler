@@ -309,9 +309,8 @@ void name_gen_init(ASTNode_ptr node)
     memset(global_name_gen->left_to_float, 0, MAX_LABEL_NAME);
     memset(global_name_gen->right_to_float, 0, MAX_LABEL_NAME);
     memset(global_name_gen->both_to_float, 0, MAX_LABEL_NAME);
-    memset(global_name_gen->zero_div_check_float, 0, MAX_LABEL_NAME);
-    memset(global_name_gen->zero_div_check_int, 0, MAX_LABEL_NAME);
-    memset(global_name_gen->zero_div_check_done, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->iter_start_label, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->iter_end_label, 0, MAX_LABEL_NAME);
 
     // Store current function name and parameter count
     strcpy(global_name_gen->curr_function, node->data.function_def.name);
@@ -525,13 +524,10 @@ void gen_jmp_function(ASTNode_ptr node)
         // Print to make IFJcode25 code more readable
         printf("\n#Expression evaluation of parameters follows\n");
 
-        printf("# Pocet deti tohoto uzlu: %d\n", node->data.function_call.param_count);
-
         // First the arguments are pushed on data strack (left to right) but
         // has to be treated as potential expression
         for (unsigned i = 0; i < node->data.function_call.param_count; i++)
         {
-            printf("# Dieta cislo: %d\n", i);
             eval_exp(node->children[i]);
         }
     }
@@ -887,6 +883,61 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
         // dont have to increment since loop_start already incremented the counter
 
         break;
+    case ITER_START_L:
+        // Have to differentiate between the location of loop: function, setter and getter
+        if (global_name_gen->in_function)
+        {
+            // Creates unique name
+            snprintf(global_name_gen->iter_start_label, MAX_LABEL_NAME, "_iter_start_fun_%s_%u_%llu",
+                     global_name_gen->curr_function,
+                     global_name_gen->curr_param_count,
+                     global_name_gen->bin_op_counter);
+        }
+        else if (global_name_gen->in_getter)
+        {
+            // Creates unique name
+            snprintf(global_name_gen->iter_start_label, MAX_LABEL_NAME, "_loop_start_getter_%s_0_%llu",
+                     global_name_gen->curr_function,
+                     global_name_gen->bin_op_counter);
+        }
+        else
+        {
+            // Creates unique name
+            snprintf(global_name_gen->iter_start_label, MAX_LABEL_NAME, "_loop_start_setter_%s_1_%llu",
+                     global_name_gen->curr_function,
+                     global_name_gen->bin_op_counter);
+        }
+
+        // Counter is incremented by eval_exp function
+        // global_name_gen->bin_op_counter++;
+
+        break;
+    case ITER_END_L:
+        // Have to differentiate between the location of loop: function, setter and getter
+        if (global_name_gen->in_function)
+        {
+            // Creates unique name
+            snprintf(global_name_gen->iter_end_label, MAX_LABEL_NAME, "_iter_end_fun_%s_%u_%llu",
+                     global_name_gen->curr_function,
+                     global_name_gen->curr_param_count,
+                     global_name_gen->bin_op_counter);
+        }
+        else if (global_name_gen->in_getter)
+        {
+            // Creates unique name
+            snprintf(global_name_gen->iter_end_label, MAX_LABEL_NAME, "_iter_end_getter_%s_0_%llu",
+                     global_name_gen->curr_function,
+                     global_name_gen->bin_op_counter);
+        }
+        else
+        {
+            // Creates unique name
+            snprintf(global_name_gen->iter_end_label, MAX_LABEL_NAME, "_iter_end_setter_%s_1_%llu",
+                     global_name_gen->curr_function,
+                     global_name_gen->bin_op_counter);
+        }
+
+        break;
     case IF_ELSE_L:
         // Have to differentiate between the location of loop: function, setter and getter
         if (global_name_gen->in_function)
@@ -1016,19 +1067,6 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
         snprintf(global_name_gen->both_to_float, MAX_FUNCTION_NAME, "_both_to_float_%s_%u_%lld",
                  global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
         break;
-    case ZERO_DIV_CHECK_FLOAT:
-        snprintf(global_name_gen->zero_div_check_float, MAX_FUNCTION_NAME, "_zero_div_check_float_%s_%u_%lld",
-                 global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
-        break;
-    case ZERO_DIV_CHECK_INT:
-        snprintf(global_name_gen->zero_div_check_int, MAX_FUNCTION_NAME, "_zero_div_check_int_%s_%u_%lld",
-                 global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
-        break;
-    case ZERO_DIV_CHECK_DONE:
-        snprintf(global_name_gen->zero_div_check_done, MAX_FUNCTION_NAME, "_zero_div_check_done_%s_%u_%lld",
-                 global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
-        break;
-
     default:
         break;
     }
@@ -1484,19 +1522,19 @@ void gen_eval_star_op()
     printf("MOVE LF@temp_var_str_iter_%lld int@0\n", global_name_gen->temp_var_counter);
 
     // create unique loop labels
-    create_unique_name(NULL, LOOP_START_L);
-    char loop_start[MAX_LABEL_NAME];
-    strcpy(loop_start, global_name_gen->loop_start_label);
+    create_unique_name(NULL, ITER_START_L);
+    char iter_start[MAX_LABEL_NAME];
+    strcpy(iter_start, global_name_gen->iter_start_label);
 
-    create_unique_name(NULL, LOOP_END_L);
-    char loop_end[MAX_LABEL_NAME];
-    strcpy(loop_end, global_name_gen->loop_end_label);
+    create_unique_name(NULL, ITER_END_L);
+    char iter_end[MAX_LABEL_NAME];
+    strcpy(iter_end, global_name_gen->iter_end_label);
 
     // loop start
-    printf("LABEL %s\n", loop_start);
+    printf("LABEL %s\n", iter_start);
 
     // if counter == count, jump to end
-    printf("JUMPIFEQ %s LF@temp_var_str_iter_%lld LF@op2\n", loop_end, global_name_gen->temp_var_counter);
+    printf("JUMPIFEQ %s LF@temp_var_str_iter_%lld LF@op2\n", iter_end, global_name_gen->temp_var_counter);
 
     // concat result with string
     printf("CONCAT LF@result LF@result LF@op1\n");
@@ -1505,10 +1543,10 @@ void gen_eval_star_op()
     printf("ADD LF@temp_var_str_iter_%lld LF@temp_var_str_iter_%lld int@1\n", global_name_gen->temp_var_counter, global_name_gen->temp_var_counter);
 
     // repeat the loop
-    printf("JUMP %s\n", loop_start);
+    printf("JUMP %s\n", iter_start);
 
     // all iterations done
-    printf("LABEL %s\n", loop_end);
+    printf("LABEL %s\n", iter_end);
 
     // end of the function that handles the * operator
     printf("\nLABEL %s\n", global_name_gen->mul_end);
@@ -1739,6 +1777,8 @@ void free_global_name_gen(name_generator_ptr global_name_gen)
     free(global_name_gen->end_if_label);
     free(global_name_gen->loop_start_label);
     free(global_name_gen->loop_end_label);
+    free(global_name_gen->iter_start_label);
+    free(global_name_gen->iter_end_label);
     free(global_name_gen->curr_function);
     free(global_name_gen->called_function);
     free(global_name_gen->mul);
@@ -1753,9 +1793,7 @@ void free_global_name_gen(name_generator_ptr global_name_gen)
     free(global_name_gen->left_to_float);
     free(global_name_gen->right_to_float);
     free(global_name_gen->both_to_float);
-    free(global_name_gen->zero_div_check_float);
-    free(global_name_gen->zero_div_check_int);
-    free(global_name_gen->zero_div_check_done);
+
 
     // Make sure this address wont be derreferenced again
     global_name_gen->fun_label = NULL;
@@ -1763,6 +1801,8 @@ void free_global_name_gen(name_generator_ptr global_name_gen)
     global_name_gen->end_if_label = NULL;
     global_name_gen->loop_start_label = NULL;
     global_name_gen->loop_end_label = NULL;
+    global_name_gen->iter_start_label = NULL;
+    global_name_gen->iter_end_label = NULL;
     global_name_gen->curr_function = NULL;
     global_name_gen->called_function = NULL;
     global_name_gen->mul = NULL;
@@ -1777,9 +1817,6 @@ void free_global_name_gen(name_generator_ptr global_name_gen)
     global_name_gen->left_to_float = NULL;
     global_name_gen->right_to_float = NULL;
     global_name_gen->both_to_float = NULL;
-    global_name_gen->zero_div_check_float = NULL;
-    global_name_gen->zero_div_check_int = NULL;
-    global_name_gen->zero_div_check_done = NULL;
 
     // Free the vole oject
     free(global_name_gen);

@@ -28,6 +28,8 @@ typedef enum
     FUN_LABEL,
     LOOP_START_L,
     LOOP_END_L,
+    ITER_START_L,
+    ITER_END_L,
     IF_ELSE_L,
     IF_END_L,
     CALL,
@@ -84,6 +86,8 @@ typedef struct
     char *end_if_label;     // End of if statement
     char *loop_start_label; // Loop start
     char *loop_end_label;   // Loop end
+    char *iter_start_label; // Loop start
+    char *iter_end_label;   // Loop end
 
     // unique names for expression labels
     char *mul;
@@ -98,9 +102,6 @@ typedef struct
     char *left_to_float;
     char *right_to_float;
     char *both_to_float;
-    char *zero_div_check_float;
-    char *zero_div_check_int;
-    char *zero_div_check_done;
 
     // Location in AST
     char *curr_function;
@@ -170,6 +171,18 @@ extern name_generator_ptr global_name_gen;
             glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable);                \
         }                                                                                                 \
                                                                                                           \
+        (global_name_gen->iter_start_label) = calloc(MAX_LABEL_NAME, sizeof(char));                       \
+        if (global_name_gen->loop_end_label == NULL)                                                      \
+        {                                                                                                 \
+            glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable);                \
+        }                                                                                                 \
+                                                                                                          \
+        (global_name_gen->iter_end_label) = calloc(MAX_LABEL_NAME, sizeof(char));                         \
+        if (global_name_gen->loop_end_label == NULL)                                                      \
+        {                                                                                                 \
+            glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable);                \
+        }                                                                                                 \
+                                                                                                          \
         (global_name_gen->curr_function) = calloc(MAX_LABEL_NAME, sizeof(char));                          \
         if (global_name_gen->curr_function == NULL)                                                       \
         {                                                                                                 \
@@ -233,21 +246,6 @@ extern name_generator_ptr global_name_gen;
         }                                                                                                 \
         (global_name_gen->right_to_float) = calloc(MAX_LABEL_NAME, sizeof(char));                         \
         if (global_name_gen->right_to_float == NULL)                                                      \
-        {                                                                                                 \
-            glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable);                \
-        }                                                                                                 \
-        (global_name_gen->zero_div_check_float) = calloc(MAX_LABEL_NAME, sizeof(char));                   \
-        if (global_name_gen->zero_div_check_float == NULL)                                                \
-        {                                                                                                 \
-            glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable);                \
-        }                                                                                                 \
-        (global_name_gen->zero_div_check_int) = calloc(MAX_LABEL_NAME, sizeof(char));                     \
-        if (global_name_gen->zero_div_check_int == NULL)                                                  \
-        {                                                                                                 \
-            glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable);                \
-        }                                                                                                 \
-        (global_name_gen->zero_div_check_done) = calloc(MAX_LABEL_NAME, sizeof(char));                    \
-        if (global_name_gen->zero_div_check_done == NULL)                                                 \
         {                                                                                                 \
             glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable);                \
         }                                                                                                 \

@@ -9,8 +9,8 @@
 # @copyright Copyright (c) 2025
 
 CC = gcc
-CFLAGS = -g -std=c11 -pedantic -Wall -Wextra #-O2 -fsanitize=address
-LDFLAGS =  #-fsanitize=address  # -lm Keby sme nahodou potrebovali matematicku kniznicu
+CFLAGS = -g -std=c11 -pedantic -Wall -Wextra -fsanitize=address #-O2
+LDFLAGS = -fsanitize=address  # -lm Keby sme nahodou potrebovali matematicku kniznicu
 
 # Pomocka
 # target: dependencies
