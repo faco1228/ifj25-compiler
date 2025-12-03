@@ -153,7 +153,9 @@ void handle_function_call(ASTNode_ptr call_node)
             error_exit(ERR_SEM_ARG_COUNT);
 
         if (!builtin_args_type_check(call_node, builtin_ptr)) // arg data type not correct
+        {
             error_exit(ERR_SEM_TYPE_MISMATCH);
+        }
     }
     else // user-defined function call
     {
@@ -239,7 +241,7 @@ void args_exist(ASTNode_ptr call_node)
                     key_dispose(key);
                     error_exit(ERR_SEM_UNDEFINED);
                 }
-                
+
                 call_node->children[idx]->data.identifier.code_gen_name = mangle_name(key->name, current_block_id);
             }
             else
@@ -291,9 +293,13 @@ bool builtin_args_type_check(ASTNode_ptr call_node, builtin_function_t *builtin_
         exp_analysis(arg->children[0]); // all args can be an expression so we call exp_analysis function here
 
         if (!eval_exp_flags(arg))
+        {
             error_exit(ERR_SEM_TYPE_MISMATCH);
+        }
 
-        //printf("TYPE: %d\n", arg->data.exp_statement.exp_type);
+        // cannot type predict identifiers
+        if (arg->type == NODE_IDENTIFIER)
+            continue;
 
         // there is node need to check arg types or we could not determine the type of the expression passed
         if (builtin_ptr->arg_types[idx] == ANY_TYPE || arg->data.exp_statement.exp_type == TYPE_UNKNOWN)
@@ -301,9 +307,16 @@ bool builtin_args_type_check(ASTNode_ptr call_node, builtin_function_t *builtin_
 
         // if possible check if type mismatch did not occur
         if (arg->data.exp_statement.exp_type != TYPE_STRING && builtin_ptr->arg_types[idx] == STR_TYPE)
+        {
             return false;
+        }
+
         else if (arg->data.exp_statement.exp_type != TYPE_NUM && builtin_ptr->arg_types[idx] == NUM_TYPE)
+        {
             return false;
+        }
+
+        reset_flags();
     }
 
     return true;

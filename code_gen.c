@@ -1348,6 +1348,9 @@ void gen_eval_greater_lower(operator_types *op_type)
     printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
     printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->left_to_float);
 
+    // no valid operand combination detected
+    printf("JUMP !ERROR_EXP_L\n");
+
     // int to float conversion - right op
     printf("LABEL %s\n", global_name_gen->right_to_float); // label
     printf("INT2FLOAT LF@op2 LF@op2\n");
@@ -1374,14 +1377,14 @@ void gen_eval_greater_lower(operator_types *op_type)
     {
         // here i use op_check1 and op_check2 as helper variables to store both bool values of num1 < num2, num1 == num2
         printf("LT LF@op_check1 LF@op1 LF@op2\n");          // num1 < num2
-        printf("EQ LF@op_check1 LF@op1 LF@op2\n");          // num1 == num2
+        printf("EQ LF@op_check2 LF@op1 LF@op2\n");          // num1 == num2
         printf("OR LF@result LF@op_check1 LF@op_check2\n"); // (num1 < num2 || num1 == num2)
     }
     else if (*op_type == OP_GTE)
     {
         // here i use op_check1 and op_check2 as helper variables to store both bool values of num1 < num2, num1 == num2
         printf("GT LF@op_check1 LF@op1 LF@op2\n");          // num1 > num2
-        printf("EQ LF@op_check1 LF@op1 LF@op2\n");          // num1 == num2
+        printf("EQ LF@op_check2 LF@op1 LF@op2\n");          // num1 == num2
         printf("OR LF@result LF@op_check1 LF@op_check2\n"); // (num1 > num2 || num1 == num2)
     }
 }
