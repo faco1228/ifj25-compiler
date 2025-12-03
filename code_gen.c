@@ -1468,56 +1468,55 @@ void gen_eval_slash_op()
     printf("TYPE LF@type2 LF@op2\n"); // data type of the second operand
 
     // float / float scenario
+    printf("\n");
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
     printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
-    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->zero_div_check_float);
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->eval);
 
     // int / int scenario
+    printf("\n");
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
     printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
     printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->both_to_float);
 
     // float / int scenario
+    printf("\n");
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
     printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
     printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->right_to_float);
 
     // int / float scenario
+    printf("\n");
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
     printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
     printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->left_to_float);
 
     // none of valid the scenarios was matched, type error occured
+    printf("\n");
     printf("JUMP !ERROR_EXP_L\n");
 
     // int to float conversions - right op
-    printf("\nLABEL %s\n", global_name_gen->right_to_float);
+    printf("\n");
+    printf("LABEL %s\n", global_name_gen->right_to_float);
     printf("INT2FLOAT LF@op2 LF@op2\n");
-    printf("JUMP %s\n", global_name_gen->zero_div_check_float);
 
     // int to float conversions - left op
-    printf("\nLABEL %s\n", global_name_gen->left_to_float);
+    printf("\n");
+    printf("LABEL %s\n", global_name_gen->left_to_float);
     printf("INT2FLOAT LF@op1 LF@op1\n");
-    printf("JUMP %s\n", global_name_gen->zero_div_check_float);
 
     // int to float conversions - both ops
-    printf("\nLABEL %s\n", global_name_gen->both_to_float);
+    printf("\n");
+    printf("LABEL %s\n", global_name_gen->both_to_float);
     printf("INT2FLOAT LF@op1 LF@op1\n");
     printf("INT2FLOAT LF@op2 LF@op2\n");
-    printf("JUMP %s\n", global_name_gen->zero_div_check_float);
 
-    // zero divison check for floats
-    printf("\nLABEL %s\n", global_name_gen->zero_div_check_float);
-    printf("EQ LF@op_check2 LF@op2 float@0x0p+0\n");
-    printf("JUMP %s\n", global_name_gen->zero_div_check_done);
-
-    // evaluate zero division check
-    printf("\nLABEL %s\n", global_name_gen->zero_div_check_done);
-    printf("JUMPIFEQ !ERROR_EXP_L LF@op_check2 bool@true\n");
+    printf("\n");
+    printf("LABEL %s\n", global_name_gen->eval);
 
     // division
     printf("DIV LF@result LF@op1 LF@op2\n");
