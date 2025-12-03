@@ -85,7 +85,7 @@ token_ptr process_next_token(token_ptr token){
             token->value.other_value = PLUS_V;
             break;
         case '-':
-            //!!! This can be either subtraction operator or unary operator !!!
+            //This can be either subtraction operator or unary operator
             token->type = OPERATOR;
             token->value.other_value = MINUS_V;
             break;

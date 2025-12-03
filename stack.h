@@ -2,6 +2,11 @@
  * @file stack.h
  * @author Kristian Cilling (xcillik00)
  * @brief  ADT stack for precedence analysis implemented as Linked List
+ * 
+ * @version 0.1
+ * @date 2025-11-17
+ *
+ * @copyright Copyright (c) 2025
  */
 
 #ifndef _STACK_H_
