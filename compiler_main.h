@@ -3,7 +3,7 @@
  * @author Martin Racek (xracekm00)
  * @brief Header file implementing macro to make compiler_main's code more readable
  * @version 0.1
- * @date 2025-12-01
+ * @date 2025-12-03
  * 
  * @copyright Copyright (c) 2025
  * 

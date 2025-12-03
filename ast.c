@@ -2,6 +2,11 @@
  * @file ast.c
  * @author Samuel Facka (xfackas00)
  * @brief Implementation of AST helpers and builder functions.
+ * 
+ * @version 0.1
+ * @date 2025-11-10
+ *
+ * @copyright Copyright (c) 2025
  */
 
 #include "ast.h"
@@ -64,6 +69,7 @@ void ast_free(ASTNode_ptr node)
     if (type == NODE_IDENTIFIER || type == NODE_VAR_DECL)
     {
         free(node->data.identifier.name);
+        free(node->data.identifier.code_gen_name);
     }
     else if (type == NODE_FUNCTION_DEF)
     {

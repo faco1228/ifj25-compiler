@@ -9,7 +9,7 @@
  *       We decided to use Pascal convetion for function calls.
  *
  * @version 0.1
- * @date 2025-11-28
+ * @date 2025-12-03
  *
  * @copyright Copyright (c) 2025
  *
@@ -122,6 +122,7 @@ void codegen(ASTNode_ptr node)
     case NODE_IF:
         // Print to make IFJcode25 code more readable
         printf("\n#Expression evaluation follows\n");
+        eval_exp(node->children[0]);
 
         // Sets location flag
         global_name_gen->in_if = true;
@@ -688,9 +689,6 @@ void gen_while_start(ASTNode_ptr node)
 
     // Condition check
     printf("# Evaluate while condition\n");
-
-    // Print to make IFJcode25 code more readable
-    printf("\n#Expression evaluation follows\n");
 
     // This function will evaluate the condition and leave the result at data stack top
     eval_exp(node->children[0]);
