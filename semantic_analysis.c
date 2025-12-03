@@ -154,7 +154,7 @@ void handle_function_call(ASTNode_ptr call_node)
 
         if (!builtin_args_type_check(call_node, builtin_ptr)) // arg data type not correct
         {
-            error_exit(ERR_SEM_TYPE_MISMATCH);
+            error_exit(ERR_SEM_ARG_COUNT);
         }
     }
     else // user-defined function call
