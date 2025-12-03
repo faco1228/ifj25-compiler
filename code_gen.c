@@ -114,6 +114,9 @@ void codegen(ASTNode_ptr node)
 
         break;
     case NODE_ASSIGN:
+        // Print to make IFJcode25 code more readable
+        printf("\n#Expression evaluation follows\n");
+
         // This function takes care of the right side of the assignment
         eval_exp(node->children[1]->children[0]);
         // Calls corresponding code generating function
@@ -121,6 +124,9 @@ void codegen(ASTNode_ptr node)
 
         break;
     case NODE_IF:
+        // Print to make IFJcode25 code more readable
+        printf("\n#Expression evaluation follows\n");
+
         // Condition evaluation
         eval_exp(node->children[0]);
 
@@ -145,8 +151,12 @@ void codegen(ASTNode_ptr node)
     case NODE_RETURN:
         // Update global flag
         return_occured = true;
+
+        // Print to make IFJcode25 code more readable
+        printf("\n#Expression evaluation follows\n");
+
         // After the node return an expression follows
-        eval_exp(node->children[0]);
+        eval_exp(node->children[0]->children[0]);
         // Returns from the function
         gen_return();
 
@@ -323,6 +333,7 @@ void gen_push_variable(ASTNode_ptr node)
     }
     else
     {
+        // printf("------------Tu je chyba-----------\n");
         printf("PUSHS LF@%s\n", node->data.identifier.code_gen_name);
     }
 
@@ -501,6 +512,8 @@ void gen_jmp_function(ASTNode_ptr node)
      */
 
     if(node->type == NODE_CALL){
+        // Print to make IFJcode25 code more readable
+        printf("\n#Expression evaluation of parameters follows\n");
         // First the arguments are pushed on data strack (left to right) but
         // has to be treated as potential expression
         for (unsigned i = 0; i < node->data.function_call.param_count; i++)
@@ -587,6 +600,9 @@ void gen_for_start(ASTNode_ptr node)
     // Have to read NODE_RANGE children
     ASTNode_ptr range_node = node->children[1]->children[0];
 
+
+    // Print to make IFJcode25 code more readable
+    printf("\n#Expression evaluation of range follows\n");
     // This function will return start and end of the range on stack data
     eval_exp(range_node);
 
@@ -666,6 +682,9 @@ void gen_while_start(ASTNode_ptr node)
 
     // Condition check
     printf("# Evaluate while condition\n");
+
+    // Print to make IFJcode25 code more readable
+    printf("\n#Expression evaluation follows\n");
 
     // This function will evaluate the condition and leave the result at data stack top
     eval_exp(node->children[0]);
@@ -1041,8 +1060,8 @@ void eval_exp(ASTNode_ptr exp_node)
 
         eval_exp(exp_node->children[idx]);
     }
-
-    if (exp_node->type == NODE_BINARY_OP)
+    
+    if (exp_node->type == NODE_BINARY_OP || exp_node->type == NODE_RANGE)
     {
         global_name_gen->bin_op_counter++;
         create_label_names(exp_node);
