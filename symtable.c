@@ -36,6 +36,8 @@ void key_dispose(Key *key)
     {
         free(key->name);
         key->name = NULL;
+        free(key);
+        key = NULL;
     }
 }
 
@@ -407,8 +409,8 @@ void node_dispose(ST_Node *node, Key *key)
 {
     if (node)
     {
-        key_dispose(key);
-        key = NULL;
+        free(key->name);
+        key->name = NULL;
         free(node);
         node = NULL;
     }
