@@ -430,8 +430,13 @@ void gen_func_start(ASTNode_ptr node)
  */
 void gen_return()
 {
-    // Returns value via data stack
-    if (!return_occured)
+    /**
+     * @note Returns nill when function didnt contain return, but only when the 
+     *       function isn't main. Since main can not be calle by user, this function
+     *       doesnt return anything though there exist a version with parameters which
+     *       returns.
+     */
+    if (!return_occured && strcmp(global_name_gen->fun_label, "_fun_main_0"))
     {
         printf("PUSHS nil@nil\n");
     }
@@ -759,14 +764,14 @@ void gen_if(ASTNode_ptr node)
 void gen_program_end()
 {
     // here program exits with err code 25 - invalid arg type
-    printf("LABEL !ERROR_ARG_L\n");
+    printf("\nLABEL !ERROR_ARG_L\n");
     printf("EXIT int@25\n");
 
     // here program exits with err code 25 - invalid data type in an expression
-    printf("LABEL !ERROR_EXP_L\n");
+    printf("\nLABEL !ERROR_EXP_L\n");
     printf("EXIT int@26\n");
 
-    printf("LABEL _program_end_\n");
+    printf("\nLABEL _program_end_\n");
     printf("EXIT int@0\n");
 }
 
@@ -1299,11 +1304,11 @@ void gen_eval_equal_not_equal(operator_types *op_type)
     printf("JUMP %s\n", global_name_gen->log_end);
 
     // evaluate expressions
-    printf("LABEL %s\n", global_name_gen->eval);
+    printf("\nLABEL %s\n", global_name_gen->eval);
     printf("EQ LF@result LF@op1 LF@op2\n");
 
     // push the result to the data stack and clean up
-    printf("LABEL %s\n", global_name_gen->log_end);
+    printf("\nLABEL %s\n", global_name_gen->log_end);
 
     if (*op_type == OP_NEQ) // i can just negate the current result if needed
         printf("NOT LF@result LF@result\n");
@@ -1354,15 +1359,15 @@ void gen_eval_greater_lower(operator_types *op_type)
     printf("JUMP !ERROR_EXP_L\n");
 
     // int to float conversion - right op
-    printf("LABEL %s\n", global_name_gen->right_to_float); // label
+    printf("\nLABEL %s\n", global_name_gen->right_to_float); // label
     printf("INT2FLOAT LF@op2 LF@op2\n");
     printf("JUMP %s\n", global_name_gen->eval);
 
     // int to float conversion - left op
-    printf("LABEL %s\n", global_name_gen->left_to_float); // label
+    printf("\nLABEL %s\n", global_name_gen->left_to_float); // label
     printf("INT2FLOAT LF@op1 LF@op1\n");
 
-    printf("LABEL %s\n", global_name_gen->eval); // label
+    printf("\nLABEL %s\n", global_name_gen->eval); // label
 
     // based on different types of operators, different variant of the eval code block will be generated
 
@@ -1436,27 +1441,27 @@ void gen_eval_star_op()
     printf("JUMP !ERROR_EXP_L\n");
 
     // int to float conversions - right op
-    printf("LABEL %s\n", global_name_gen->right_to_float); // label
+    printf("\nLABEL %s\n", global_name_gen->right_to_float); // label
     printf("INT2FLOAT LF@op2 LF@op2\n");
     printf("JUMP %s\n", global_name_gen->mul);
 
     // int to float conversions - left op
-    printf("LABEL %s\n", global_name_gen->left_to_float); // label
+    printf("\nLABEL %s\n", global_name_gen->left_to_float); // label
     printf("INT2FLOAT LF@op1 LF@op1\n");
 
     // multiplication
-    printf("LABEL %s\n", global_name_gen->mul);
+    printf("\nLABEL %s\n", global_name_gen->mul);
     printf("MUL LF@result LF@op1 LF@op2\n");
     printf("JUMP %s\n", global_name_gen->mul_end);
 
     // string iter
-    printf("LABEL %s\n", global_name_gen->str_iter);
+    printf("\nLABEL %s\n", global_name_gen->str_iter);
     // todo : najst v historii commitov string iter
 
     // no need to jump here
 
     // end of the function that handles the * operator
-    printf("LABEL %s\n", global_name_gen->mul_end);
+    printf("\nLABEL %s\n", global_name_gen->mul_end);
 }
 
 /**
@@ -1496,28 +1501,28 @@ void gen_eval_slash_op()
     printf("JUMP !ERROR_EXP_L\n");
 
     // int to float conversions - right op
-    printf("LABEL %s\n", global_name_gen->right_to_float);
+    printf("\nLABEL %s\n", global_name_gen->right_to_float);
     printf("INT2FLOAT LF@op2 LF@op2\n");
     printf("JUMP %s\n", global_name_gen->zero_div_check_float);
 
     // int to float conversions - left op
-    printf("LABEL %s\n", global_name_gen->left_to_float);
+    printf("\nLABEL %s\n", global_name_gen->left_to_float);
     printf("INT2FLOAT LF@op1 LF@op1\n");
     printf("JUMP %s\n", global_name_gen->zero_div_check_float);
 
     // int to float conversions - both ops
-    printf("LABEL %s\n", global_name_gen->both_to_float);
+    printf("\nLABEL %s\n", global_name_gen->both_to_float);
     printf("INT2FLOAT LF@op1 LF@op1\n");
     printf("INT2FLOAT LF@op2 LF@op2\n");
     printf("JUMP %s\n", global_name_gen->zero_div_check_float);
 
     // zero divison check for floats
-    printf("LABEL %s\n", global_name_gen->zero_div_check_float);
+    printf("\nLABEL %s\n", global_name_gen->zero_div_check_float);
     printf("EQ LF@op_check2 LF@op2 float@0x0p+0\n");
     printf("JUMP %s\n", global_name_gen->zero_div_check_done);
 
     // evaluate zero division check
-    printf("LABEL %s\n", global_name_gen->zero_div_check_done);
+    printf("\nLABEL %s\n", global_name_gen->zero_div_check_done);
     printf("JUMPIFEQ !ERROR_EXP_L LF@op_check2 bool@true\n");
 
     // division
@@ -1561,18 +1566,18 @@ void gen_eval_minus_op()
     printf("JUMP !ERROR_EXP_L\n");
 
     // int to float conversions - right op
-    printf("LABEL %s\n", global_name_gen->right_to_float);
+    printf("\nLABEL %s\n", global_name_gen->right_to_float);
     printf("INT2FLOAT LF@op2 LF@op2\n");
     printf("JUMP %s\n", global_name_gen->sub);
 
     // int to float conversions - left op
-    printf("LABEL %s\n", global_name_gen->left_to_float);
+    printf("\nLABEL %s\n", global_name_gen->left_to_float);
     printf("INT2FLOAT LF@op1 LF@op1\n");
 
     // no need to jump here
 
     // subtraction
-    printf("LABEL %s\n", global_name_gen->sub);
+    printf("\nLABEL %s\n", global_name_gen->sub);
     printf("SUB LF@result LF@op1 LF@op2\n");
 }
 
@@ -1624,27 +1629,27 @@ void gen_eval_plus_op()
     printf("JUMP !ERROR_EXP_L\n");
 
     // int to float conversions - right op
-    printf("LABEL %s\n", global_name_gen->right_to_float); // label
+    printf("\nLABEL %s\n", global_name_gen->right_to_float); // label
     printf("INT2FLOAT LF@op2 LF@op2\n");
     printf("JUMP %s\n", global_name_gen->add);
 
     // int to float conversions - left op
-    printf("LABEL %s\n", global_name_gen->left_to_float); // label
+    printf("\nLABEL %s\n", global_name_gen->left_to_float); // label
     printf("INT2FLOAT LF@op1 LF@op1\n");
 
     // no need to use jump here
 
     // addition
-    printf("LABEL %s\n", global_name_gen->add); // lable
+    printf("\nLABEL %s\n", global_name_gen->add); // lable
     printf("ADD LF@result LF@op1 LF@op2\n");
     printf("JUMP %s\n", global_name_gen->add_end);
 
     // concat
-    printf("LABEL %s\n", global_name_gen->concat); // lable
+    printf("\nLABEL %s\n", global_name_gen->concat); // lable
     printf("CONCAT LF@result LF@op1 LF@op2\n");
 
     // end of the function that handles the + operator
-    printf("LABEL %s\n", global_name_gen->add_end);
+    printf("\nLABEL %s\n", global_name_gen->add_end);
 }
 
 /**
