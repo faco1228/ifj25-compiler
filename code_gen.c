@@ -244,11 +244,13 @@ void codegen(ASTNode_ptr node)
         gen_while_end(node);
     }
 
-    if (node->type == NODE_PROGRAM){
+    if (node->type == NODE_PROGRAM)
+    {
         gen_program_end();
     }
 
-    if (node->type == NODE_IF){
+    if (node->type == NODE_IF)
+    {
         global_name_gen->in_if = false;
     }
 }
@@ -523,9 +525,7 @@ void gen_jmp_function(ASTNode_ptr node)
         // Print to make IFJcode25 code more readable
         printf("\n#Expression evaluation of parameters follows\n");
 
-
         printf("# Pocet deti tohoto uzlu: %d\n", node->data.function_call.param_count);
-
 
         // First the arguments are pushed on data strack (left to right) but
         // has to be treated as potential expression
@@ -1105,6 +1105,13 @@ void eval_exp(ASTNode_ptr exp_node)
         printf("PUSHS nil@nil\n");
     else if (exp_node->type == NODE_CALL)
         gen_jmp_function(exp_node);
+    else if (global_name_gen->in_if)
+    {
+        if (exp_node->type == NODE_NULL_LIT)
+            printf("PUSHS bool@false");
+        else
+            printf("PUSHS bool@true");
+    }
 
     // NOTE: nothing has to be done for NODE_TYPE_LIT because I don't actually need it when evaluating IS
 }
