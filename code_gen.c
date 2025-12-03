@@ -126,9 +126,6 @@ void codegen(ASTNode_ptr node)
         // Sets location flag
         global_name_gen->in_if = true;
 
-        // Condition evaluation
-        eval_exp(node->children[0]);
-
         // Variables to make code more readable
         ASTNode_ptr true_block = node->children[1];
         ASTNode_ptr else_block = node->children[2];

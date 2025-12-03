@@ -397,11 +397,14 @@ void exp_analysis(ASTNode_ptr exp_root)
     // exp subtree has the structure of a binary tree
     // we agreed on a convention that children[0] is the left child and children[1] the right child inside the exp subtree
 
-    if (exp_root->children) // seg fault prevention
-        exp_analysis(exp_root->children[0]);
+    // if (exp_root->children) // seg fault prevention
+    //     exp_analysis(exp_root->children[0]);
 
-    if (exp_root->children) // seg fault prevention
-        exp_analysis(exp_root->children[1]);
+    // if (exp_root->children) // seg fault prevention
+    //     exp_analysis(exp_root->children[1]);
+
+    for (unsigned idx = 0; idx < exp_root->child_count; idx++)
+        exp_analysis(exp_root->children[idx]);
 }
 
 /**
@@ -528,7 +531,10 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
         ST_Node *search_result = st_search(g_func_symtable, key);
 
         if (search_result) // setter was found, so idents type is set to SETTER
+        {
             assign_target->data.identifier.id_type = SETTER;
+            break;
+        }
 
         key_dispose(key);
 
