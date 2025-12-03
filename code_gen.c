@@ -115,12 +115,7 @@ void codegen(ASTNode_ptr node)
         break;
     case NODE_ASSIGN:
         // This function takes care of the right side of the assignment
-        // but only when the lhs is not a setter
-        ASTNode_ptr lhs = node->children[0];
-        if (lhs->data.identifier.id_type == VAR){
-            eval_exp(node->children[1]->children[0]);
-        }
-
+        eval_exp(node->children[1]->children[0]);
         // Calls corresponding code generating function
         gen_assign(node);
 
@@ -239,14 +234,18 @@ void codegen(ASTNode_ptr node)
         global_name_gen->in_loop = false;
         gen_while_end(node);
     }
+
+    if (node->type == NODE_PROGRAM)
+        gen_program_end();
 }
 
 /**
  * @brief Prints declarations of all global variables from symtable at the
  *        beginning of programe
- * 
+ *
  */
-void gen_all_glob_vars_dec(ST_Node* symtable){
+void gen_all_glob_vars_dec(ST_Node *symtable)
+{
     // Reccursion end
     if (!symtable)
         return;
@@ -363,10 +362,11 @@ void gen_assign(ASTNode_ptr node)
     // When the lhs is a setter
     if (lhs->type == NODE_IDENTIFIER && lhs->data.identifier.id_type == SETTER)
     {
+        // The parameter is already on top of data stack
         gen_jmp_function(lhs);
     }
     else
-    { // The lhs needs to be a variable
+    { // The lhs has to be variable
         if (lhs->data.identifier.is_global)
         {
             printf("POPS GF@%s\n", lhs->data.identifier.name);
@@ -426,7 +426,10 @@ void gen_return()
     if (strcmp("main", global_name_gen->curr_function))
     {
         printf("RETURN\n");
-    }
+    } 
+    else 
+        printf("JUMP _program_end_\n");
+
 }
 
 /**
@@ -451,7 +454,7 @@ void gen_lit_string(char *value)
     for (int i = 0; value[i] != '\0'; i++)
     {
         unsigned char ch = (unsigned char)value[i];
-        
+
         if (is_invalid_char(ch))
         {
             new_str_index += sprintf(&correct_value[new_str_index], "\\%03d", ch);
@@ -465,7 +468,7 @@ void gen_lit_string(char *value)
 
     // Strings must be null terminated
     correct_value[new_str_index] = '\0';
-   
+
     printf("PUSHS string@%s\n", correct_value);
 
     free(correct_value);
@@ -480,17 +483,24 @@ void gen_lit_string(char *value)
  */
 void gen_jmp_function(ASTNode_ptr node)
 {
-    // Checks whether the node is getter/setter/function
-    if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == SETTER)
-    {
-        eval_exp(node->children[1]);
-    }
-    else if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == GETTER)
-    {
-        ; // Nothing will be pushed
-    }
-    else
-    {
+    // // Checks whether the node is getter/setter/function
+    // if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == SETTER)
+    // {
+    //     eval_exp(node->children[1]);
+    // }
+    // else if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == GETTER)
+    // {
+    //     ; // Nothing will be pushed
+    // }
+    // else
+
+    /**
+     * @brief When this function is called for a setter, the argument is already
+     *        on top of the data stack.
+     *        When this function is called for a getter, there is no argument.
+     */
+
+    if(node->type == NODE_CALL){
         // First the arguments are pushed on data strack (left to right) but
         // has to be treated as potential expression
         for (unsigned i = 0; i < node->data.function_call.param_count; i++)
@@ -721,6 +731,22 @@ void gen_if(ASTNode_ptr node)
 }
 
 /**
+ * @brief Generates error labels at the end of the program.
+ */
+void gen_program_end()
+{
+    // here program exits with err code 25 - invalid arg type
+    printf("LABEL !ERROR_ARG_L\n");
+    printf("EXIT int@25\n");
+
+    // here program exits with err code 25 - invalid data type in an expression
+    printf("LABEL !ERROR_EXP_L\n");
+    printf("EXIT int@26\n");
+
+    prinft("LABEL _program_end_\n");
+}
+
+/**
  * @brief Handles beginning of else block of if statement
  *
  * @param node
@@ -901,12 +927,12 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
         else if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == SETTER)
         {
             snprintf(global_name_gen->called_function, MAX_FUNCTION_NAME, "_setter_%s",
-                     node->data.identifier.code_gen_name);
+                     node->data.identifier.name);
         }
         else
         { // node->type == NODE_IDENTIFIER && node->data.identifier.id_type == GETTER
             snprintf(global_name_gen->called_function, MAX_FUNCTION_NAME, "_getter_%s",
-                     node->data.identifier.code_gen_name);
+                     node->data.identifier.name);
         }
         break;
     case MUL:
@@ -1003,7 +1029,18 @@ void create_label_names(ASTNode_ptr exp_node)
 void eval_exp(ASTNode_ptr exp_node)
 {
     for (unsigned idx = 0; idx < exp_node->child_count; idx++)
+    {
+        /*
+            NOTE: Tree traversal is ended so fun call args are not pushed to the data stack twice.
+            If break is not called, eval_exp will find the args of the function call, identify them as 
+            an identifier or a literal and push them to the data stack. Then function call is generated
+            which is going to push these args again.
+        */
+        if (exp_node->type == NODE_CALL)
+            break;
+
         eval_exp(exp_node->children[idx]);
+    }
 
     if (exp_node->type == NODE_BINARY_OP)
     {
@@ -1021,7 +1058,7 @@ void eval_exp(ASTNode_ptr exp_node)
         }
     }
     else if (exp_node->type == NODE_STR_LIT)
-        gen_lit_string(exp_node->data.literal.data.str_value);  // Calls the function on escape 
+        gen_lit_string(exp_node->data.literal.data.str_value); // Calls the function on escape
     else if (exp_node->type == NODE_INT_LIT)
         printf("PUSHS int@%lld\n", exp_node->data.literal.data.int_val);
     else if (exp_node->type == NODE_FLOAT_LIT)
@@ -1045,8 +1082,7 @@ void gen_exp_helpers()
     printf("DEFVAR LF@type2\n");
     printf("DEFVAR LF@op_check1\n");
     printf("DEFVAR LF@op_check2\n");
-    printf("DEFVAR LF@type_check1\n");
-    printf("DEFVAR LF@type_check2\n");
+    printf("DEFVAR LF@type_check_res\n");
     printf("DEFVAR LF@result\n");
 }
 
@@ -1203,29 +1239,34 @@ void gen_eval_equal_not_equal(operator_types *op_type)
     // checks different op type combinations and evaluates based on the current combination
 
     // string op string
-    printf("EQ LF@type_check1 LF@type1 string@string\n");
-    printf("EQ LF@type_check2 LF@type2 string@string\n");
-    printf("JUMPIFEQ %s LF@type_check1 LF@type_check2\n", global_name_gen->eval);
+    printf("EQ LF@op_check1 LF@type1 string@string\n");
+    printf("EQ LF@op_check2 LF@type2 string@string\n");
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->eval);
 
     // int op int
-    printf("EQ LF@type_check1 LF@type1 string@int\n");
-    printf("EQ LF@type_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@type_check1 LF@type_check2\n", global_name_gen->eval);
+    printf("EQ LF@op_check1 LF@type1 string@int\n");
+    printf("EQ LF@op_check2 LF@type2 string@int\n");
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->eval);
 
     // float op float
-    printf("EQ LF@type_check1 LF@type1 string@float\n");
-    printf("EQ LF@type_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@type_check1 LF@type_check2\n", global_name_gen->eval);
+    printf("EQ LF@op_check1 LF@type1 string@float\n");
+    printf("EQ LF@op_check2 LF@type2 string@float\n");
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->eval);
 
     // bool op bool
-    printf("EQ LF@type_check1 LF@type1 string@bool\n");
-    printf("EQ LF@type_check2 LF@type2 string@bool\n");
-    printf("JUMPIFEQ %s LF@type_check1 LF@type_check2\n", global_name_gen->eval);
+    printf("EQ LF@op_check1 LF@type1 string@bool\n");
+    printf("EQ LF@op_check2 LF@type2 string@bool\n");
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->eval);
 
     // nil op nil
-    printf("EQ LF@type_check1 LF@type1 string@nil\n");
-    printf("EQ LF@type_check2 LF@type2 string@nil\n");
-    printf("JUMPIFEQ %s LF@type_check1 LF@type_check2\n", global_name_gen->eval);
+    printf("EQ LF@op_check1 LF@type1 string@nil\n");
+    printf("EQ LF@op_check2 LF@type2 string@nil\n");
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->eval);
 
     // operands are of different types so we can just return false
     printf("MOVE LF@result bool@false\n");
@@ -1260,24 +1301,28 @@ void gen_eval_greater_lower(operator_types *op_type)
     // compare different valid operand combinations
 
     // int op int
-    printf("EQ LF@type_check1 LF@type1 string@int\n");
-    printf("EQ LF@type_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@type_check1 LF@type_check2\n", global_name_gen->eval);
+    printf("EQ LF@op_check1 LF@type1 string@int\n");
+    printf("EQ LF@op_check2 LF@type2 string@int\n");
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->eval);
 
     // float op float
-    printf("EQ LF@type_check1 LF@type1 string@float\n");
-    printf("EQ LF@type_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@type_check1 LF@type_check2\n", global_name_gen->eval);
+    printf("EQ LF@op_check1 LF@type1 string@float\n");
+    printf("EQ LF@op_check2 LF@type2 string@float\n");
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->eval);
 
     // float op int
-    printf("EQ LF@type_check1 LF@type1 string@float\n");
-    printf("EQ LF@type_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@type_check1 LF@type_check2\n", global_name_gen->right_to_float);
+    printf("EQ LF@op_check1 LF@type1 string@float\n");
+    printf("EQ LF@op_check2 LF@type2 string@int\n");
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->right_to_float);
 
     // int op float
-    printf("EQ LF@type_check1 LF@type1 string@int\n");
-    printf("EQ LF@type_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@type_check1 LF@type_check2\n", global_name_gen->left_to_float);
+    printf("EQ LF@op_check1 LF@type1 string@int\n");
+    printf("EQ LF@op_check2 LF@type2 string@float\n");
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->left_to_float);
 
     // int to float conversion - right op
     printf("LABEL %s\n", global_name_gen->right_to_float); // label
@@ -1331,27 +1376,32 @@ void gen_eval_star_op()
     // float * float scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->mul);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->mul);
 
     // int * int scenarion
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->mul);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->mul);
 
     // string * int scenario
     printf("EQ LF@op_check1 LF@type1 string@string\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->str_iter);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->str_iter);
 
     // float * int scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->right_to_float);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->right_to_float);
 
     // int * float scenario
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->left_to_float);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->left_to_float);
 
     // none of valid the scenarios was matched, type error occured
     printf("JUMP !ERROR_EXP_L\n");
@@ -1392,22 +1442,26 @@ void gen_eval_slash_op()
     // float / float scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->zero_div_check_float);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->zero_div_check_float);
 
     // int / int scenario
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->zero_div_check_int);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->zero_div_check_int);
 
     // float / int scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->right_to_float);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->right_to_float);
 
     // int / float scenario
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->left_to_float);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->left_to_float);
 
     // none of valid the scenarios was matched, type error occured
     printf("JUMP !ERROR_EXP_L\n");
@@ -1451,22 +1505,26 @@ void gen_eval_minus_op()
     // float - float scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->sub);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->sub);
 
     // int - int scenario
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->sub);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->sub);
 
     // float - int scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->right_to_float);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->right_to_float);
 
     // int - float scenario
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->left_to_float);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->left_to_float);
 
     // none of valid the scenarios was matched, type error occured
     printf("JUMP !ERROR_EXP_L\n");
@@ -1504,27 +1562,32 @@ void gen_eval_plus_op()
     // float + float scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->add);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->add);
 
     // int + int scenarion
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->add);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->add);
 
     // string + string scenario
     printf("EQ LF@op_check1 LF@type1 string@string\n");
     printf("EQ LF@op_check2 LF@type2 string@string\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->concat);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->concat);
 
     // float + int scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->right_to_float);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->right_to_float);
 
     // int + float scenario
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->left_to_float);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->left_to_float);
 
     // none of valid the scenarios was matched, type error occured
     printf("JUMP !ERROR_EXP_L\n");
