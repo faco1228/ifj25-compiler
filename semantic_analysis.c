@@ -112,14 +112,10 @@ bool verify_var_redec(Key *key, ST_Node *symtable)
  * @brief Searches the current and all higher level scope to verify that a variable exists.
  *
  * @param key Pointer to the key of the symbol.
- * @param scope_stack Pointer to the scope stack.
  */
 bool verify_var_existence(Key *key)
 {
     ST_Node *search_result = scope_stack_var_lookup(g_scope_stack, key, &current_block_id);
-
-    if (search_result) // local variable found
-        return true;
 
     return search_result != NULL;
 }
@@ -145,7 +141,7 @@ void handle_function_call(ASTNode_ptr call_node)
             error_exit(ERR_SEM_ARG_COUNT);
 
         if (!builtin_args_type_check(call_node, builtin_ptr)) // arg data type not correct
-            error_exit(ERR_SEM_TYPE_MISMATCH);
+            error_exit(ERR_SEM_ARG_COUNT);
     }
     else // user-defined function call
     {
@@ -160,12 +156,15 @@ void handle_function_call(ASTNode_ptr call_node)
         This is because functions are also identified based on the number of their params, so given that the function was called with an incorrect number of args
         st_search will not be able to find a corresponding function inside the g_func_symtable
         */
-
         if (!search_result) // function called does not exist
+        {
+            key_dispose(key);
             error_exit(ERR_SEM_UNDEFINED);
+        }
 
         // if an error occurs, error_exit() is called from the inside of the function
         args_exist(call_node);
+        key_dispose(key);
     }
 }
 
@@ -212,27 +211,9 @@ bool main_exists()
 void args_exist(ASTNode_ptr call_node)
 {
     unsigned args_count = call_node->data.function_call.param_count;
-    Key *key = NULL;
 
     for (unsigned idx = 0; idx < args_count; idx++)
-    {
-        if (call_node->children[idx]->type == NODE_CALL) // function call passed as an argument of the function call
-        {
-            handle_function_call(call_node);
-        }
-        else if (call_node->children[idx]->type == NODE_IDENTIFIER)
-        {
-            key = st_create_variable_key(call_node->children[idx]->data.identifier.name);
-            if (!verify_var_existence(key))
-            {
-                key_dispose(key);
-                error_exit(ERR_SEM_UNDEFINED);
-            }
-
-            call_node->children[idx]->data.identifier.code_gen_name = mangle_name(key->name, current_block_id);
-            key_dispose(key);
-        }
-    }
+        exp_analysis(call_node->children[idx]);
 }
 
 /**
@@ -266,25 +247,32 @@ bool builtin_args_type_check(ASTNode_ptr call_node, builtin_function_t *builtin_
     for (unsigned idx = 0; idx < builtin_ptr->args_count; idx++) // loops through the args of the function call
     {
         ASTNode_ptr arg = call_node->children[idx];
-        ASTNode_ptr exp = ast_create_exp_statement(NULL); // !temp fix!!!!!!
 
-        //! sem potom bude treba pridat arg->children[0]
-        exp_analysis(arg); // all args can be an expression so we call exp_analysis function here
+        exp_analysis(arg->children[0]); // all args can be an expression so we call exp_analysis function here
 
-        if (!eval_exp_flags(exp)) //! sem pridam exp stmt node
+        if (!eval_exp_flags(arg))
+        {
             error_exit(ERR_SEM_TYPE_MISMATCH);
+        }
 
-        // !treba nahradit exp za arg !!!
+        // cannot type predict identifiers
+        if (arg->type == NODE_IDENTIFIER || arg->type == NODE_CALL)
+        {
+            reset_flags();
+            continue;
+        }
+
         // there is node need to check arg types or we could not determine the type of the expression passed
-        if (builtin_ptr->arg_types[idx] == ANY_TYPE || exp->data.exp_statement.exp_type == TYPE_UNKNOWN)
+        if (builtin_ptr->arg_types[idx] == ANY_TYPE || arg->data.exp_statement.exp_type == TYPE_UNKNOWN)
             continue;
 
-        // !treba nahradit exp za arg !!!+
-        // if possible check if type mismatch dit not occur
-        if (exp->data.exp_statement.exp_type != TYPE_STRING && builtin_ptr->arg_types[idx] == STR_TYPE)
+        // if possible check if type mismatch did not occur
+        if (arg->data.exp_statement.exp_type != TYPE_STRING && builtin_ptr->arg_types[idx] == STR_TYPE)
             return false;
-        else if (exp->data.exp_statement.exp_type != TYPE_NUM && builtin_ptr->arg_types[idx] == NUM_TYPE)
+        else if (arg->data.exp_statement.exp_type != TYPE_NUM && builtin_ptr->arg_types[idx] == NUM_TYPE)
             return false;
+
+        reset_flags();
     }
 
     return true;
@@ -316,19 +304,18 @@ void exp_analysis(ASTNode_ptr exp_root)
         {
             exp_root->data.identifier.id_type = GETTER;
             key_dispose(key);
+            break;
         }
-        else // ident is a variable
-        {
-            key_dispose(key);                                             // we need to free the setter key
-            key = st_create_variable_key(exp_root->data.identifier.name); // new key is created
 
-            if (!IS_GLOB_VAR(key->name)) // we only need to look for local variables
+        key_dispose(key);                                             // we need to free the setter key
+        key = st_create_variable_key(exp_root->data.identifier.name); // new key is created
+
+        if (!IS_GLOB_VAR(key->name)) // we only need to look for local variables
+        {
+            if (!verify_var_existence(key))
             {
-                if (!verify_var_existence(key))
-                {
-                    key_dispose(key);
-                    error_exit(ERR_SEM_UNDEFINED);
-                }
+                key_dispose(key);
+                error_exit(ERR_SEM_UNDEFINED);
             }
 
             exp_root->data.identifier.code_gen_name = mangle_name(key->name, current_block_id);
@@ -389,12 +376,8 @@ void exp_analysis(ASTNode_ptr exp_root)
 
     // exp subtree has the structure of a binary tree
     // we agreed on a convention that children[0] is the left child and children[1] the right child inside the exp subtree
-
-    if (exp_root->children) // seg fault prevention
-        exp_analysis(exp_root->children[0]);
-
-    if (exp_root->children) // seg fault prevention
-        exp_analysis(exp_root->children[1]);
+    for (unsigned idx = 0; idx < exp_root->child_count; idx++)
+        exp_analysis(exp_root->children[idx]);
 }
 
 /**
@@ -434,10 +417,10 @@ bool eval_exp_flags(ASTNode_ptr exp_root)
         exp_root->data.exp_statement.exp_type = TYPE_NUM;
     else if (has_only_plus_op && has_num_lit) // when number literal is present here, + operator can only be used as addition
         exp_root->data.exp_statement.exp_type = TYPE_NUM;
-    else if (!has_string_lit) // no string literals present so for now we can say that it is a number
-        exp_root->data.exp_statement.exp_type = TYPE_NUM;
     else if (has_string_lit) // when string literal is present here, + operator can only be used as concat
+    {
         exp_root->data.exp_statement.exp_type = TYPE_STRING;
+    }
     else // could not predict any restrictions
         exp_root->data.exp_statement.exp_type = TYPE_UNKNOWN;
 
@@ -508,7 +491,7 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
 
             // symbol is inserted
             *arg_symtable = st_insert_node(*arg_symtable, arg_node);
-            free(key);
+            key_dispose(key);
         }
         break;
     }
@@ -521,7 +504,11 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
         ST_Node *search_result = st_search(g_func_symtable, key);
 
         if (search_result) // setter was found, so idents type is set to SETTER
+        {
             assign_target->data.identifier.id_type = SETTER;
+            key_dispose(key);
+            break;
+        }
 
         key_dispose(key);
 
@@ -530,12 +517,15 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
         search_result = st_search(g_func_symtable, key);
 
         if (search_result) // assign target was a getter
+        {
+            key_dispose(key);
             error_exit(ERR_SEM_OTHER);
+        }
 
         key_dispose(key);
 
         // now we can check if a new global variable was not defined
-        if (IS_GLOB_VAR(assign_target->data.identifier.name))
+        if (assign_target->data.identifier.is_global)
         {
             key = st_create_variable_key(assign_target->data.identifier.name);
             search_result = st_search(g_global_symtable, key);
@@ -545,12 +535,15 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
                 ST_Node *new_glob_var = st_create_node(key, block_counter);
 
                 if (!new_glob_var)
+                {
+                    key_dispose(key);
                     error_exit(ERR_INTERNAL);
+                }
 
                 g_global_symtable = st_insert_node(g_global_symtable, new_glob_var);
             }
 
-            free(key);
+            key_dispose(key);
         }
         break;
     }
@@ -561,7 +554,7 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
 
         if (verify_var_redec(key, *current_scope)) // redec detected
         {
-            free(key);
+            key_dispose(key);
             error_exit(ERR_SEM_REDEFINITION);
         }
         else // new local var needs to be added to current_scope
@@ -569,14 +562,17 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
             ST_Node *new_node = st_create_node(key, block_counter);
 
             if (!new_node)
+            {
+                key_dispose(key);
                 error_exit(ERR_INTERNAL);
+            }
 
             *current_scope = st_insert_node(*current_scope, new_node);
 
             // assign the newly create mangled variable name
             node_to_handle->data.identifier.code_gen_name = mangle_name(key->name, new_node->block_id);
 
-            free(key);
+            key_dispose(key);
         }
 
         break;
@@ -599,12 +595,14 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
         {
             if (!verify_var_existence(var_key))
             {
-                free(var_key);
+                key_dispose(var_key);
                 error_exit(ERR_SEM_UNDEFINED);
             }
 
             node_to_handle->data.identifier.code_gen_name = mangle_name(var_key->name, current_block_id);
         }
+
+        key_dispose(var_key);
 
         break;
     }
@@ -632,9 +630,14 @@ void semantic_analysis(ASTNode_ptr node_to_handle)
         ST_Node *iter_node = st_create_node(iter_key, block_counter); // iterator is stored in it's own block
 
         if (!iter_node)
+        {
+            key_dispose(iter_key);
             error_exit(ERR_INTERNAL);
+        }
 
         scope_stack_push(g_scope_stack, iter_node);
+
+        key_dispose(iter_key); // iter key can now be freed
 
         /* NOTE:
         node_to_handle->children[1] == expression

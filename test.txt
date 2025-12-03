@@ -1,17 +1,12 @@
-// (4.1) Povinný prolog a povinná kostra programu
+// Test 18: Kombinácia read_str a read_num
 import "ifj25" for Ifj
 
 class Program {
     static main() {
-        __d = Ifj.write("Hello, IFJ25!\n")
+        var x
+        x = 1
+        for(i in 1..3){
+            __d = Ifj.write(x)
+        }
     }
-
-}
-
-//*************************************************************
-fun1(x, y, z){
-    print("Ahoj")
-    x = y + z
-    var a
-    a = 1 * 2 * 3 + 6 - 7 / 8 - 
 }

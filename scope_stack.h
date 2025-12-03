@@ -5,6 +5,11 @@
  * @brief Implements Stack and its helper functions to manage working with variable
  * scopes according to the memory model of the IFJcode25 programming language.
  *
+ * @version 0.1
+ * @date 2025-11-20
+ * 
+ * @copyright Copyright (c) 2025
+ * 
  */
 
 #ifndef _SCOPE_STACK_H_

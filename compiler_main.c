@@ -3,7 +3,7 @@
  * @authors Martin Mezei (xmezeim00)
  * @brief Implements an executable main to run different modules of the compiler and allocate structure that are needed in multiple modules.
  * @version 0.1
- * @date 2025-11-17
+ * @date 2025-12-03
  *
  * @copyright Copyright (c) 2025
  */
@@ -29,8 +29,6 @@ int main()
 {
     // syntactic analysis and creation of ast
     g_ast_root = parse_program();
-    
-    // print_ast(ast); //! vymazat - volanie pomocnej funkcie pre print ast cez pre order
 
     // scope_stack init
     g_scope_stack = malloc(sizeof(Scope_Stack));

@@ -9,7 +9,7 @@
  *       We decided to use Pascal convetion for function calls.
  *
  * @version 0.1
- * @date 2025-11-28
+ * @date 2025-12-03
  *
  * @copyright Copyright (c) 2025
  *
@@ -26,6 +26,7 @@
 #include "code_gen.h"
 #include "error.h"
 #include "built_in_funs.h"
+#include "global_structures.h"
 
 // Global instance of data type holding different kinds of information nececssary for code-gen
 name_generator_ptr global_name_gen = NULL;
@@ -52,11 +53,13 @@ void codegen(ASTNode_ptr node)
     {
     case NODE_PROGRAM:
         // IFJcode25 code starts with this line
-        printf(".IFJcode25\n");
+        printf(".IFJcode25\n\n");
+
+        // Declares all global variables
+        gen_all_glob_vars_dec(g_global_symtable);
 
         // Skipping built in functions defined at the beginning of each program
-        printf("JUMP _program_start_\n");
-        printf("\n");
+        printf("\nJUMP _program_start_\n");
 
         // At the beginning of the program, there are implementations of builtin functions
         gen_built_in_read_str();
@@ -71,10 +74,6 @@ void codegen(ASTNode_ptr node)
         gen_built_in_chr();
 
         printf("############# BUILT IN FUNCTIONS END #############\n");
-
-        // This is where actual compilation begins
-        printf("\n");
-        printf("\nLABEL _program_start_\n");
 
         break;
     case NODE_FUNCTION_DEF:
@@ -111,6 +110,9 @@ void codegen(ASTNode_ptr node)
 
         break;
     case NODE_ASSIGN:
+        // Print to make IFJcode25 code more readable
+        printf("\n#Expression evaluation follows\n");
+
         // This function takes care of the right side of the assignment
         eval_exp(node->children[1]->children[0]);
         // Calls corresponding code generating function
@@ -118,8 +120,12 @@ void codegen(ASTNode_ptr node)
 
         break;
     case NODE_IF:
-        // Condition evaluation
+        // Print to make IFJcode25 code more readable
+        printf("\n#Expression evaluation follows\n");
         eval_exp(node->children[0]);
+
+        // Sets location flag
+        global_name_gen->in_if = true;
 
         // Variables to make code more readable
         ASTNode_ptr true_block = node->children[1];
@@ -142,8 +148,12 @@ void codegen(ASTNode_ptr node)
     case NODE_RETURN:
         // Update global flag
         return_occured = true;
+
+        // Print to make IFJcode25 code more readable
+        printf("\n#Expression evaluation follows\n");
+
         // After the node return an expression follows
-        eval_exp(node->children[0]);
+        eval_exp(node->children[0]->children[0]);
         // Returns from the function
         gen_return();
 
@@ -172,29 +182,6 @@ void codegen(ASTNode_ptr node)
         gen_continue();
 
         break;
-        // case NODE_EXPR_STMNT:
-        //     // Expression will be evaluated and the result will be left at the top of data stack
-        //     eval_exp(node);
-
-    case NODE_IDENTIFIER:
-        // Call corresponding code generating function, differentiates between variable and getter
-        if (node->data.identifier.id_type == VAR)
-        {
-            gen_push_variable(node);
-        }
-        else
-        {
-            printf("\n");
-            create_unique_name(node, CALL);
-            printf("CALL %s\n", global_name_gen->called_function);
-        }
-
-        break;
-    case NODE_CALL:
-        // Call corresponding code generating function
-        gen_jmp_function(node);
-
-        break;
     default:
         /**
          * @brief There is nothing to be done for this type of nodes:
@@ -202,7 +189,8 @@ void codegen(ASTNode_ptr node)
          *
          * @note These nodes are processed by some other functions and
          *       dont have to be handeled:
-         *       NODE_RANGE, NODE_INT_LIT, NODE_FLOAT_LIT, NODE_STR_LIT, NODE_NULL_LIT
+         *       NODE_RANGE, NODE_INT_LIT, NODE_FLOAT_LIT, NODE_STR_LIT, NODE_NULL_LIT,
+         *       NODE_IDENTIFIER, NODE_CALL
          */
 
         break;
@@ -253,6 +241,33 @@ void codegen(ASTNode_ptr node)
         global_name_gen->in_loop = false;
         gen_while_end(node);
     }
+
+    if (node->type == NODE_PROGRAM)
+    {
+        gen_program_end();
+    }
+
+    if (node->type == NODE_IF)
+    {
+        global_name_gen->in_if = false;
+    }
+}
+
+/**
+ * @brief Prints declarations of all global variables from symtable at the
+ *        beginning of programe
+ *
+ */
+void gen_all_glob_vars_dec(ST_Node *symtable)
+{
+    // Reccursion end
+    if (!symtable)
+        return;
+    // Prints variable declaration
+    printf("DEFVAR GF@%s\n", symtable->key.name);
+    // Recursively traverses symtable
+    gen_all_glob_vars_dec(symtable->left);
+    gen_all_glob_vars_dec(symtable->right);
 }
 
 /**
@@ -291,9 +306,9 @@ void name_gen_init(ASTNode_ptr node)
     memset(global_name_gen->log_end, 0, MAX_LABEL_NAME);
     memset(global_name_gen->left_to_float, 0, MAX_LABEL_NAME);
     memset(global_name_gen->right_to_float, 0, MAX_LABEL_NAME);
-    memset(global_name_gen->zero_div_check_float, 0, MAX_LABEL_NAME);
-    memset(global_name_gen->zero_div_check_int, 0, MAX_LABEL_NAME);
-    memset(global_name_gen->zero_div_check_done, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->both_to_float, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->iter_start_label, 0, MAX_LABEL_NAME);
+    memset(global_name_gen->iter_end_label, 0, MAX_LABEL_NAME);
 
     // Store current function name and parameter count
     strcpy(global_name_gen->curr_function, node->data.function_def.name);
@@ -304,6 +319,7 @@ void name_gen_init(ASTNode_ptr node)
     global_name_gen->in_getter = false;
     global_name_gen->in_setter = false;
     global_name_gen->in_loop = false;
+    global_name_gen->in_if = false;
 }
 
 /**
@@ -318,10 +334,11 @@ void gen_push_variable(ASTNode_ptr node)
     // Differentiates between global and local variable
     if (node->data.identifier.is_global)
     {
-        printf("PUSHS GF@%s\n", node->data.identifier.code_gen_name);
+        printf("PUSHS GF@%s\n", node->data.identifier.name);
     }
     else
     {
+        // printf("------------Tu je chyba-----------\n");
         printf("PUSHS LF@%s\n", node->data.identifier.code_gen_name);
     }
 
@@ -361,17 +378,18 @@ void gen_assign(ASTNode_ptr node)
     // When the lhs is a setter
     if (lhs->type == NODE_IDENTIFIER && lhs->data.identifier.id_type == SETTER)
     {
+        // The parameter is already on top of data stack
         gen_jmp_function(lhs);
     }
     else
-    { // The lhs needs to be a variable
+    { // The lhs has to be variable
         if (lhs->data.identifier.is_global)
         {
             printf("POPS GF@%s\n", lhs->data.identifier.name);
         }
         else
         {
-            printf("POPS LF@%s\n", lhs->data.identifier.name);
+            printf("POPS LF@%s\n", lhs->data.identifier.code_gen_name);
         }
     }
 }
@@ -389,17 +407,28 @@ void gen_func_start(ASTNode_ptr node)
 
     // Creates and print unique function label name,
     create_unique_name(node, FUN_LABEL);
+
+    if (!strcmp(global_name_gen->fun_label, "_fun_main_0"))
+    {
+        // This is where actual compilation begins
+        printf("\n");
+        printf("\nLABEL _program_start_\n");
+    }
+
     printf("\nLABEL %s\n", global_name_gen->fun_label);
     printf("CREATEFRAME\n");
     printf("PUSHFRAME\n");
 
-    printf("\n# Store params into local variables\n");
-
-    // Creates local vaiables
-    for (int i = (node->data.function_def.arg_count - 1); i >= 0; i--)
+    if (node->data.function_def.arg_count != 0)
     {
-        printf("DEFVAR LF@%s\n", node->children[i]->data.identifier.code_gen_name);
-        printf("POPS LF@%s\n", node->children[i]->data.identifier.code_gen_name);
+        printf("\n# Store params into local variables\n");
+
+        // Creates local vaiables
+        for (int i = (node->data.function_def.arg_count - 1); i >= 0; i--)
+        {
+            printf("DEFVAR LF@%s\n", node->children[i]->data.identifier.code_gen_name);
+            printf("POPS LF@%s\n", node->children[i]->data.identifier.code_gen_name);
+        }
     }
 }
 
@@ -409,15 +438,26 @@ void gen_func_start(ASTNode_ptr node)
  */
 void gen_return()
 {
-    // Returns value via data stack
-    if (!return_occured)
+    /**
+     * @note Returns nill when function didnt contain return, but only when the
+     *       function isn't main. Since main can not be calle by user, this function
+     *       doesnt return anything though there exist a version with parameters which
+     *       returns.
+     */
+    if (!return_occured && strcmp(global_name_gen->fun_label, "_fun_main_0"))
     {
         printf("PUSHS nil@nil\n");
     }
 
     // Generate function end
     printf("POPFRAME\n");
-    printf("RETURN\n");
+    // Prints return only when the current function isnt main
+    if (strcmp(global_name_gen->fun_label, "_fun_main_0"))
+    {
+        printf("RETURN\n");
+    }
+    else
+        printf("JUMP _program_end_\n");
 }
 
 /**
@@ -441,9 +481,11 @@ void gen_lit_string(char *value)
 
     for (int i = 0; value[i] != '\0'; i++)
     {
-        if (is_invalid_char(value[i]))
+        unsigned char ch = (unsigned char)value[i];
+
+        if (is_invalid_char(ch))
         {
-            new_str_index += sprintf(&correct_value[new_str_index], "\\0%d", value[i]);
+            new_str_index += sprintf(&correct_value[new_str_index], "\\%03d", ch);
         }
         else
         {
@@ -456,6 +498,7 @@ void gen_lit_string(char *value)
     correct_value[new_str_index] = '\0';
 
     printf("PUSHS string@%s\n", correct_value);
+
     free(correct_value);
 }
 
@@ -468,17 +511,17 @@ void gen_lit_string(char *value)
  */
 void gen_jmp_function(ASTNode_ptr node)
 {
-    // Checks whether the node is getter/setter/function
-    if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == SETTER)
+    /**
+     * @brief When this function is called for a setter, the argument is already
+     *        on top of the data stack.
+     *        When this function is called for a getter, there is no argument.
+     */
+
+    if (node->type == NODE_CALL)
     {
-        eval_exp(node->children[1]);
-    }
-    else if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == GETTER)
-    {
-        ; // Nothing will be pushed
-    }
-    else
-    {
+        // Print to make IFJcode25 code more readable
+        printf("\n#Expression evaluation of parameters follows\n");
+
         // First the arguments are pushed on data strack (left to right) but
         // has to be treated as potential expression
         for (unsigned i = 0; i < node->data.function_call.param_count; i++)
@@ -492,43 +535,43 @@ void gen_jmp_function(ASTNode_ptr node)
     {
         if (!strcmp(node->data.function_call.name, "read_str"))
         {
-            printf("CALL Ifj.read_str\n");
+            printf("CALL IFJ_read_str\n");
         }
         else if (!strcmp(node->data.function_call.name, "read_num"))
         {
-            printf("CALL Ifj.read_num\n");
+            printf("CALL IFJ_read_num\n");
         }
         else if (!strcmp(node->data.function_call.name, "write"))
         {
-            printf("CALL Ifj.write\n");
+            printf("CALL IFJ_write\n");
         }
         else if (!strcmp(node->data.function_call.name, "floor"))
         {
-            printf("CALL Ifj.floor\n");
+            printf("CALL IFJ_floor\n");
         }
         else if (!strcmp(node->data.function_call.name, "str"))
         {
-            printf("CALL Ifj.str\n");
+            printf("CALL IFJ_str\n");
         }
         else if (!strcmp(node->data.function_call.name, "length"))
         {
-            printf("CALL Ifj.length\n");
+            printf("CALL IFJ_length\n");
         }
         else if (!strcmp(node->data.function_call.name, "substring"))
         {
-            printf("CALL Ifj.substring\n");
+            printf("CALL IFJ_substring\n");
         }
         else if (!strcmp(node->data.function_call.name, "strcmp"))
         {
-            printf("CALL Ifj.strcmp\n");
+            printf("CALL IFJ_strcmp\n");
         }
         else if (!strcmp(node->data.function_call.name, "ord"))
         {
-            printf("CALL Ifj.ord\n");
+            printf("CALL IFJ_ord\n");
         }
         else
         {
-            printf("CALL Ifj.chr\n");
+            printf("CALL IFJ_chr\n");
         }
     }
     else
@@ -565,6 +608,8 @@ void gen_for_start(ASTNode_ptr node)
     // Have to read NODE_RANGE children
     ASTNode_ptr range_node = node->children[1]->children[0];
 
+    // Print to make IFJcode25 code more readable
+    printf("\n#Expression evaluation of range follows1\n");
     // This function will return start and end of the range on stack data
     eval_exp(range_node);
 
@@ -709,6 +754,23 @@ void gen_if(ASTNode_ptr node)
 }
 
 /**
+ * @brief Generates error labels at the end of the program.
+ */
+void gen_program_end()
+{
+    // here program exits with err code 25 - invalid arg type
+    printf("\nLABEL !ERROR_ARG_L\n");
+    printf("EXIT int@25\n");
+
+    // here program exits with err code 25 - invalid data type in an expression
+    printf("\nLABEL !ERROR_EXP_L\n");
+    printf("EXIT int@26\n");
+
+    printf("\nLABEL _program_end_\n");
+    printf("EXIT int@0\n");
+}
+
+/**
  * @brief Handles beginning of else block of if statement
  *
  * @param node
@@ -816,6 +878,61 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
         // dont have to increment since loop_start already incremented the counter
 
         break;
+    case ITER_START_L:
+        // Have to differentiate between the location of loop: function, setter and getter
+        if (global_name_gen->in_function)
+        {
+            // Creates unique name
+            snprintf(global_name_gen->iter_start_label, MAX_LABEL_NAME, "_iter_start_fun_%s_%u_%llu",
+                     global_name_gen->curr_function,
+                     global_name_gen->curr_param_count,
+                     global_name_gen->bin_op_counter);
+        }
+        else if (global_name_gen->in_getter)
+        {
+            // Creates unique name
+            snprintf(global_name_gen->iter_start_label, MAX_LABEL_NAME, "_loop_start_getter_%s_0_%llu",
+                     global_name_gen->curr_function,
+                     global_name_gen->bin_op_counter);
+        }
+        else
+        {
+            // Creates unique name
+            snprintf(global_name_gen->iter_start_label, MAX_LABEL_NAME, "_loop_start_setter_%s_1_%llu",
+                     global_name_gen->curr_function,
+                     global_name_gen->bin_op_counter);
+        }
+
+        // Counter is incremented by eval_exp function
+        // global_name_gen->bin_op_counter++;
+
+        break;
+    case ITER_END_L:
+        // Have to differentiate between the location of loop: function, setter and getter
+        if (global_name_gen->in_function)
+        {
+            // Creates unique name
+            snprintf(global_name_gen->iter_end_label, MAX_LABEL_NAME, "_iter_end_fun_%s_%u_%llu",
+                     global_name_gen->curr_function,
+                     global_name_gen->curr_param_count,
+                     global_name_gen->bin_op_counter);
+        }
+        else if (global_name_gen->in_getter)
+        {
+            // Creates unique name
+            snprintf(global_name_gen->iter_end_label, MAX_LABEL_NAME, "_iter_end_getter_%s_0_%llu",
+                     global_name_gen->curr_function,
+                     global_name_gen->bin_op_counter);
+        }
+        else
+        {
+            // Creates unique name
+            snprintf(global_name_gen->iter_end_label, MAX_LABEL_NAME, "_iter_end_setter_%s_1_%llu",
+                     global_name_gen->curr_function,
+                     global_name_gen->bin_op_counter);
+        }
+
+        break;
     case IF_ELSE_L:
         // Have to differentiate between the location of loop: function, setter and getter
         if (global_name_gen->in_function)
@@ -824,21 +941,21 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
             snprintf(global_name_gen->else_block_label, MAX_LABEL_NAME, "_if_else_fun_%s_%u_%llu",
                      global_name_gen->curr_function,
                      global_name_gen->curr_param_count,
-                     global_name_gen->loop_counter);
+                     global_name_gen->if_counter);
         }
         else if (global_name_gen->in_getter)
         {
             // Creates unique name
             snprintf(global_name_gen->else_block_label, MAX_LABEL_NAME, "_if_else_getter_%s_0_%llu",
                      global_name_gen->curr_function,
-                     global_name_gen->loop_counter);
+                     global_name_gen->if_counter);
         }
         else
         {
             // Creates unique name
             snprintf(global_name_gen->else_block_label, MAX_LABEL_NAME, "if_else_setter_%s_1_%llu",
                      global_name_gen->curr_function,
-                     global_name_gen->loop_counter);
+                     global_name_gen->if_counter);
         }
 
         // Increments if counter
@@ -853,21 +970,21 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
             snprintf(global_name_gen->end_if_label, MAX_LABEL_NAME, "_if_end_fun_%s_%u_%llu",
                      global_name_gen->curr_function,
                      global_name_gen->curr_param_count,
-                     global_name_gen->loop_counter);
+                     global_name_gen->if_counter);
         }
         else if (global_name_gen->in_getter)
         {
             // Creates unique name
             snprintf(global_name_gen->end_if_label, MAX_LABEL_NAME, "_if_end_getter_%s_0_%llu",
                      global_name_gen->curr_function,
-                     global_name_gen->loop_counter);
+                     global_name_gen->if_counter);
         }
         else
         {
             // Creates unique name
             snprintf(global_name_gen->end_if_label, MAX_LABEL_NAME, "if_end_setter_%s_1_%llu",
                      global_name_gen->curr_function,
-                     global_name_gen->loop_counter);
+                     global_name_gen->if_counter);
         }
 
         break;
@@ -889,12 +1006,12 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
         else if (node->type == NODE_IDENTIFIER && node->data.identifier.id_type == SETTER)
         {
             snprintf(global_name_gen->called_function, MAX_FUNCTION_NAME, "_setter_%s",
-                     node->data.identifier.code_gen_name);
+                     node->data.identifier.name);
         }
         else
         { // node->type == NODE_IDENTIFIER && node->data.identifier.id_type == GETTER
             snprintf(global_name_gen->called_function, MAX_FUNCTION_NAME, "_getter_%s",
-                     node->data.identifier.code_gen_name);
+                     node->data.identifier.name);
         }
         break;
     case MUL:
@@ -941,22 +1058,35 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
         snprintf(global_name_gen->right_to_float, MAX_FUNCTION_NAME, "_right_to_float_%s_%u_%lld",
                  global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
         break;
-    case ZERO_DIV_CHECK_FLOAT:
-        snprintf(global_name_gen->zero_div_check_float, MAX_FUNCTION_NAME, "_zero_div_check_float_%s_%u_%lld",
+    case BOTH_TO_FLOAT:
+        snprintf(global_name_gen->both_to_float, MAX_FUNCTION_NAME, "_both_to_float_%s_%u_%lld",
                  global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
         break;
-    case ZERO_DIV_CHECK_INT:
-        snprintf(global_name_gen->zero_div_check_int, MAX_FUNCTION_NAME, "_zero_div_check_int_%s_%u_%lld",
-                 global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
-        break;
-    case ZERO_DIV_CHECK_DONE:
-        snprintf(global_name_gen->zero_div_check_done, MAX_FUNCTION_NAME, "_zero_div_check_done_%s_%u_%lld",
-                 global_name_gen->curr_function, global_name_gen->curr_param_count, global_name_gen->bin_op_counter);
-        break;
-
     default:
         break;
     }
+}
+
+/**
+ * @brief Helper function that generates all label names that are needed inside expression evaluation codes.
+ */
+void create_label_names(ASTNode_ptr exp_node)
+{
+    create_unique_name(exp_node, MUL);
+    create_unique_name(exp_node, STR_ITER);
+    create_unique_name(exp_node, MUL_END);
+    create_unique_name(exp_node, ADD);
+    create_unique_name(exp_node, CONCAT);
+    create_unique_name(exp_node, ADD_END);
+    create_unique_name(exp_node, SUB);
+    create_unique_name(exp_node, EVAL);
+    create_unique_name(exp_node, LOG_END);
+    create_unique_name(exp_node, LEFT_TO_FLOAT);
+    create_unique_name(exp_node, RIGHT_TO_FLOAT);
+    create_unique_name(exp_node, BOTH_TO_FLOAT);
+    create_unique_name(exp_node, ZERO_DIV_CHECK_FLOAT);
+    create_unique_name(exp_node, ZERO_DIV_CHECK_INT);
+    create_unique_name(exp_node, ZERO_DIV_CHECK_DONE);
 }
 
 /**
@@ -969,15 +1099,24 @@ void create_unique_name(ASTNode_ptr node, name_option_t option)
  */
 void eval_exp(ASTNode_ptr exp_node)
 {
-    if (!exp_node->children)
-        return;
+    for (unsigned idx = 0; idx < exp_node->child_count; idx++)
+    {
+        /*
+            NOTE: Tree traversal is ended so fun call args are not pushed to the data stack twice.
+            If break is not called, eval_exp will find the args of the function call, identify them as
+            an identifier or a literal and push them to the data stack. Then function call is generated
+            which is going to push these args again.
+        */
+        if (exp_node->type == NODE_CALL)
+            break;
 
-    eval_exp(exp_node->children[0]); // left subtree
-    eval_exp(exp_node->children[1]); // right subtree
+        eval_exp(exp_node->children[idx]);
+    }
 
-    if (exp_node->type == NODE_BINARY_OP)
+    if (exp_node->type == NODE_BINARY_OP || exp_node->type == NODE_RANGE)
     {
         global_name_gen->bin_op_counter++;
+        create_label_names(exp_node);
         eval_bin_op(exp_node);
     }
     else if (exp_node->type == NODE_IDENTIFIER) // name mangled idents are already inside the ast nodes
@@ -985,10 +1124,12 @@ void eval_exp(ASTNode_ptr exp_node)
         if (exp_node->data.identifier.id_type == GETTER)
             gen_jmp_function(exp_node);
         else
+        {
             gen_push_variable(exp_node);
+        }
     }
     else if (exp_node->type == NODE_STR_LIT)
-        printf("PUSHS string@%s\n", exp_node->data.literal.data.str_value);
+        gen_lit_string(exp_node->data.literal.data.str_value); // Calls the function on escape
     else if (exp_node->type == NODE_INT_LIT)
         printf("PUSHS int@%lld\n", exp_node->data.literal.data.int_val);
     else if (exp_node->type == NODE_FLOAT_LIT)
@@ -1012,8 +1153,7 @@ void gen_exp_helpers()
     printf("DEFVAR LF@type2\n");
     printf("DEFVAR LF@op_check1\n");
     printf("DEFVAR LF@op_check2\n");
-    printf("DEFVAR LF@type_check1\n");
-    printf("DEFVAR LF@type_check2\n");
+    printf("DEFVAR LF@type_check_res\n");
     printf("DEFVAR LF@result\n");
 }
 
@@ -1048,43 +1188,45 @@ void eval_bin_op(ASTNode_ptr operator)
         printf("POPS LF@op1\n"); // first operand
     }
 
-    if (operator->type == NODE_RANGE) // special case for a range operator
+    if (operator->type == NODE_RANGE)
     {
         gen_eval_range_op();
-        return;
     }
-
-    // based on the operator type a different version of binary op eval is generated
-    switch (operator->data.binary_operator.op_type)
+    else // other binary operators
     {
-    case OP_PLUS:
-        gen_eval_plus_op();
-        break;
-    case OP_MINUS:
-        gen_eval_minus_op();
-        break;
-    case OP_MUL:
-        gen_eval_star_op();
-        break;
-    case OP_DIV:
-        gen_eval_slash_op();
-        break;
-    case OP_EQ:
-    case OP_NEQ:
-    case OP_GT:
-    case OP_GTE:
-    case OP_LT:
-    case OP_LTE:
-    case OP_IS:
-        gen_eval_logical_op(operator);
-        break;
-    default: // not a valid operator
-        error_exit(ERR_INTERNAL);
-        break;
+        // based on the operator type a different version of binary op eval is generated
+        switch (operator->data.binary_operator.op_type)
+        {
+        case OP_PLUS:
+            gen_eval_plus_op();
+            break;
+        case OP_MINUS:
+            gen_eval_minus_op();
+            break;
+        case OP_MUL:
+            gen_eval_star_op();
+            break;
+        case OP_DIV:
+            gen_eval_slash_op();
+            break;
+        case OP_EQ:
+        case OP_NEQ:
+        case OP_GT:
+        case OP_GTE:
+        case OP_LT:
+        case OP_LTE:
+        case OP_IS:
+            gen_eval_logical_op(operator);
+            break;
+        default: // not a valid operator
+            error_exit(ERR_INTERNAL);
+            break;
+        }
+
+        printf("PUSHS LF@result\n"); // result of the expression evaluation
     }
 
-    // result of the expression evaluation
-    printf("PUSHS LF@result\n");
+    // NOTE: PUSHS does not have to be generated for the eval of node range
 
     // cleanup after evaluating the expression
     printf("POPFRAME\n");
@@ -1170,40 +1312,45 @@ void gen_eval_equal_not_equal(operator_types *op_type)
     // checks different op type combinations and evaluates based on the current combination
 
     // string op string
-    printf("EQ LF@type_check1 LF@type1 string@string\n");
-    printf("EQ LF@type_check2 LF@type2 string@string\n");
-    printf("JUMPIFEQ %s LF@type_check1 LF@type_check2\n", global_name_gen->eval);
+    printf("EQ LF@op_check1 LF@type1 string@string\n");
+    printf("EQ LF@op_check2 LF@type2 string@string\n");
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->eval);
 
     // int op int
-    printf("EQ LF@type_check1 LF@type1 string@int\n");
-    printf("EQ LF@type_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@type_check1 LF@type_check2\n", global_name_gen->eval);
+    printf("EQ LF@op_check1 LF@type1 string@int\n");
+    printf("EQ LF@op_check2 LF@type2 string@int\n");
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->eval);
 
     // float op float
-    printf("EQ LF@type_check1 LF@type1 string@float\n");
-    printf("EQ LF@type_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@type_check1 LF@type_check2\n", global_name_gen->eval);
+    printf("EQ LF@op_check1 LF@type1 string@float\n");
+    printf("EQ LF@op_check2 LF@type2 string@float\n");
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->eval);
 
     // bool op bool
-    printf("EQ LF@type_check1 LF@type1 string@bool\n");
-    printf("EQ LF@type_check2 LF@type2 string@bool\n");
-    printf("JUMPIFEQ %s LF@type_check1 LF@type_check2\n", global_name_gen->eval);
+    printf("EQ LF@op_check1 LF@type1 string@bool\n");
+    printf("EQ LF@op_check2 LF@type2 string@bool\n");
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->eval);
 
     // nil op nil
-    printf("EQ LF@type_check1 LF@type1 string@nil\n");
-    printf("EQ LF@type_check2 LF@type2 string@nil\n");
-    printf("JUMPIFEQ %s LF@type_check1 LF@type_check2\n", global_name_gen->eval);
+    printf("EQ LF@op_check1 LF@type1 string@nil\n");
+    printf("EQ LF@op_check2 LF@type2 string@nil\n");
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->eval);
 
     // operands are of different types so we can just return false
     printf("MOVE LF@result bool@false\n");
     printf("JUMP %s\n", global_name_gen->log_end);
 
     // evaluate expressions
-    printf("LABEL %s\n", global_name_gen->eval);
+    printf("\nLABEL %s\n", global_name_gen->eval);
     printf("EQ LF@result LF@op1 LF@op2\n");
 
     // push the result to the data stack and clean up
-    printf("LABEL %s\n", global_name_gen->log_end);
+    printf("\nLABEL %s\n", global_name_gen->log_end);
 
     if (*op_type == OP_NEQ) // i can just negate the current result if needed
         printf("NOT LF@result LF@result\n");
@@ -1227,35 +1374,42 @@ void gen_eval_greater_lower(operator_types *op_type)
     // compare different valid operand combinations
 
     // int op int
-    printf("EQ LF@type_check1 LF@type1 string@int\n");
-    printf("EQ LF@type_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@type_check1 LF@type_check2\n", global_name_gen->eval);
+    printf("EQ LF@op_check1 LF@type1 string@int\n");
+    printf("EQ LF@op_check2 LF@type2 string@int\n");
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->eval);
 
     // float op float
-    printf("EQ LF@type_check1 LF@type1 string@float\n");
-    printf("EQ LF@type_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@type_check1 LF@type_check2\n", global_name_gen->eval);
+    printf("EQ LF@op_check1 LF@type1 string@float\n");
+    printf("EQ LF@op_check2 LF@type2 string@float\n");
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->eval);
 
     // float op int
-    printf("EQ LF@type_check1 LF@type1 string@float\n");
-    printf("EQ LF@type_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@type_check1 LF@type_check2\n", global_name_gen->right_to_float);
+    printf("EQ LF@op_check1 LF@type1 string@float\n");
+    printf("EQ LF@op_check2 LF@type2 string@int\n");
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->right_to_float);
 
     // int op float
-    printf("EQ LF@type_check1 LF@type1 string@int\n");
-    printf("EQ LF@type_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@type_check1 LF@type_check2\n", global_name_gen->left_to_float);
+    printf("EQ LF@op_check1 LF@type1 string@int\n");
+    printf("EQ LF@op_check2 LF@type2 string@float\n");
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->left_to_float);
+
+    // no valid operand combination detected
+    printf("JUMP !ERROR_EXP_L\n");
 
     // int to float conversion - right op
-    printf("LABEL %s\n", global_name_gen->left_to_float); // label
+    printf("\nLABEL %s\n", global_name_gen->right_to_float); // label
     printf("INT2FLOAT LF@op2 LF@op2\n");
     printf("JUMP %s\n", global_name_gen->eval);
 
     // int to float conversion - left op
-    printf("LABEL %s\n", global_name_gen->left_to_float); // label
+    printf("\nLABEL %s\n", global_name_gen->left_to_float); // label
     printf("INT2FLOAT LF@op1 LF@op1\n");
 
-    printf("LABEL %s\n", global_name_gen->eval); // label
+    printf("\nLABEL %s\n", global_name_gen->eval); // label
 
     // based on different types of operators, different variant of the eval code block will be generated
 
@@ -1272,14 +1426,14 @@ void gen_eval_greater_lower(operator_types *op_type)
     {
         // here i use op_check1 and op_check2 as helper variables to store both bool values of num1 < num2, num1 == num2
         printf("LT LF@op_check1 LF@op1 LF@op2\n");          // num1 < num2
-        printf("EQ LF@op_check1 LF@op1 LF@op2\n");          // num1 == num2
+        printf("EQ LF@op_check2 LF@op1 LF@op2\n");          // num1 == num2
         printf("OR LF@result LF@op_check1 LF@op_check2\n"); // (num1 < num2 || num1 == num2)
     }
     else if (*op_type == OP_GTE)
     {
         // here i use op_check1 and op_check2 as helper variables to store both bool values of num1 < num2, num1 == num2
         printf("GT LF@op_check1 LF@op1 LF@op2\n");          // num1 > num2
-        printf("EQ LF@op_check1 LF@op1 LF@op2\n");          // num1 == num2
+        printf("EQ LF@op_check2 LF@op1 LF@op2\n");          // num1 == num2
         printf("OR LF@result LF@op_check1 LF@op_check2\n"); // (num1 > num2 || num1 == num2)
     }
 }
@@ -1298,53 +1452,99 @@ void gen_eval_star_op()
     // float * float scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->mul);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->mul);
 
     // int * int scenarion
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->mul);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->mul);
 
     // string * int scenario
     printf("EQ LF@op_check1 LF@type1 string@string\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->str_iter);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->str_iter);
 
     // float * int scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->right_to_float);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->right_to_float);
 
     // int * float scenario
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->left_to_float);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->left_to_float);
 
     // none of valid the scenarios was matched, type error occured
     printf("JUMP !ERROR_EXP_L\n");
 
     // int to float conversions - right op
-    printf("LABEL %s\n", global_name_gen->right_to_float); // label
+    printf("\nLABEL %s\n", global_name_gen->right_to_float); // label
     printf("INT2FLOAT LF@op2 LF@op2\n");
     printf("JUMP %s\n", global_name_gen->mul);
 
     // int to float conversions - left op
-    printf("LABEL %s\n", global_name_gen->left_to_float); // label
+    printf("\nLABEL %s\n", global_name_gen->left_to_float); // label
     printf("INT2FLOAT LF@op1 LF@op1\n");
 
     // multiplication
-    printf("LABEL %s\n", global_name_gen->mul);
+    printf("\n");
+    printf("\nLABEL %s\n", global_name_gen->mul);
     printf("MUL LF@result LF@op1 LF@op2\n");
     printf("JUMP %s\n", global_name_gen->mul_end);
 
     // string iter
-    printf("LABEL %s\n", global_name_gen->str_iter);
-    // todo : najst v historii commitov string iter
+    printf("\n");
+    printf("\nLABEL %s\n", global_name_gen->str_iter);
 
-    // no need to jump here
+    // define temporary variable for counter
+    printf("DEFVAR LF@temp_var_str_iter_%lld\n", ++global_name_gen->temp_var_counter);
+
+    // initialize result as an empty string
+    printf("MOVE LF@result string@\n");
+
+    // check if count is negative or zero - no string iterations will be done if true
+    printf("LT LF@op_check1 LF@op2 int@1\n");
+
+    printf("JUMPIFEQ %s LF@op_check1 bool@true\n", global_name_gen->mul_end);
+
+    // initialize counter to 0
+    // counter is going to be incremented until it reaches the number of iterations we need
+    printf("MOVE LF@temp_var_str_iter_%lld int@0\n", global_name_gen->temp_var_counter);
+
+    // create unique loop labels
+    create_unique_name(NULL, ITER_START_L);
+    char iter_start[MAX_LABEL_NAME];
+    strcpy(iter_start, global_name_gen->iter_start_label);
+
+    create_unique_name(NULL, ITER_END_L);
+    char iter_end[MAX_LABEL_NAME];
+    strcpy(iter_end, global_name_gen->iter_end_label);
+
+    // loop start
+    printf("LABEL %s\n", iter_start);
+
+    // if counter == count, jump to end
+    printf("JUMPIFEQ %s LF@temp_var_str_iter_%lld LF@op2\n", iter_end, global_name_gen->temp_var_counter);
+
+    // concat result with string
+    printf("CONCAT LF@result LF@result LF@op1\n");
+
+    // increment counter
+    printf("ADD LF@temp_var_str_iter_%lld LF@temp_var_str_iter_%lld int@1\n", global_name_gen->temp_var_counter, global_name_gen->temp_var_counter);
+
+    // repeat the loop
+    printf("JUMP %s\n", iter_start);
+
+    // all iterations done
+    printf("LABEL %s\n", iter_end);
 
     // end of the function that handles the * operator
-    printf("LABEL %s\n", global_name_gen->mul_end);
+    printf("\nLABEL %s\n", global_name_gen->mul_end);
 }
 
 /**
@@ -1357,50 +1557,55 @@ void gen_eval_slash_op()
     printf("TYPE LF@type2 LF@op2\n"); // data type of the second operand
 
     // float / float scenario
+    printf("\n");
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->zero_div_check_float);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->eval);
 
     // int / int scenario
+    printf("\n");
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->zero_div_check_int);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->both_to_float);
 
     // float / int scenario
+    printf("\n");
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->right_to_float);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->right_to_float);
 
     // int / float scenario
+    printf("\n");
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->left_to_float);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->left_to_float);
 
     // none of valid the scenarios was matched, type error occured
+    printf("\n");
     printf("JUMP !ERROR_EXP_L\n");
 
     // int to float conversions - right op
-    printf("LABEL %s\n", global_name_gen->right_to_float); // label
+    printf("\n");
+    printf("LABEL %s\n", global_name_gen->right_to_float);
     printf("INT2FLOAT LF@op2 LF@op2\n");
-    printf("JUMP %s\n", global_name_gen->zero_div_check_float);
 
     // int to float conversions - left op
-    printf("LABEL %s\n", global_name_gen->left_to_float); // label
+    printf("\n");
+    printf("LABEL %s\n", global_name_gen->left_to_float);
     printf("INT2FLOAT LF@op1 LF@op1\n");
-    printf("JUMP %s\n", global_name_gen->zero_div_check_float);
 
-    // zero divison check for floats
-    printf("LABEL %s\n", global_name_gen->zero_div_check_float);
-    printf("EQ LF@op_check2 LF@op2 float@0x0p+0\n");
-    printf("JUMP %s\n", global_name_gen->zero_div_check_done);
+    // int to float conversions - both ops
+    printf("\n");
+    printf("LABEL %s\n", global_name_gen->both_to_float);
+    printf("INT2FLOAT LF@op1 LF@op1\n");
+    printf("INT2FLOAT LF@op2 LF@op2\n");
 
-    // zero divison check for ints
-    printf("LABEL %s\n", global_name_gen->zero_div_check_int);
-    printf("EQ LF@op_check2 LF@op2 int@0\n");
-
-    // evaluate zero division check
-    printf("LABEL %s\n", global_name_gen->zero_div_check_done);
-    printf("JUMPIFEQ !ERROR_EXP_L LF@op_check2 bool@true\n");
+    printf("\n");
+    printf("LABEL %s\n", global_name_gen->eval);
 
     // division
     printf("DIV LF@result LF@op1 LF@op2\n");
@@ -1418,39 +1623,43 @@ void gen_eval_minus_op()
     // float - float scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->sub);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->sub);
 
     // int - int scenario
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->sub);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->sub);
 
     // float - int scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->right_to_float);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->right_to_float);
 
     // int - float scenario
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->left_to_float);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->left_to_float);
 
     // none of valid the scenarios was matched, type error occured
     printf("JUMP !ERROR_EXP_L\n");
 
     // int to float conversions - right op
-    printf("LABEL %s\n", global_name_gen->right_to_float);
+    printf("\nLABEL %s\n", global_name_gen->right_to_float);
     printf("INT2FLOAT LF@op2 LF@op2\n");
     printf("JUMP %s\n", global_name_gen->sub);
 
     // int to float conversions - left op
-    printf("LABEL %s\n", global_name_gen->left_to_float);
+    printf("\nLABEL %s\n", global_name_gen->left_to_float);
     printf("INT2FLOAT LF@op1 LF@op1\n");
 
     // no need to jump here
 
     // subtraction
-    printf("LABEL %s\n", global_name_gen->sub);
+    printf("\nLABEL %s\n", global_name_gen->sub);
     printf("SUB LF@result LF@op1 LF@op2\n");
 }
 
@@ -1471,53 +1680,58 @@ void gen_eval_plus_op()
     // float + float scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->add);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->add);
 
     // int + int scenarion
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->add);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->add);
 
     // string + string scenario
     printf("EQ LF@op_check1 LF@type1 string@string\n");
     printf("EQ LF@op_check2 LF@type2 string@string\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->concat);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->concat);
 
     // float + int scenario
     printf("EQ LF@op_check1 LF@type1 string@float\n");
     printf("EQ LF@op_check2 LF@type2 string@int\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->right_to_float);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->right_to_float);
 
     // int + float scenario
     printf("EQ LF@op_check1 LF@type1 string@int\n");
     printf("EQ LF@op_check2 LF@type2 string@float\n");
-    printf("JUMPIFEQ %s LF@op_check1 LF@op_check2\n", global_name_gen->left_to_float);
+    printf("AND LF@type_check_res LF@op_check1 LF@op_check2\n");
+    printf("JUMPIFEQ %s LF@type_check_res bool@true\n", global_name_gen->left_to_float);
 
     // none of valid the scenarios was matched, type error occured
     printf("JUMP !ERROR_EXP_L\n");
 
     // int to float conversions - right op
-    printf("LABEL %s\n", global_name_gen->right_to_float); // label
+    printf("\nLABEL %s\n", global_name_gen->right_to_float); // label
     printf("INT2FLOAT LF@op2 LF@op2\n");
     printf("JUMP %s\n", global_name_gen->add);
 
     // int to float conversions - left op
-    printf("LABEL %s\n", global_name_gen->left_to_float); // label
+    printf("\nLABEL %s\n", global_name_gen->left_to_float); // label
     printf("INT2FLOAT LF@op1 LF@op1\n");
 
     // no need to use jump here
 
     // addition
-    printf("LABEL %s\n", global_name_gen->add); // lable
+    printf("\nLABEL %s\n", global_name_gen->add); // lable
     printf("ADD LF@result LF@op1 LF@op2\n");
     printf("JUMP %s\n", global_name_gen->add_end);
 
     // concat
-    printf("LABEL %s\n", global_name_gen->concat); // lable
+    printf("\nLABEL %s\n", global_name_gen->concat); // lable
     printf("CONCAT LF@result LF@op1 LF@op2\n");
 
     // end of the function that handles the + operator
-    printf("LABEL %s\n", global_name_gen->add_end);
+    printf("\nLABEL %s\n", global_name_gen->add_end);
 }
 
 /**
@@ -1535,6 +1749,10 @@ void gen_eval_range_op()
 
     printf("EQ LF@op_check2 LF@type2 string@int\n");
     printf("JUMPIFEQ !ERROR_EXP_L LF@op_check2 bool@false\n");
+
+    // check if left side is not the bigger number
+    printf("GT LF@op_check1 LF@op1 LF@op2\n");
+    printf("JUMPIFEQ !ERROR_EXP_L LF@op_check1 bool@true\n");
 
     // now i can just push the starting and ending iterator values back to the scope stack
     printf("PUSHS LF@op1\n");
@@ -1554,6 +1772,8 @@ void free_global_name_gen(name_generator_ptr global_name_gen)
     free(global_name_gen->end_if_label);
     free(global_name_gen->loop_start_label);
     free(global_name_gen->loop_end_label);
+    free(global_name_gen->iter_start_label);
+    free(global_name_gen->iter_end_label);
     free(global_name_gen->curr_function);
     free(global_name_gen->called_function);
     free(global_name_gen->mul);
@@ -1567,9 +1787,8 @@ void free_global_name_gen(name_generator_ptr global_name_gen)
     free(global_name_gen->log_end);
     free(global_name_gen->left_to_float);
     free(global_name_gen->right_to_float);
-    free(global_name_gen->zero_div_check_float);
-    free(global_name_gen->zero_div_check_int);
-    free(global_name_gen->zero_div_check_done);
+    free(global_name_gen->both_to_float);
+
 
     // Make sure this address wont be derreferenced again
     global_name_gen->fun_label = NULL;
@@ -1577,6 +1796,8 @@ void free_global_name_gen(name_generator_ptr global_name_gen)
     global_name_gen->end_if_label = NULL;
     global_name_gen->loop_start_label = NULL;
     global_name_gen->loop_end_label = NULL;
+    global_name_gen->iter_start_label = NULL;
+    global_name_gen->iter_end_label = NULL;
     global_name_gen->curr_function = NULL;
     global_name_gen->called_function = NULL;
     global_name_gen->mul = NULL;
@@ -1590,9 +1811,7 @@ void free_global_name_gen(name_generator_ptr global_name_gen)
     global_name_gen->log_end = NULL;
     global_name_gen->left_to_float = NULL;
     global_name_gen->right_to_float = NULL;
-    global_name_gen->zero_div_check_float = NULL;
-    global_name_gen->zero_div_check_int = NULL;
-    global_name_gen->zero_div_check_done = NULL;
+    global_name_gen->both_to_float = NULL;
 
     // Free the vole oject
     free(global_name_gen);

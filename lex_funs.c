@@ -85,7 +85,7 @@ token_ptr process_next_token(token_ptr token){
             token->value.other_value = PLUS_V;
             break;
         case '-':
-            //!!! This can be either subtraction operator or unary operator !!!
+            //This can be either subtraction operator or unary operator
             token->type = OPERATOR;
             token->value.other_value = MINUS_V;
             break;
@@ -955,8 +955,6 @@ void process_number(token_ptr token, int first_char){
         temp_buffer = NULL;
         error_exit(ERR_LEXICAL);
     }    
-
-    //printf("Velkost temp_bufferu = %lu\n", strlen(temp_buffer));
 
     //Strings have to be null terminated
     temp_buffer[index] = '\0';

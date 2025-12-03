@@ -2,7 +2,7 @@
  * @file semantic_analysis.h
  * @author Martin Mezei (xmezeim00)
  * @brief Contains function prototypes of the semantic analysis module.
- * @version 0.2
+ * @version 0.1
  * @date 2025-11-14
  *
  * @copyright Copyright (c) 2025
@@ -120,9 +120,9 @@ bool verify_var_redec(Key *key, ST_Node *symtable);
  * @brief Searches the current and all higher level scope to verify that a variable exists.
  *
  * @param key Pointer to the key of the symbol.
- * @param scope_stack Pointer to the scope stack.
  */
 bool verify_var_existence(Key *key);
+
 
 /**
  * @brief Checks if a user-defined function was not redefined somewhere else.

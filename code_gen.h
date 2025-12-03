@@ -4,7 +4,7 @@
  *         Martin Mezei (xmezeim00)
  * @brief Header file for code generating functions
  * @version 0.1
- * @date 2025-11-28
+ * @date 2025-12-03
  *
  * @copyright Copyright (c) 2025
  *
@@ -28,6 +28,8 @@ typedef enum
     FUN_LABEL,
     LOOP_START_L,
     LOOP_END_L,
+    ITER_START_L,
+    ITER_END_L,
     IF_ELSE_L,
     IF_END_L,
     CALL,
@@ -42,6 +44,7 @@ typedef enum
     LOG_END,
     LEFT_TO_FLOAT,
     RIGHT_TO_FLOAT,
+    BOTH_TO_FLOAT,
     ZERO_DIV_CHECK_FLOAT,
     ZERO_DIV_CHECK_INT,
     ZERO_DIV_CHECK_DONE
@@ -83,6 +86,8 @@ typedef struct
     char *end_if_label;     // End of if statement
     char *loop_start_label; // Loop start
     char *loop_end_label;   // Loop end
+    char *iter_start_label; // Loop start
+    char *iter_end_label;   // Loop end
 
     // unique names for expression labels
     char *mul;
@@ -96,9 +101,7 @@ typedef struct
     char *log_end;
     char *left_to_float;
     char *right_to_float;
-    char *zero_div_check_float;
-    char *zero_div_check_int;
-    char *zero_div_check_done;
+    char *both_to_float;
 
     // Location in AST
     char *curr_function;
@@ -110,6 +113,7 @@ typedef struct
     bool in_getter;
     bool in_setter;
     bool in_loop;
+    bool in_if;
 } name_generator_t, *name_generator_ptr;
 
 // Global flag, holds information whether the function contained return node
@@ -118,8 +122,9 @@ extern bool return_occured;
 extern name_generator_ptr global_name_gen;
 
 // Macro, used for string convertion into valid format, to make code more readable
+
 #define is_invalid_char(ch) \
-    (((ch) >= 0 && (ch) <= 32) || (ch) == 35 || (ch) == 92)
+    (((ch) <= 32) || (ch) == 35 || (ch) == 92)
 
 // Macro, determines whether the nodes children should be traversed, to make code more readable
 #define is_valid_node_type(node) \
@@ -161,6 +166,18 @@ extern name_generator_ptr global_name_gen;
         }                                                                                                 \
                                                                                                           \
         (global_name_gen->loop_end_label) = calloc(MAX_LABEL_NAME, sizeof(char));                         \
+        if (global_name_gen->loop_end_label == NULL)                                                      \
+        {                                                                                                 \
+            glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable);                \
+        }                                                                                                 \
+                                                                                                          \
+        (global_name_gen->iter_start_label) = calloc(MAX_LABEL_NAME, sizeof(char));                       \
+        if (global_name_gen->loop_end_label == NULL)                                                      \
+        {                                                                                                 \
+            glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable);                \
+        }                                                                                                 \
+                                                                                                          \
+        (global_name_gen->iter_end_label) = calloc(MAX_LABEL_NAME, sizeof(char));                         \
         if (global_name_gen->loop_end_label == NULL)                                                      \
         {                                                                                                 \
             glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable);                \
@@ -232,18 +249,8 @@ extern name_generator_ptr global_name_gen;
         {                                                                                                 \
             glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable);                \
         }                                                                                                 \
-        (global_name_gen->zero_div_check_float) = calloc(MAX_LABEL_NAME, sizeof(char));                   \
-        if (global_name_gen->zero_div_check_float == NULL)                                                \
-        {                                                                                                 \
-            glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable);                \
-        }                                                                                                 \
-        (global_name_gen->zero_div_check_int) = calloc(MAX_LABEL_NAME, sizeof(char));                     \
-        if (global_name_gen->zero_div_check_int == NULL)                                                  \
-        {                                                                                                 \
-            glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable);                \
-        }                                                                                                 \
-        (global_name_gen->zero_div_check_done) = calloc(MAX_LABEL_NAME, sizeof(char));                    \
-        if (global_name_gen->zero_div_check_done == NULL)                                                 \
+        (global_name_gen->both_to_float) = calloc(MAX_LABEL_NAME, sizeof(char));                          \
+        if (global_name_gen->both_to_float == NULL)                                                       \
         {                                                                                                 \
             glob_structs_clean_up(g_scope_stack, ast, g_func_symtable, g_global_symtable);                \
         }                                                                                                 \
@@ -259,6 +266,14 @@ extern name_generator_ptr global_name_gen;
  * @param node
  */
 void codegen(ASTNode_ptr node);
+
+/**
+ * @brief Prints declarations of all global variables from symtable at the
+ *        beginning of programe
+ *
+ * @param symtable Symtable that contains all global variables.
+ */
+void gen_all_glob_vars_dec(ST_Node *symtable);
 
 /**
  * @brief sets all name_generator_t attributes to default values
@@ -303,7 +318,6 @@ void gen_func_start(ASTNode_ptr node);
 
 /**
  * @brief This function is called at the end of function or when return node is encountered
- *
  */
 void gen_return();
 
@@ -378,6 +392,11 @@ void gen_if(ASTNode_ptr node);
  * @brief Handles beginning of else block of if statement
  */
 void gen_else();
+
+/**
+ * @brief Generates error labels at the end of the program.
+ */
+void gen_program_end();
 
 /**
  * @brief Creates a unique label name
@@ -476,5 +495,10 @@ void gen_eval_plus_op();
  * @brief Generates instructions to type check an operation that uses the range operator.
  */
 void gen_eval_range_op();
+
+/**
+ * @brief Helper function that generates all label names that are needed inside expression evaluation codes.
+ */
+void create_label_names(ASTNode_ptr exp_node);
 
 #endif

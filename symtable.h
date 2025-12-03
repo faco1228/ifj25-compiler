@@ -3,6 +3,11 @@
  * @author Martin Mezei (xmezeim00)
  *
  * @brief Implementation of symtable using AVL binary tree.
+ * 
+ * @version 0.1
+ * @date 2025-11-17
+ *
+ * @copyright Copyright (c) 2025
  */
 
 #ifndef _SYMTABLE_H_

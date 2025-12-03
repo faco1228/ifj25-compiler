@@ -3,6 +3,10 @@
  * @authors Samuel Facka (xfackas00),
  *          Kristian Cilling (xcillik00)
  * @brief Precedence syntax analyzer (PSA) for expressions.
+ * @version 0.1
+ * @date 2025-11-28
+ * 
+ * @copyright Copyright (c) 2025
  *
  * Supported:
  *  - arithmetic : + - * /
@@ -664,6 +668,7 @@ static void psa_reduce_fun(Stack *stack, token_ptr recognition_token)
         stack_free(stack);
         if (recognition_token)
             free_token(recognition_token);
+
         error_exit(ERR_SYNTACTIC);
     }
 
