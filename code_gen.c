@@ -743,7 +743,7 @@ void gen_program_end()
     printf("LABEL !ERROR_EXP_L\n");
     printf("EXIT int@26\n");
 
-    prinft("LABEL _program_end_\n");
+    printf("LABEL _program_end_\n");
 }
 
 /**
@@ -1631,6 +1631,10 @@ void gen_eval_range_op()
 
     printf("EQ LF@op_check2 LF@type2 string@int\n");
     printf("JUMPIFEQ !ERROR_EXP_L LF@op_check2 bool@false\n");
+
+    // check if left side is not the bigger number
+    printf("GT LF@op_check1 LF@op1 LF@op2\n");
+    printf("JUMPIFEQ !ERROR_EXP_L LF@op_check1 bool@true\n");
 
     // now i can just push the starting and ending iterator values back to the scope stack
     printf("PUSHS LF@op1\n");
