@@ -43,13 +43,18 @@ void warnings(int warning, const char *format, ...);
 void error_exit(int error);
 
 /**
- * @brief Register parser/PSA resources for automatic cleanup on error.
- * 
- * Tieto funkcie si bude volať parser (alebo main pred volaním parsera)
- * a `error_exit` ich pri chybe uvoľní.
+ * @brief Registers the AST root pointer for automatic cleanup on error.
  */
 void error_set_parser_ast_root(void *ast_root);
+
+/**
+ * @brief Registers the function symbol table pointer for automatic cleanup on error.
+ */
 void error_set_parser_func_symtable(void *func_symtable);
+
+/**
+ * @brief Registers the global variable symbol table pointer for automatic cleanup on error.
+ */
 void error_set_parser_glob_symtable(void *glob_var_symtable);
 
 #endif

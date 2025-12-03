@@ -13,8 +13,20 @@
 
 #include "built_in_funs.h"
 
-/******************** IFJ_read_str ********************/
+// Functions generating built-in functions in IFJcode25 code generation
 
+/**
+ * @brief Generates IFJcode25 implementation of built-in function IFJ_read_str.
+ *
+ * Behavior:
+ *  - Reads one string from stdin (`READ LF@retval string`)
+ *  - Pushes result on data stack
+ *  - Returns to caller
+ *
+ * Semantics:
+ *  - On EOF -> returns nil@nil
+ *  - Uses local frame for variable `retval`
+ */
 void gen_built_in_read_str() {
     // Prints the label where this function begins
     // The interpreter jumps here when calling IFJ_read_str
@@ -48,8 +60,20 @@ void gen_built_in_read_str() {
     // RETURN – returns to the call site (uses the call stack)
     printf("RETURN\n");
 }
-/******************** IFJ_read_num ********************/
 
+/**
+ * @brief Generates IFJcode25 implementation of built-in function IFJ_read_num.
+ *
+ * Behavior:
+ *  - Reads a numeric literal (float)
+ *  - If input is EOF/invalid -> returns nil
+ *  - If input is whole float (3.0) -> converts to int
+ *  - Else returns float unchanged
+ *
+ * Uses variables:
+ *  - retval – raw input value
+ *  - is_whole – bool indicating if float has zero decimal part
+ */
 void gen_built_in_read_num() {
     printf("\nLABEL IFJ_read_num\n");
     printf("CREATEFRAME\n");
@@ -80,8 +104,14 @@ void gen_built_in_read_num() {
     printf("RETURN\n");
 }
 
-/******************** IFJ_write ********************/
-
+/**
+ * @brief Generates IFJcode25 implementation of built-in function IFJ_write.
+ *
+ * Behavior:
+ *  - Pops one argument from data stack
+ *  - Prints it using WRITE instruction
+ *  - Pushes nil@nil as return value
+ */
 void gen_built_in_write() {
     printf("\nLABEL IFJ_write\n");
     printf("CREATEFRAME\n");
@@ -102,8 +132,15 @@ void gen_built_in_write() {
     printf("RETURN\n");
 }
 
-/******************** IFJ_floor(term : Num) ********************/
-
+/**
+ * @brief Generates IFJcode25 implementation of built-in function IFJ_floor.
+ *
+ * Behavior:
+ *  - Accepts Num (int or float)
+ *  - If int -> returns argument unchanged
+ *  - If float -> truncates fractional part using FLOAT2INT
+ *  - Otherwise -> runtime error !ERROR_ARG_L (exit 25)
+ */
 void gen_built_in_floor() {
     printf("\nLABEL IFJ_floor\n");
     printf("CREATEFRAME\n");
@@ -140,8 +177,20 @@ void gen_built_in_floor() {
     printf("JUMP !ERROR_ARG_L\n");
 }
 
-/******************** IFJ_str(term) ********************/
-
+/**
+ * @brief Generates IFJcode25 implementation of built-in function IFJ_str.
+ *
+ * Behavior:
+ *  - Converts argument to string:
+ *      STRING  -> unchanged
+ *      NIL     -> "null"
+ *      INT     -> decimal string
+ *      FLOAT   -> "n" or "n.n"
+ *      BOOL    -> "true" or "false"
+ *  - Otherwise -> !ERROR_ARG_L (25)
+ *
+ * Includes logic for formatting whole floats as integers.
+ */
 void gen_built_in_str() {
     printf("\nLABEL IFJ_str\n");
     printf("CREATEFRAME\n");
@@ -212,8 +261,14 @@ void gen_built_in_str() {
     printf("RETURN\n");
 }
 
-/******************** IFJ_length(s : String) ********************/
-
+/**
+ * @brief Generates IFJcode25 implementation of built-in function IFJ_length.
+ *
+ * Behavior:
+ *  - Accepts string
+ *  - Returns its length using STRLEN
+ *  - For invalid type -> !ERROR_ARG_L (25)
+ */
 void gen_built_in_length() {
     printf("\nLABEL IFJ_length\n");
     printf("CREATEFRAME\n");
@@ -240,8 +295,20 @@ void gen_built_in_length() {
     printf("JUMP !ERROR_ARG_L\n");
 }
 
-/******************** IFJ_substring(s : String, i : Num, j : Num) ********************/
-
+/**
+ * @brief Generates IFJcode25 implementation of built-in function IFJ_substring.
+ *
+ * Parameters:
+ *  - s -> String
+ *  - i -> Num (int or float, must be whole)
+ *  - j -> Num (int or float, must be whole)
+ *
+ * Behavior:
+ *  - Performs substring from i to j-1
+ *  - Validates bounds (returns nil on invalid interval)
+ *  - Validates numeric integer types (exit 26 on float with fraction)
+ *  - On type mismatch -> !ERROR_ARG_L (25)
+ */
 void gen_built_in_substring() {
     printf("\nLABEL IFJ_substring\n");
     printf("CREATEFRAME\n");
@@ -370,8 +437,17 @@ void gen_built_in_substring() {
     printf("JUMP !ERROR_EXP_L\n");
 }
 
-/******************** IFJ_strcmp(s1 : String, s2 : String) ********************/
-
+/**
+ * @brief Generates IFJcode25 implementation of built-in function IFJ_strcmp.
+ *
+ * Behavior:
+ *  - Lexicographically compares two strings
+ *  - Returns:
+ *      -1 if s1 <  s2
+ *       0 if s1 == s2
+ *       1 if s1 >  s2
+ *  - Type mismatch → !ERROR_ARG_L (25)
+ */
 void gen_built_in_strcmp() {
     printf("\nLABEL IFJ_strcmp\n");
     printf("CREATEFRAME\n");
@@ -455,8 +531,16 @@ void gen_built_in_strcmp() {
     printf("JUMP !ERROR_ARG_L\n");
 }
 
-/******************** IFJ_ord(s : String, i : Num) ********************/
-
+/**
+ * @brief Generates IFJcode25 built-in function IFJ_ord.
+ *
+ * Behavior:
+ *  - Accepts (string s, Num i)
+ *  - i must be integer (else exit 26)
+ *  - If index valid -> return ASCII code of char at s[i]
+ *  - Else return 0
+ *  - Type mismatch -> exit 25
+ */
 void gen_built_in_ord() {
     printf("\nLABEL IFJ_ord\n");
     printf("CREATEFRAME\n");
@@ -528,8 +612,15 @@ void gen_built_in_ord() {
     printf("JUMP !ERROR_EXP_L\n");
 }
 
-/******************** IFJ_chr(i : Num) ********************/
-
+/**
+ * @brief Generates IFJcode25 built-in function IFJ_chr.
+ *
+ * Behavior:
+ *  - Converts integer ASCII code to character
+ *  - Accepts Num (int/float, must be whole)
+ *  - Type mismatch -> exit 25
+ *  - Noninteger -> exit 26
+ */
 void gen_built_in_chr() {
     printf("\nLABEL IFJ_chr\n");
     printf("CREATEFRAME\n");
