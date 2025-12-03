@@ -222,40 +222,9 @@ bool main_exists()
 void args_exist(ASTNode_ptr call_node)
 {
     unsigned args_count = call_node->data.function_call.param_count;
-    Key *key = NULL;
 
     for (unsigned idx = 0; idx < args_count; idx++)
-    {
-        if (call_node->children[idx]->type == NODE_CALL) // function call passed as an argument of the function call
-        {
-            handle_function_call(call_node);
-        }
-        else if (call_node->children[idx]->type == NODE_IDENTIFIER)
-        {
-            key = st_create_variable_key(call_node->children[idx]->data.identifier.name);
-
-            if (!IS_GLOB_VAR(key->name)) // only local vars get name mangled
-            {
-                if (!verify_glob_var_existence(key))
-                {
-                    key_dispose(key);
-                    error_exit(ERR_SEM_UNDEFINED);
-                }
-
-                call_node->children[idx]->data.identifier.code_gen_name = mangle_name(key->name, current_block_id);
-            }
-            else
-            {
-                if (!verify_var_existence(key))
-                {
-                    key_dispose(key);
-                    error_exit(ERR_SEM_UNDEFINED);
-                }
-            }
-
-            key_dispose(key);
-        }
-    }
+        exp_analysis(call_node->children[idx]);
 }
 
 /**
