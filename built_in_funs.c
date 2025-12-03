@@ -56,11 +56,25 @@ void gen_built_in_read_num() {
     printf("PUSHFRAME\n");
 
     printf("DEFVAR LF@retval\n");
+    printf("DEFVAR LF@is_whole\n");
     
     // Read number as float 
     // Returns nil@nil if input is not a valid number or EOF
     printf("READ LF@retval float\n");
 
+    // Check if null (EOF or invalid input)
+    printf("JUMPIFEQ _IFJ_read_num_return LF@retval nil@nil\n");
+
+    // Check if number is whole (no fractional part)
+    printf("ISINT LF@is_whole LF@retval\n");
+
+    // If NOT whole, return as float
+    printf("JUMPIFEQ _IFJ_read_num_return LF@is_whole bool@false\n");
+
+    // If whole, convert to int
+    printf("FLOAT2INT LF@retval LF@retval\n");
+
+    printf("\nLABEL _IFJ_read_num_return\n");
     printf("PUSHS LF@retval\n");
     printf("POPFRAME\n");
     printf("RETURN\n");
