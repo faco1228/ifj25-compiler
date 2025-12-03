@@ -60,11 +60,8 @@ code_gen.o: code_gen.c symtable.h ast.h code_gen.h error.h built_in_funs.h globa
 main.o: compiler_main.c parser.h semantic_analysis.h scope_stack.h symtable.h global_structures.h code_gen.h compiler_main.h ast.h error.h
 	$(CC) $(CFLAGS) -c compiler_main.c -o main.o
 
-# od tadialto nizsie to pred odovzdanim treba pre istotu zakomentovat 
-run: compiler
-	./compiler < test.txt > frantisek.ifjcode || echo "Compiler exited with code $$?"
-
-#	valgrind --leak-check=full --show-leak-kinds=all
+#run: compiler
+#	./compiler
  
-clean:
-	rm -f *.o compiler
+#clean:
+#	rm -f *.o compiler
